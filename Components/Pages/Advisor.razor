@@ -1,0 +1,96 @@
+@page "/advisor"
+@attribute [Authorize]
+@inject FarmStateService State
+@implements IDisposable
+
+<PageTitle>Cố vấn kỹ thuật · AquaOps</PageTitle>
+
+<AuthGate>
+    <section class="page-stack">
+        <header class="page-heading">
+            <div><span class="eyebrow">PHÂN TÍCH THEO QUY TẮC</span><h1>Cố vấn kỹ thuật ao nuôi</h1><p>Đánh giá minh bạch từ chỉ số hiện tại, không gửi dữ liệu ra dịch vụ bên ngoài.</p></div>
+            <div class="heading-actions pond-filter">
+                <label>Ao phân tích
+                    <select value="@selectedPondId" @onchange="ChangePond">
+                        @foreach (var pond in State.Ponds)
+                        {
+                            <option value="@pond.Id">@pond.Name</option>
+                        }
+                    </select>
+                </label>
+            </div>
+        </header>
+
+        <div class="advisor-layout">
+            <aside class="panel prompt-library">
+                <div class="panel-heading"><div><span class="eyebrow">CÂU HỎI MẪU</span><h2>Tình huống thường gặp</h2></div></div>
+                @foreach (var sample in Samples)
+                {
+                    <button @onclick="() => UseSample(sample)"><span>→</span><p>@sample</p></button>
+                }
+                <div class="advisor-disclaimer"><strong>Phạm vi bản demo</strong><p>Hệ thống chỉ hỗ trợ sắp xếp ưu tiên kiểm tra từ dữ liệu mô phỏng. Không tự đưa ra liều lượng hóa chất.</p></div>
+            </aside>
+
+            <section class="panel advisor-main">
+                <div class="advisor-status">
+                    <div class="advisor-avatar">✦</div>
+                    <div><span class="status-pill success">RULE ENGINE ONLINE</span><h2>@CurrentPond?.Name</h2><p>DO @Telemetry.DissolvedOxygen.ToString("N2", Vi) · pH @Telemetry.Ph.ToString("N2", Vi) · NH₃ @Telemetry.Ammonia.ToString("N3", Vi)</p></div>
+                </div>
+                <label class="advisor-input">Câu hỏi hoặc tình trạng quan sát được<textarea rows="5" @bind="prompt" placeholder="Ví dụ: DO giảm vào sáng sớm, cần kiểm tra theo thứ tự nào?"></textarea></label>
+                <button class="button primary full large" @onclick="Analyze">✦ Phân tích dữ liệu hiện tại</button>
+
+                <div class="advisor-output @(string.IsNullOrWhiteSpace(result) ? "empty" : "")">
+                    @if (string.IsNullOrWhiteSpace(result))
+                    {
+                        <div><span>✦</span><h3>Chưa có kết quả phân tích</h3><p>Nhập câu hỏi hoặc chọn tình huống mẫu, sau đó bấm nút phân tích.</p></div>
+                    }
+                    else
+                    {
+                        <pre>@result</pre>
+                    }
+                </div>
+            </section>
+        </div>
+    </section>
+</AuthGate>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private string selectedPondId = string.Empty;
+    private string prompt = string.Empty;
+    private string result = string.Empty;
+
+    private readonly string[] Samples =
+    [
+        "Oxy hòa tan giảm vào sáng sớm, nên kiểm tra và xử lý theo thứ tự nào?",
+        "Sau mưa lớn pH giảm nhanh, cần kiểm tra những thông số liên quan nào?",
+        "NH₃ tăng nhưng tôm vẫn bắt mồi, nên ưu tiên thao tác gì?",
+        "Mực nước thấp và nhiệt độ dao động, cần kiểm tra hệ thống nào trước?"
+    ];
+
+    private Pond? CurrentPond => State.Ponds.FirstOrDefault(p => p.Id == selectedPondId);
+    private TelemetryData Telemetry => State.GetTelemetry(selectedPondId);
+
+    protected override void OnInitialized()
+    {
+        selectedPondId = State.SelectedPondId;
+        State.Changed += HandleChanged;
+    }
+
+    private void ChangePond(ChangeEventArgs args)
+    {
+        selectedPondId = args.Value?.ToString() ?? selectedPondId;
+        State.SelectPond(selectedPondId);
+        result = string.Empty;
+    }
+
+    private void UseSample(string sample)
+    {
+        prompt = sample;
+        Analyze();
+    }
+
+    private void Analyze() => result = State.AnalyzePond(selectedPondId, prompt);
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

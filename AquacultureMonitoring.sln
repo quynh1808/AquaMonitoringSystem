@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AquacultureMonitoring", "AquacultureMonitoring.csproj", "{7346B7A7-C949-4D11-A0D2-E58CA7D9B57B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AquacultureMonitoring.Tests", "Tests\AquacultureMonitoring.Tests.csproj", "{0A073DDC-D8A0-4997-8FA7-9A0A2FCE0672}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7346B7A7-C949-4D11-A0D2-E58CA7D9B57B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7346B7A7-C949-4D11-A0D2-E58CA7D9B57B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7346B7A7-C949-4D11-A0D2-E58CA7D9B57B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7346B7A7-C949-4D11-A0D2-E58CA7D9B57B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A073DDC-D8A0-4997-8FA7-9A0A2FCE0672}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A073DDC-D8A0-4997-8FA7-9A0A2FCE0672}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A073DDC-D8A0-4997-8FA7-9A0A2FCE0672}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A073DDC-D8A0-4997-8FA7-9A0A2FCE0672}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

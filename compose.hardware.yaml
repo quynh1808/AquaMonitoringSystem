@@ -1,0 +1,8 @@
+# Optional Ubuntu override for a directly attached Modbus RTU USB/RS-485 adapter.
+# Enable it through COMPOSE_FILE only after the stable /dev/serial/by-id path is known.
+services:
+  aquaops:
+    devices:
+      - "${MODBUS_RTU_DEVICE:?set a stable /dev/serial/by-id path}:/dev/ttyUSB0"
+    group_add:
+      - "${DIALOUT_GID:-20}"

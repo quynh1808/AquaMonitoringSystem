@@ -1,0 +1,213 @@
+@page "/dashboard"
+@attribute [Authorize]
+@inject FarmStateService State
+@inject DashboardAnalyticsService Analytics
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Dashboard tổng · AquaOps</PageTitle>
+<AuthGate>
+<section class="page-stack ams-dashboard-page">
+    <header class="page-heading viot-heading ams-command-heading">
+        <div>
+            <span class="eyebrow">AQUACULTURE OPERATIONS COMMAND CENTER</span>
+            <h1>Dashboard điều hành toàn bộ ao nuôi</h1>
+            <p>Tình trạng hiện tại, rủi ro cần xử lý và tiến độ vận hành của toàn trại.</p>
+            <div class="ams-source-line">
+                <span class="ams-source-badge @(Snapshot.IsSimulation ? "simulation" : "real")">@(Snapshot.IsSimulation ? "SIMULATION + RUNTIME" : "LIVE DATA")</span>
+                <span>@Snapshot.DataSourceLabel</span>
+                <span>Cập nhật: @Snapshot.GeneratedAtLocal.ToString("dd/MM/yyyy HH:mm:ss")</span>
+            </div>
+        </div>
+        <div class="heading-actions">
+            <button class="button ghost" @onclick="Refresh">↻ Đồng bộ</button>
+            <AuthorizeView Roles="Administrator,FarmManager"><button class="button primary" @onclick="() => showAddPond = true">＋ Thêm ao nuôi</button></AuthorizeView>
+        </div>
+    </header>
+
+    <div class="ams-kpi-grid">
+        <DashboardKpiCard Label="AO NUÔI ĐANG QUẢN LÝ" Value="@Snapshot.TotalPonds.ToString("N0", Vi)" Unit="ao" Icon="≈" Tone="blue"
+                          Detail="@($"{Snapshot.ActiveCycles} vụ đang hoạt động · {Snapshot.TotalAreaM2.ToString("N0", Vi)} m²")" Meta="@($"{Snapshot.HarvestSoonCount} ao sắp thu hoạch")" Href="/analytics/ponds" />
+        <DashboardKpiCard Label="TUỔI VỤ TRUNG VỊ" Value="@Snapshot.MedianCultureAgeDays.ToString("N0", Vi)" Unit="ngày" Icon="◷" Tone="violet"
+                          Detail="@($"Khoảng {Snapshot.MinimumCultureAgeDays}–{Snapshot.MaximumCultureAgeDays} ngày")" Meta="Phân bố giai đoạn" Href="/analytics/ponds" />
+        <DashboardKpiCard Label="SINH KHỐI ƯỚC TÍNH" Value="@((Snapshot.EstimatedBiomassKg / 1000d).ToString("N2", Vi))" Unit="tấn" Icon="◉" Tone="green"
+                          Detail="@BiomassGrowthDetail" Meta="@BiomassSampleText" Href="/analytics/growth" />
+        <DashboardKpiCard Label="CẢNH BÁO ĐANG HOẠT ĐỘNG" Value="@Snapshot.ActiveAlerts.ToString("N0", Vi)" Unit="cảnh báo" Icon="!" Tone="red"
+                          Detail="@($"{Snapshot.CriticalAlerts} nghiêm trọng · {Snapshot.UnacknowledgedAlerts} chưa xác nhận")" Meta="Cần xử lý" Href="/analytics/risks" />
+        <DashboardKpiCard Label="CHẤT LƯỢNG NƯỚC TOÀN TRẠI" Value="@Snapshot.AverageDo.ToString("N2", Vi)" Unit="mg/L DO" Icon="⌁" Tone="cyan"
+                          Detail="@($"Thấp nhất {Snapshot.MinimumDo.ToString("N2", Vi)} · {Snapshot.PondsBelowDoWarning} ao dưới ngưỡng")" Meta="@($"{Snapshot.ValidDoPonds}/{Snapshot.TotalPonds} ao hợp lệ")" Href="/analytics/water-quality" />
+        <DashboardKpiCard Label="THIẾT BỊ VÀ VẬN HÀNH" Value="@Snapshot.RunningDevices.ToString("N0", Vi)" Unit="đang chạy" Icon="⚙" Tone="amber"
+                          Detail="@($"{Snapshot.FaultDevices} lỗi · {Snapshot.OfflineDevices} offline · {Snapshot.AutoDevices} AUTO")" Meta="@($"Tổng {Snapshot.TotalDevices} thiết bị")" Href="/analytics/equipment" />
+        <DashboardKpiCard Label="NĂNG LƯỢNG VÀ PHỤ TẢI" Value="@Snapshot.CurrentPowerKw.ToString("N1", Vi)" Unit="kW" Icon="⚡" Tone="amber"
+                          Detail="@($"{Snapshot.EnergyTodayKwh.ToString("N0", Vi)} kWh hôm nay · đỉnh {Snapshot.PeakPowerTodayKw.ToString("N1", Vi)} kW")" Meta="@($"{Snapshot.EnergyMonthKwh.ToString("N0", Vi)} kWh tháng")" Href="/analytics/equipment" />
+        <DashboardKpiCard Label="THỨC ĂN HÔM NAY" Value="@Snapshot.FeedTodayKg.ToString("N0", Vi)" Unit="kg" Icon="◆" Tone="green"
+                          Detail="@($"Kế hoạch {Snapshot.FeedPlanTodayKg.ToString("N0", Vi)} kg · đạt {FeedCompletionPercent}%")" Meta="@($"{Snapshot.FeedCycleTotalKg.ToString("N0", Vi)} kg từ đầu vụ")" Href="/analytics/feed" />
+    </div>
+
+    <div class="ams-operational-strip">
+        <a href="/analytics/risks"><span class="strip-icon data">⌁</span><div><small>CHẤT LƯỢNG DỮ LIỆU</small><strong>@Snapshot.DataCompletenessPercent.ToString("N1", Vi)%</strong><p>@Snapshot.OnlineSensors/@Snapshot.TotalSensors cảm biến online · @Snapshot.CalibrationOverdueSensors quá hạn hiệu chuẩn</p></div></a>
+        <a href="/analytics/risks"><span class="strip-icon task">✓</span><div><small>CÔNG VIỆC HÔM NAY</small><strong>@Snapshot.CompletedTasks/@Snapshot.TasksToday</strong><p>@Snapshot.OverdueTasks công việc quá hạn cần xử lý</p></div></a>
+        <a href="/analytics/risks"><span class="strip-icon infra">▣</span><div><small>HẠ TẦNG HỆ THỐNG</small><strong>@OnlineInfrastructure/@Snapshot.Infrastructure.Count online</strong><p>@InfrastructureAttention thành phần cần theo dõi</p></div></a>
+        <article class="ams-weather-strip @Snapshot.Weather.RiskLevel"><span class="strip-icon weather">☁</span><div><small>THỜI TIẾT TẠI TRẠI</small><strong>@Snapshot.Weather.AirTemperatureC.ToString("N1", Vi) °C · @Snapshot.Weather.HumidityPercent.ToString("N0", Vi)%</strong><p>@Snapshot.Weather.AlertTitle</p></div></article>
+    </div>
+
+    <section class="panel ams-panel ams-live-section">
+        <div class="panel-heading ams-live-heading">
+            <div><span class="eyebrow">LIVE MONITORING</span><h2>Bản đồ trạng thái ao nuôi</h2><p>Giá trị biến thiên được ưu tiên; thông tin cố định hiển thị ở cấp tóm tắt.</p></div>
+            <span class="live-badge"><i></i> LIVE · @Snapshot.RefreshSeconds SEC</span>
+        </div>
+        <div class="ams-filter-bar">
+            <label class="ams-search"><span>⌕</span><input @bind="searchText" placeholder="Tìm tên ao hoặc đối tượng nuôi" /></label>
+            <select @bind="selectedSpecies"><option value="">Tất cả đối tượng nuôi</option>@foreach (var species in SpeciesOptions) { <option value="@species">@species</option> }</select>
+            <select @bind="selectedStatus"><option value="">Tất cả trạng thái</option><option value="active">Đang nuôi</option><option value="preparing">Chuẩn bị</option><option value="maintenance">Bảo trì</option><option value="inactive">Không hoạt động</option></select>
+            <label class="ams-check"><input type="checkbox" @bind="onlyAttention" /> Chỉ ao cần chú ý</label>
+            <span>@FilteredPonds.Count/@Snapshot.Ponds.Count ao</span>
+        </div>
+        <div class="ams-pond-grid">
+            @foreach (var pond in FilteredPonds)
+            {
+                <PondLiveCard Pond="pond" Analytics="Analytics" />
+            }
+            @if (FilteredPonds.Count == 0)
+            {
+                <div class="empty-state"><div class="empty-icon">⌕</div><h3>Không có ao phù hợp bộ lọc</h3><p>Thay đổi từ khóa hoặc trạng thái để hiển thị lại.</p></div>
+            }
+            <AuthorizeView Roles="Administrator,FarmManager"><button class="ams-add-pond-card" @onclick="() => showAddPond = true"><span>＋</span><strong>Thêm ao nuôi</strong><small>Khởi tạo workspace quản lý mới</small></button></AuthorizeView>
+        </div>
+    </section>
+
+    <section class="ams-analytics-grid">
+        <article class="panel ams-panel ams-heatmap-panel">
+            <div class="panel-heading">
+                <div><span class="eyebrow">WATER QUALITY RISK MAP</span><h2>Heatmap chất lượng nước toàn trại</h2><p>Không dùng giá trị trung bình để che khuất ao đang có rủi ro.</p></div>
+                <a href="/analytics/water-quality">Phân tích chi tiết →</a>
+            </div>
+            <WaterQualityHeatmap Rows="Snapshot.WaterQualityHeatmap" />
+            <div class="ams-heatmap-legend"><span class="normal">Bình thường</span><span class="warning">Cảnh báo</span><span class="critical">Nghiêm trọng</span><span class="no-data">Không có dữ liệu</span></div>
+        </article>
+
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">PRODUCTION STAGES</span><h2>Phân bố giai đoạn nuôi</h2></div><a href="/analytics/ponds">Xem vụ nuôi →</a></div>
+            <div class="ams-category-bars">
+                @foreach (var item in Snapshot.StageDistribution)
+                {
+                    <div><span><strong>@item.Label</strong><small>@item.Detail</small></span><i><b style="width:@CategoryPercent(item.Value)%"></b></i></div>
+                }
+            </div>
+            <div class="ams-species-list">
+                @foreach (var item in Snapshot.SpeciesDistribution)
+                {
+                    <span><strong>@item.Label</strong><small>@item.Value.ToString("N0", Vi) ao · @item.Detail</small></span>
+                }
+            </div>
+        </article>
+
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">BIOMASS & FEED</span><h2>Biomass ước tính 7 ngày</h2></div><a href="/analytics/growth">Tăng trưởng →</a></div>
+            <AnalyticsBarChart Points="Snapshot.BiomassHistory" Unit="kg" Digits="0" AriaLabel="Biểu đồ Biomass bảy ngày" />
+        </article>
+
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">ENERGY ANALYTICS</span><h2>Điện năng theo ngày</h2></div><a href="/analytics/equipment">Thiết bị & điện →</a></div>
+            <AnalyticsBarChart Points="Snapshot.EnergyHistory" Unit="kWh" Digits="0" AriaLabel="Biểu đồ điện năng bảy ngày" />
+        </article>
+
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">ALARM TREND</span><h2>Cảnh báo phát sinh 7 ngày</h2></div><a href="/analytics/risks">Rủi ro →</a></div>
+            <AnalyticsBarChart Points="Snapshot.AlertHistory" Unit="" Digits="0" ShowSecondary="true" AriaLabel="Biểu đồ cảnh báo bảy ngày" />
+            <div class="ams-series-legend"><span class="primary">Cảnh báo</span><span class="secondary">Nghiêm trọng</span></div>
+        </article>
+
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">DATA AVAILABILITY</span><h2>Độ sẵn sàng cảm biến</h2></div><a href="/analytics/risks">Nguồn dữ liệu →</a></div>
+            <AnalyticsBarChart Points="Snapshot.SensorAvailabilityHistory" Unit="%" Digits="1" AriaLabel="Biểu đồ độ sẵn sàng cảm biến" />
+        </article>
+    </section>
+
+    <section class="ams-operations-grid">
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">ACTION CENTER</span><h2>Công việc vận hành hôm nay</h2></div><span>@Snapshot.CompletedTasks/@Snapshot.TasksToday hoàn thành</span></div>
+            <div class="ams-task-list">
+                @foreach (var task in Snapshot.TodayTasks.Take(6))
+                {
+                    <div class="@TaskClass(task)"><span>@TaskIcon(task)</span><div><strong>@task.Title</strong><small>@task.PondName · @task.AssignedTo</small></div><time>@task.DueAtLocal.ToString("HH:mm")</time></div>
+                }
+            </div>
+        </article>
+        <article class="panel ams-panel">
+            <div class="panel-heading"><div><span class="eyebrow">INFRASTRUCTURE</span><h2>Sức khỏe hệ thống</h2></div><a href="/health">Health endpoint →</a></div>
+            <div class="ams-infrastructure-list">
+                @foreach (var item in Snapshot.Infrastructure)
+                {
+                    <div><i class="@item.Status"></i><span><strong>@item.Name</strong><small>@item.Detail</small></span><b>@(item.LatencyMs > 0 ? $"{item.LatencyMs} ms" : item.Status.ToUpperInvariant())</b></div>
+                }
+            </div>
+        </article>
+        <article class="panel ams-panel ams-weather-panel @Snapshot.Weather.RiskLevel">
+            <div class="panel-heading"><div><span class="eyebrow">LOCAL WEATHER</span><h2>@Snapshot.Weather.Condition</h2></div><span>@Snapshot.Weather.StationName</span></div>
+            <div class="ams-weather-metrics"><span><small>Nhiệt độ</small><strong>@Snapshot.Weather.AirTemperatureC.ToString("N1", Vi) °C</strong></span><span><small>Độ ẩm</small><strong>@Snapshot.Weather.HumidityPercent.ToString("N0", Vi)%</strong></span><span><small>Mưa hôm nay</small><strong>@Snapshot.Weather.RainfallMmToday.ToString("N1", Vi) mm</strong></span><span><small>Gió</small><strong>@Snapshot.Weather.WindSpeedMs.ToString("N1", Vi) m/s</strong></span></div>
+            <div class="ams-weather-alert"><strong>@Snapshot.Weather.AlertTitle</strong><p>@Snapshot.Weather.AlertDetail</p></div>
+        </article>
+    </section>
+
+
+</section>
+<AddPondModal @bind-IsOpen="showAddPond" OnAdded="HandlePondAdded" />
+</AuthGate>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private DashboardSnapshot Snapshot { get; set; } = new();
+    private bool showAddPond;
+    private string searchText = string.Empty;
+    private string selectedSpecies = string.Empty;
+    private string selectedStatus = string.Empty;
+    private bool onlyAttention;
+
+    private IReadOnlyList<string> SpeciesOptions => Snapshot.Ponds.Select(x => x.Species).Distinct().OrderBy(x => x).ToList();
+    private List<DashboardPondSummary> FilteredPonds => Snapshot.Ponds
+        .Where(x => string.IsNullOrWhiteSpace(searchText) || x.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) || x.Species.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(selectedSpecies) || x.Species.Equals(selectedSpecies, StringComparison.OrdinalIgnoreCase))
+        .Where(x => string.IsNullOrWhiteSpace(selectedStatus) || x.Status.Equals(selectedStatus, StringComparison.OrdinalIgnoreCase))
+        .Where(x => !onlyAttention || x.ActiveAlerts > 0 || x.HealthStatus != "good" || !x.Telemetry.IsOnline)
+        .OrderByDescending(x => x.ActiveAlerts > 0)
+        .ThenBy(x => x.HealthScore)
+        .ToList();
+
+    private int FeedCompletionPercent => Snapshot.FeedPlanTodayKg <= 0 ? 0 : (int)Math.Round(Math.Clamp(Snapshot.FeedTodayKg / Snapshot.FeedPlanTodayKg * 100d, 0, 999));
+    private int OnlineInfrastructure => Snapshot.Infrastructure.Count(x => x.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
+    private int InfrastructureAttention => Snapshot.Infrastructure.Count - OnlineInfrastructure;
+    private string ConfidenceLabel => Snapshot.BiomassConfidence switch { "high" => "cao", "low" => "thấp", "unknown" => "chưa xác định", _ => "trung bình" };
+    private string BiomassGrowthDetail => $"+{Snapshot.BiomassChangeKg.ToString("N0", Vi)} kg/ngày · tin cậy {ConfidenceLabel}";
+    private string BiomassSampleText => Snapshot.LatestBiomassSampleAtLocal.HasValue ? $"Mẫu {Snapshot.LatestBiomassSampleAtLocal.Value:dd/MM HH:mm}" : "Chưa có mẫu";
+
+    protected override void OnInitialized()
+    {
+        Snapshot = Analytics.BuildSnapshot();
+        State.Changed += Changed;
+    }
+
+    private void Refresh()
+    {
+        State.Tick();
+        Snapshot = Analytics.BuildSnapshot();
+    }
+
+    private void Changed() => InvokeAsync(() =>
+    {
+        Snapshot = Analytics.BuildSnapshot();
+        StateHasChanged();
+    });
+
+    private string CategoryPercent(double value)
+    {
+        var max = Math.Max(1, Snapshot.StageDistribution.Max(x => x.Value));
+        return (value / max * 100d).ToString("0.##", CultureInfo.InvariantCulture);
+    }
+
+    private static string TaskClass(DashboardTaskItem task) => task.Status == "completed" ? "completed" : task.IsOverdue ? "overdue" : "pending";
+    private static string TaskIcon(DashboardTaskItem task) => task.Status == "completed" ? "✓" : task.IsOverdue ? "!" : "◷";
+    private void OpenPond(string id) { State.SelectPond(id); Navigation.NavigateTo($"/pond/{id}/overview"); }
+    private Task HandlePondAdded(Pond pond) { OpenPond(pond.Id); return Task.CompletedTask; }
+    public void Dispose() => State.Changed -= Changed;
+}

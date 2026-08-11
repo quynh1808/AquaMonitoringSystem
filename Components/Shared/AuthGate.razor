@@ -1,0 +1,6 @@
+@inject NavigationManager Navigation
+<AuthorizeView>
+    <Authorized>@ChildContent</Authorized>
+    <NotAuthorized><section class="auth-gate panel"><div class="auth-gate-icon">🔒</div><div><span class="eyebrow">KHU VỰC ĐƯỢC BẢO VỆ</span><h1>Cần đăng nhập để mở chức năng này</h1><p>Hệ thống sử dụng cookie bảo mật, role và phạm vi ao được kiểm tra tại server.</p><a class="button primary" href="@LoginUrl">Đăng nhập hệ thống</a></div></section></NotAuthorized>
+</AuthorizeView>
+@code{[Parameter]public RenderFragment? ChildContent{get;set;}private string LoginUrl=>$"/login?returnUrl={Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery)}";}

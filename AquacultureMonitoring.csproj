@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- App_Data used to contain a nested publish repository. Never include generated releases
+         as project content; container images are now produced by the .NET SDK. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);App_Data/**;Tests/**</DefaultItemExcludes>
+    <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
+    <ContainerRepository>aquaops</ContainerRepository>
+    <ContainerPort>8080</ContainerPort>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.10.0" />
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PublishContainer creates the OCI image directly; no Dockerfile is part of the source. -->
+    <ContainerEnvironmentVariable Include="ASPNETCORE_HTTP_PORTS" Value="8080" />
+    <None Update="Config/**/*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="mosquitto/**/*.conf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

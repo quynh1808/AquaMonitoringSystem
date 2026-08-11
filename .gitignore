@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.vscode/
+data/
+*.user
+*.suo
+.env
+.data-protection-keys/
+secrets/
+backups/
+TestResults/
+App_Data/

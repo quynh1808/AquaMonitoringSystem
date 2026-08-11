@@ -1,0 +1,129 @@
+@page "/"
+@attribute [AllowAnonymous]
+@layout LandingLayout
+@inject FarmStateService State
+@inject NavigationManager Navigation
+
+<PageTitle>AquaOps · Giám sát thủy sản IoT</PageTitle>
+
+<header class="landing-header">
+    <a class="brand" href="#top">
+        <span class="brand-mark">≈</span>
+        <span><strong>AquaOps</strong><small>IoT Aquaculture</small></span>
+    </a>
+    <nav>
+        <a href="#about">Giới thiệu</a>
+        <a href="#solutions">Giải pháp</a>
+        <a href="#workflow">Quy trình</a>
+        <a href="#contact">Liên hệ</a>
+    </nav>
+    <div class="landing-actions">
+        <button class="icon-button" @onclick="State.ToggleTheme">@(State.IsDarkMode ? "☀" : "☾")</button>
+        <AuthorizeView>
+            <Authorized><button class="button primary" @onclick="OpenDashboard">Mở dashboard</button></Authorized>
+            <NotAuthorized><a class="button primary" href="/login">Đăng nhập</a></NotAuthorized>
+        </AuthorizeView>
+    </div>
+</header>
+
+<main id="top" class="landing-page">
+    <section class="hero-section">
+        <div class="hero-copy">
+            <span class="eyebrow"><i></i> GIÁM SÁT VÙNG NUÔI THEO THỜI GIAN THỰC</span>
+            <h1>Dữ liệu rõ ràng.<br /><em>Phản ứng đúng lúc.</em></h1>
+            <p>AquaOps tập trung dữ liệu cảm biến, thiết bị rơ-le, nhật ký cho ăn và cảnh báo vận hành trong một giao diện responsive cho máy tính lẫn điện thoại.</p>
+            <div class="hero-actions">
+                <button class="button primary large" @onclick="StartExperience">Trải nghiệm hệ thống <span>→</span></button>
+                <a class="button ghost large" href="#solutions">Xem chức năng</a>
+            </div>
+            <div class="trust-row">
+                <span><b>8 giây</b><small>Chu kỳ mô phỏng</small></span>
+                <span><b>6 chỉ số</b><small>Quan trắc mỗi ao</small></span>
+                <span><b>24/7</b><small>Giám sát liên tục</small></span>
+            </div>
+        </div>
+
+        <div class="hero-console">
+            <div class="console-top">
+                <div><i></i><span>Farm Operations Center</span></div>
+                <small>LIVE</small>
+            </div>
+            <div class="console-kpis">
+                <article><span>Tổng ao</span><strong>@State.Ponds.Count</strong><small>@State.Ponds.Sum(p => p.Area).ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) m²</small></article>
+                <article><span>Cảnh báo</span><strong class="danger-text">@ActiveAlerts</strong><small>chưa xử lý</small></article>
+                <article><span>Thiết bị bật</span><strong>@RunningDevices/@State.Devices.Count</strong><small>@PowerLoad.ToString("N1", CultureInfo.GetCultureInfo("vi-VN")) kW tải</small></article>
+            </div>
+            @foreach (var pond in State.Ponds.Take(3))
+            {
+                var tel = State.GetTelemetry(pond.Id);
+                var doUnsafe = !State.IsMetricSafe("dissolvedOxygen", tel.DissolvedOxygen);
+                <article class="console-pond">
+                    <div><span class="status-dot @(doUnsafe ? "danger" : "")"></span><strong>@pond.Name</strong></div>
+                    <div class="console-metrics">
+                        <span><small>DO</small><b>@tel.DissolvedOxygen.ToString("N2", CultureInfo.GetCultureInfo("vi-VN"))</b></span>
+                        <span><small>pH</small><b>@tel.Ph.ToString("N2", CultureInfo.GetCultureInfo("vi-VN"))</b></span>
+                        <span><small>Nhiệt</small><b>@tel.Temperature.ToString("N1", CultureInfo.GetCultureInfo("vi-VN"))°</b></span>
+                    </div>
+                </article>
+            }
+            <div class="console-foot"><span>● Interactive Server</span><small>Cập nhật: @DateTime.Now.ToString("HH:mm:ss")</small></div>
+        </div>
+    </section>
+
+    <section id="about" class="landing-section split-section">
+        <div>
+            <span class="eyebrow">TỪ DỮ LIỆU ĐẾN HÀNH ĐỘNG</span>
+            <h2>Một trung tâm điều hành cho toàn bộ vùng nuôi</h2>
+        </div>
+        <p>Ứng dụng được thiết kế lại bằng Blazor Web App. Mỗi thay đổi thiết bị, ao nuôi, nhật ký và cảnh báo được quản lý trong C# phía máy chủ và lưu trong MongoDB; nguồn mô phỏng và phần cứng sử dụng cùng một pipeline ingest.</p>
+    </section>
+
+    <section id="solutions" class="landing-section">
+        <div class="section-heading centered">
+            <span class="eyebrow">CÁC NHÓM CHỨC NĂNG</span>
+            <h2>Đủ công cụ cho một vòng vận hành ao nuôi</h2>
+            <p>Giao diện ưu tiên thông tin quan trọng, hạn chế thao tác thừa và vẫn sử dụng tốt trên màn hình nhỏ.</p>
+        </div>
+        <div class="feature-grid">
+            <article><span>01</span><div class="feature-icon">▦</div><h3>Dashboard đa ao</h3><p>Tổng hợp diện tích, tải điện, số thiết bị hoạt động và tình trạng từng ao.</p></article>
+            <article><span>02</span><div class="feature-icon">⌁</div><h3>Quan trắc cảm biến</h3><p>Theo dõi DO, pH, nhiệt độ, độ mặn, NH₃ và mực nước bằng thẻ số và biểu đồ.</p></article>
+            <article><span>03</span><div class="feature-icon">⚡</div><h3>Điều khiển thiết bị</h3><p>Bật/tắt rơ-le, đổi chế độ thủ công hoặc tự động và ghi lại lịch sử vận hành.</p></article>
+            <article><span>04</span><div class="feature-icon">!</div><h3>Cảnh báo ngưỡng</h3><p>Tạo cảnh báo theo thông số, đề xuất bước kiểm tra và đánh dấu đã xử lý.</p></article>
+            <article><span>05</span><div class="feature-icon">◉</div><h3>Nhật ký cho ăn</h3><p>Ghi khối lượng, loại thức ăn, người thực hiện và ghi chú tại từng ao.</p></article>
+            <article><span>06</span><div class="feature-icon">✦</div><h3>Phân tích kỹ thuật</h3><p>Đánh giá dữ liệu hiện tại bằng bộ quy tắc minh bạch, không phụ thuộc API bên ngoài.</p></article>
+        </div>
+    </section>
+
+    <section id="workflow" class="landing-section workflow-section">
+        <div class="section-heading">
+            <span class="eyebrow">LUỒNG XỬ LÝ</span>
+            <h2>Bốn bước từ cảm biến đến phản ứng</h2>
+        </div>
+        <div class="workflow-grid">
+            <article><b>1</b><h3>Thu thập</h3><p>Nhận dữ liệu đo từ từng ao.</p></article>
+            <article><b>2</b><h3>Đánh giá</h3><p>So sánh với ngưỡng vận hành.</p></article>
+            <article><b>3</b><h3>Điều khiển</h3><p>Bật thiết bị tự động khi cần.</p></article>
+            <article><b>4</b><h3>Ghi nhận</h3><p>Lưu cảnh báo và nhật ký thao tác.</p></article>
+        </div>
+    </section>
+
+    <section id="contact" class="landing-section cta-section">
+        <div><span class="eyebrow">BẢN DEMO TỰ CHỨA</span><h2>Sẵn sàng mở dashboard?</h2><p>Không cần API key, cơ sở dữ liệu hay package UI bổ sung để chạy chức năng mô phỏng.</p></div>
+        <button class="button light large" @onclick="StartExperience">Bắt đầu trải nghiệm →</button>
+    </section>
+</main>
+
+<footer class="landing-footer">
+    <a class="brand" href="#top"><span class="brand-mark">≈</span><span><strong>AquaOps</strong><small>Blazor Web App</small></span></a>
+    <p>Ứng dụng mẫu quản lý và tự động hóa thủy sản.</p>
+    <small>© 2026 AquaOps Demo</small>
+</footer>
+
+
+@code {
+    private int ActiveAlerts => State.Alerts.Count(a => !a.IsResolved);
+    private int RunningDevices => State.Devices.Count(d => d.Status == "on");
+    private double PowerLoad => State.Devices.Where(d => d.Status == "on").Sum(d => d.PowerKw);
+    private void StartExperience() => Navigation.NavigateTo("/login?returnUrl=/dashboard");
+    private void OpenDashboard() => Navigation.NavigateTo("/dashboard");
+}

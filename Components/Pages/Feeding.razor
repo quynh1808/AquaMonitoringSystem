@@ -1,0 +1,124 @@
+@page "/feeding"
+@attribute [Authorize]
+@inject FarmStateService State
+@implements IDisposable
+
+<PageTitle>Cho ăn · AquaOps</PageTitle>
+
+<AuthGate>
+    <section class="page-stack">
+        <header class="page-heading">
+            <div><span class="eyebrow">QUẢN LÝ THỨC ĂN</span><h1>Nhật ký cho ăn</h1><p>Ghi nhận cữ ăn và ước tính khẩu phần theo sinh khối.</p></div>
+            <div class="heading-actions pond-filter">
+                <label>Chọn ao
+                    <select value="@model.PondId" @onchange="ChangePond">
+                        @foreach (var pond in State.Ponds)
+                        {
+                            <option value="@pond.Id">@pond.Name</option>
+                        }
+                    </select>
+                </label>
+            </div>
+        </header>
+
+        <div class="two-column-layout feeding-layout">
+            <section class="panel form-panel">
+                <div class="panel-heading"><div><span class="eyebrow">GHI NHẬT KÝ MỚI</span><h2>@CurrentPond?.Name</h2></div><span class="status-pill success">SẴN SÀNG</span></div>
+                @if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    <div class="notice success">@successMessage</div>
+                }
+                <AuthorizeView Roles="Administrator,FarmManager,Technician" Context="feedAuthorization">
+                    <Authorized>
+                        <EditForm Model="model" OnValidSubmit="SubmitFeed">
+                            <DataAnnotationsValidator />
+                            <div class="form-grid two">
+                                <label class="span-2">Loại thức ăn<InputText @bind-Value="model.FeedType" /><ValidationMessage For="() => model.FeedType" /></label>
+                                <label>Khối lượng (kg)<InputNumber @bind-Value="model.AmountKg" step="0.1" /><ValidationMessage For="() => model.AmountKg" /></label>
+                                <label>Người ghi<input value="@State.CurrentDisplayName" disabled /></label>
+                                <label class="span-2">Ghi chú<InputTextArea @bind-Value="model.Notes" rows="4" placeholder="Tình trạng bắt mồi, thời tiết, chất bổ sung..." /></label>
+                            </div>
+                            <button class="button primary full" type="submit">Lưu vào nhật ký</button>
+                        </EditForm>
+                    </Authorized>
+                    <NotAuthorized><p class="helper-text">Tài khoản Viewer chỉ được xem lịch sử cho ăn.</p></NotAuthorized>
+                </AuthorizeView>
+            </section>
+
+            <section class="panel calculator-panel">
+                <div class="panel-heading"><div><span class="eyebrow">ƯỚC TÍNH KHẨU PHẦN</span><h2>Máy tính sinh khối</h2></div><span class="feature-icon small">∑</span></div>
+                <div class="form-grid two">
+                    <label>Khối lượng bình quân (g/con)<input type="number" step="0.1" @bind="averageWeight" /></label>
+                    <label>Tỷ lệ sống ước tính (%)<input type="number" step="0.1" @bind="survivalRate" /></label>
+                    <label>Tỷ lệ cho ăn (% sinh khối)<input type="number" step="0.1" @bind="feedingRate" /></label>
+                    <label>Số cữ/ngày<input type="number" min="1" max="10" @bind="mealsPerDay" /></label>
+                </div>
+                <div class="calculation-results">
+                    <div><small>Số lượng thả ban đầu</small><strong>@StockedCount.ToString("N0", Vi) con</strong></div>
+                    <div><small>Sinh khối ước tính</small><strong>@EstimatedBiomass.ToString("N0", Vi) kg</strong></div>
+                    <div><small>Khẩu phần/ngày</small><strong>@DailyFeed.ToString("N1", Vi) kg</strong></div>
+                    <div class="highlight"><small>Đề xuất mỗi cữ</small><strong>@FeedPerMeal.ToString("N1", Vi) kg</strong></div>
+                </div>
+                <p class="helper-text">Kết quả chỉ là ước tính. Cần điều chỉnh theo sàng ăn, thời tiết, DO và quan sát thực tế.</p>
+            </section>
+        </div>
+
+        <section class="panel table-panel">
+            <div class="panel-heading"><div><span class="eyebrow">LỊCH SỬ VẬN HÀNH</span><h2>Các cữ ăn gần đây</h2></div><strong>@FilteredLogs.Sum(x => x.AmountKg).ToString("N1", Vi) kg</strong></div>
+            <div class="responsive-table">
+                <table>
+                    <thead><tr><th>Thời gian</th><th>Ao nuôi</th><th>Loại thức ăn</th><th>Khối lượng</th><th>Người thực hiện</th><th>Ghi chú</th></tr></thead>
+                    <tbody>
+                    @foreach (var log in FilteredLogs)
+                    {
+                        <tr><td>@log.Timestamp.ToString("dd/MM HH:mm")</td><td><strong>@log.PondName</strong></td><td>@log.FeedType</td><td class="success-text"><strong>@log.AmountKg.ToString("N1", Vi) kg</strong></td><td>@log.Technician</td><td>@log.Notes</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </section>
+</AuthGate>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private AddFeedRequest model = new();
+    private double averageWeight = 18;
+    private double survivalRate = 82;
+    private double feedingRate = 3.2;
+    private int mealsPerDay = 4;
+    private string successMessage = string.Empty;
+
+    private Pond? CurrentPond => State.Ponds.FirstOrDefault(p => p.Id == model.PondId);
+    private List<FeedLog> FilteredLogs => State.FeedLogs.Where(f => f.PondId == model.PondId).OrderByDescending(f => f.Timestamp).ToList();
+    private double StockedCount => (CurrentPond?.Area ?? 0) * (CurrentPond?.StockingDensity ?? 0);
+    private double EstimatedBiomass => StockedCount * (survivalRate / 100) * averageWeight / 1000;
+    private double DailyFeed => EstimatedBiomass * feedingRate / 100;
+    private double FeedPerMeal => mealsPerDay <= 0 ? 0 : DailyFeed / mealsPerDay;
+
+    protected override void OnInitialized()
+    {
+        model = NewFeedModel(State.SelectedPondId);
+        State.Changed += HandleChanged;
+    }
+
+    private void ChangePond(ChangeEventArgs args)
+    {
+        var id = args.Value?.ToString() ?? model.PondId;
+        State.SelectPond(id);
+        model.PondId = id;
+        successMessage = string.Empty;
+    }
+
+    private async Task SubmitFeed()
+    {
+        await State.AddFeedLogAsync(model);
+        successMessage = $"Đã lưu cữ ăn {model.AmountKg:N1} kg lúc {DateTime.Now:HH:mm}.";
+        var pondId = model.PondId;
+        model = NewFeedModel(pondId);
+    }
+
+    private static AddFeedRequest NewFeedModel(string pondId) => new() { PondId = pondId, FeedType = "Thức ăn tăng trọng cỡ 1,5 mm", AmountKg = 20, Notes = string.Empty };
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

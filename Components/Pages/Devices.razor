@@ -1,0 +1,102 @@
+@page "/devices"
+@attribute [Authorize]
+@inject FarmStateService State
+@implements IDisposable
+
+<PageTitle>Thiết bị · AquaOps</PageTitle>
+
+<AuthGate>
+    <section class="page-stack">
+        <header class="page-heading">
+            <div><span class="eyebrow">ĐIỀU KHIỂN RƠ-LE</span><h1>Thiết bị vùng nuôi</h1><p>Bật/tắt thiết bị và chuyển chế độ vận hành thủ công hoặc tự động.</p></div>
+            <div class="heading-actions pond-filter">
+                <label>Lọc theo ao
+                    <select value="@filterPondId" @onchange="ChangeFilter">
+                        <option value="all">Tất cả ao</option>
+                        @foreach (var pond in State.Ponds)
+                        {
+                            <option value="@pond.Id">@pond.Name</option>
+                        }
+                    </select>
+                </label>
+                <AuthorizeView Roles="Administrator,FarmManager"><button class="button primary" @onclick="OpenAddDevice">＋ Thêm thiết bị</button></AuthorizeView>
+            </div>
+        </header>
+
+        <div class="kpi-grid compact-grid">
+            <article class="kpi-card blue"><span>⚙</span><div><small>Tổng thiết bị</small><strong>@FilteredDevices.Count</strong><p>Trong phạm vi đang lọc</p></div></article>
+            <article class="kpi-card green"><span>●</span><div><small>Đang hoạt động</small><strong>@FilteredDevices.Count(d => d.Status == "on")</strong><p>Rơ-le ở trạng thái bật</p></div></article>
+            <article class="kpi-card amber"><span>A</span><div><small>Chế độ tự động</small><strong>@FilteredDevices.Count(d => d.Mode == "auto")</strong><p>Cho phép logic tự động hóa</p></div></article>
+            <article class="kpi-card violet"><span>kW</span><div><small>Tải điện</small><strong>@FilteredDevices.Where(d => d.Status == "on").Sum(d => d.PowerKw).ToString("N1", CultureInfo.GetCultureInfo("vi-VN"))</strong><p>Công suất tức thời</p></div></article>
+        </div>
+
+        <div class="device-grid">
+            @foreach (var device in FilteredDevices)
+            {
+                var pond = State.Ponds.FirstOrDefault(p => p.Id == device.PondId);
+                <article class="device-card @(device.Status == "on" ? "is-on" : "")">
+                    <div class="device-card-top">
+                        <div class="device-symbol">@DeviceSymbol(device.Type)</div>
+                        <div><span class="status-pill @(device.Status == "on" ? "success" : "muted")">@(device.Status == "on" ? "ĐANG BẬT" : "ĐANG TẮT")</span><h3>@device.Name</h3><p>@pond?.Name</p></div>
+                    </div>
+                    <dl class="device-specs">
+                        <div><dt>Loại</dt><dd>@FarmStateService.GetDeviceTypeLabel(device.Type)</dd></div>
+                        <div><dt>Công suất</dt><dd>@device.PowerKw.ToString("N1", CultureInfo.GetCultureInfo("vi-VN")) kW</dd></div>
+                        <div><dt>Chế độ</dt><dd>@(device.Mode == "auto" ? "Tự động" : "Thủ công")</dd></div>
+                    </dl>
+                    <AuthorizeView Roles="Administrator,FarmManager,Technician"><div class="device-actions">
+                        <button class="mode-button @(device.Mode == "auto" ? "auto" : "")" @onclick="async () => await State.ToggleDeviceModeAsync(device.Id)">@(device.Mode == "auto" ? "AUTO" : "MANUAL")</button>
+                        <button class="power-button @(device.Status == "on" ? "on" : "")" @onclick="async () => await State.ToggleDeviceAsync(device.Id)"><span>⏻</span>@(device.Status == "on" ? "Tắt thiết bị" : "Bật thiết bị")</button>
+                    </div></AuthorizeView>
+                </article>
+            }
+        </div>
+
+        @if (FilteredDevices.Count == 0)
+        {
+            <section class="empty-state panel"><div class="empty-icon">⚙</div><h2>Chưa có thiết bị</h2><p>Liên hệ người vận hành có quyền để khai báo thiết bị.</p><AuthorizeView Roles="Administrator,FarmManager,Technician"><button class="button primary" @onclick="OpenAddDevice">Thêm thiết bị</button></AuthorizeView></section>
+        }
+    </section>
+
+    <AddDeviceModal @bind-IsOpen="showAddDevice" PondId="@addDevicePondId" PondName="@AddDevicePondName" />
+</AuthGate>
+
+@code {
+    private string filterPondId = "all";
+    private string addDevicePondId = string.Empty;
+    private bool showAddDevice;
+
+    private List<Device> FilteredDevices => State.Devices.Where(d => filterPondId == "all" || d.PondId == filterPondId).ToList();
+    private string AddDevicePondName => State.Ponds.FirstOrDefault(p => p.Id == addDevicePondId)?.Name ?? "Ao nuôi";
+
+    protected override void OnInitialized()
+    {
+        addDevicePondId = State.SelectedPondId;
+        State.Changed += HandleChanged;
+    }
+
+    private void ChangeFilter(ChangeEventArgs args)
+    {
+        filterPondId = args.Value?.ToString() ?? "all";
+        if (filterPondId != "all") addDevicePondId = filterPondId;
+    }
+
+    private void OpenAddDevice()
+    {
+        addDevicePondId = filterPondId == "all" ? State.SelectedPondId : filterPondId;
+        if (string.IsNullOrWhiteSpace(addDevicePondId)) addDevicePondId = State.Ponds.FirstOrDefault()?.Id ?? string.Empty;
+        showAddDevice = true;
+    }
+
+    private static string DeviceSymbol(string type) => type switch
+    {
+        "aerator" => "◌",
+        "auto_feeder" => "◉",
+        "water_pump" => "↥",
+        "light" => "☼",
+        _ => "≈"
+    };
+
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

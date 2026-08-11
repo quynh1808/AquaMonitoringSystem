@@ -1,0 +1,77 @@
+@inject FarmStateService State
+
+@if (IsOpen)
+{
+    <div class="modal-layer" role="dialog" aria-modal="true">
+        <button class="modal-backdrop" @onclick="Close" aria-label="Đóng"></button>
+        <section class="modal-card">
+            <button class="modal-close" @onclick="Close">×</button>
+            <div class="modal-heading">
+                <span class="eyebrow">MỞ RỘNG VÙNG NUÔI</span>
+                <h2>Thêm ao nuôi mới</h2>
+                <p>Hệ thống sẽ tạo dữ liệu cảm biến và hai thiết bị mặc định.</p>
+            </div>
+
+            <EditForm Model="model" OnValidSubmit="Submit">
+                <DataAnnotationsValidator />
+                <div class="form-grid two">
+                    <label class="span-2">Tên ao
+                        <InputText @bind-Value="model.Name" placeholder="Ví dụ: Ao 4 · Tôm thẻ khu B" />
+                        <ValidationMessage For="() => model.Name" />
+                    </label>
+                    <label>Đối tượng nuôi
+                        <InputSelect @bind-Value="model.Species">
+                            <option>Tôm thẻ chân trắng</option>
+                            <option>Tôm sú</option>
+                            <option>Cá chẽm</option>
+                            <option>Cá rô phi</option>
+                            <option>Cua biển</option>
+                        </InputSelect>
+                    </label>
+                    <label>Ngày thả giống
+                        <InputDate @bind-Value="model.StockingDate" />
+                    </label>
+                    <label>Diện tích (m²)
+                        <InputNumber @bind-Value="model.Area" />
+                        <ValidationMessage For="() => model.Area" />
+                    </label>
+                    <label>Mật độ (con/m²)
+                        <InputNumber @bind-Value="model.StockingDensity" />
+                        <ValidationMessage For="() => model.StockingDensity" />
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="button ghost" @onclick="Close">Hủy</button>
+                    <button type="submit" class="button primary">Tạo ao nuôi</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<Pond> OnAdded { get; set; }
+
+    private AddPondRequest model = NewModel();
+
+    private async Task Submit()
+    {
+        var pond = await State.AddPondAsync(model);
+        model = NewModel();
+        await IsOpenChanged.InvokeAsync(false);
+        await OnAdded.InvokeAsync(pond);
+    }
+
+    private Task Close() => IsOpenChanged.InvokeAsync(false);
+
+    private static AddPondRequest NewModel() => new()
+    {
+        Name = $"Ao mới {DateTime.Now:HHmm}",
+        Species = "Tôm thẻ chân trắng",
+        Area = 3000,
+        StockingDensity = 120,
+        StockingDate = DateOnly.FromDateTime(DateTime.Today)
+    };
+}

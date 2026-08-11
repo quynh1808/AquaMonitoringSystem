@@ -1,0 +1,129 @@
+{
+  "FarmId": "farm_main",
+  "Ponds": [
+    {
+      "Id": "pond_01",
+      "Name": "Ao 1 · Tôm thẻ chân trắng",
+      "Species": "Tôm thẻ chân trắng",
+      "StockingDate": "2026-05-10",
+      "StockingDensity": 150,
+      "Area": 3200,
+      "EstimatedHarvestDate": "2026-08-20",
+      "Status": "active"
+    },
+    {
+      "Id": "pond_02",
+      "Name": "Ao 2 · Tôm sú",
+      "Species": "Tôm sú",
+      "StockingDate": "2026-04-15",
+      "StockingDensity": 80,
+      "Area": 4500,
+      "EstimatedHarvestDate": "2026-09-10",
+      "Status": "active"
+    },
+    {
+      "Id": "pond_03",
+      "Name": "Ao 3 · Cá chẽm",
+      "Species": "Cá chẽm",
+      "StockingDate": "2026-03-01",
+      "StockingDensity": 30,
+      "Area": 5000,
+      "EstimatedHarvestDate": "2026-10-15",
+      "Status": "active"
+    }
+  ],
+  "Devices": [
+    {
+      "Id": "dev_01",
+      "PondId": "pond_01",
+      "Name": "Giàn quạt nước Q1",
+      "Type": "paddle_wheel",
+      "Status": "on",
+      "Mode": "auto",
+      "PowerKw": 3.5
+    },
+    {
+      "Id": "dev_02",
+      "PondId": "pond_01",
+      "Name": "Máy cho ăn F1",
+      "Type": "auto_feeder",
+      "Status": "off",
+      "Mode": "auto",
+      "PowerKw": 0.8
+    },
+    {
+      "Id": "dev_03",
+      "PondId": "pond_01",
+      "Name": "Bơm cấp nước B1",
+      "Type": "water_pump",
+      "Status": "off",
+      "Mode": "manual",
+      "PowerKw": 2.2
+    },
+    {
+      "Id": "dev_04",
+      "PondId": "pond_02",
+      "Name": "Máy sục khí đáy S2",
+      "Type": "aerator",
+      "Status": "on",
+      "Mode": "auto",
+      "PowerKw": 4.0
+    },
+    {
+      "Id": "dev_05",
+      "PondId": "pond_02",
+      "Name": "Bơm cấp nước B2",
+      "Type": "water_pump",
+      "Status": "on",
+      "Mode": "auto",
+      "PowerKw": 2.2
+    },
+    {
+      "Id": "dev_06",
+      "PondId": "pond_03",
+      "Name": "Giàn quạt nước Q3",
+      "Type": "paddle_wheel",
+      "Status": "off",
+      "Mode": "manual",
+      "PowerKw": 3.0
+    },
+    {
+      "Id": "dev_07",
+      "PondId": "pond_03",
+      "Name": "Đèn khu vực L3",
+      "Type": "light",
+      "Status": "off",
+      "Mode": "auto",
+      "PowerKw": 0.4
+    }
+  ],
+  "FeedLogs": [
+    {
+      "Id": "feed_01",
+      "PondId": "pond_01",
+      "TimestampUtc": "2026-07-25T00:00:00Z",
+      "FeedType": "Thức ăn tăng trọng cỡ 1,5 mm",
+      "AmountKg": 15,
+      "Technician": "Kỹ thuật viên A",
+      "Notes": "Tôm bắt mồi bình thường."
+    },
+    {
+      "Id": "feed_02",
+      "PondId": "pond_01",
+      "TimestampUtc": "2026-07-25T04:00:00Z",
+      "FeedType": "Thức ăn tăng trọng cỡ 1,5 mm",
+      "AmountKg": 20,
+      "Technician": "Kỹ thuật viên A",
+      "Notes": "Bổ sung theo kế hoạch nội bộ."
+    },
+    {
+      "Id": "feed_03",
+      "PondId": "pond_02",
+      "TimestampUtc": "2026-07-24T07:30:00Z",
+      "FeedType": "Thức ăn công nghiệp cỡ 2,0 mm",
+      "AmountKg": 35,
+      "Technician": "Kỹ thuật viên B",
+      "Notes": "Giảm nhẹ khẩu phần do DO thấp."
+    }
+  ]
+}

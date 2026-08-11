@@ -1,0 +1,155 @@
+@inherits LayoutComponentBase
+@inject FarmStateService State
+@inject NavigationManager Navigation
+@inject Microsoft.Extensions.Options.IOptionsMonitor<DashboardSimulationOptions> DashboardSimulation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@implements IAsyncDisposable
+
+<div class="app-theme app-shell viot-shell @(State.IsDarkMode ? "theme-dark" : "theme-light")">
+    <aside class="sidebar viot-sidebar @(sidebarOpen ? "is-open" : string.Empty)">
+        <a class="brand viot-brand" href="/dashboard">
+            <span class="brand-mark">A</span>
+            <span><strong>AquaOps</strong><small>SMART AQUACULTURE</small></span>
+        </a>
+
+        <div class="nav-caption">TRUNG TÂM ĐIỀU HÀNH</div>
+        <nav class="main-nav" @onclick="CloseSidebar">
+            <NavLink href="/dashboard" Match="NavLinkMatch.All"><span>▦</span> Dashboard tổng</NavLink>
+        </nav>
+
+        <button class="sidebar-section-toggle @(analyticsOpen ? "expanded" : string.Empty)" @onclick="ToggleAnalytics">
+            <span><i>⌗</i> Phân tích tổng thể</span><b>⌄</b>
+        </button>
+        @if (analyticsOpen)
+        {
+            <nav class="main-nav sidebar-nested-nav" @onclick="CloseSidebar">
+                <NavLink href="/analytics/ponds"><span>≈</span> Ao nuôi & vụ nuôi</NavLink>
+                <NavLink href="/analytics/growth"><span>◉</span> Biomass & tăng trưởng</NavLink>
+                <NavLink href="/analytics/water-quality"><span>⌁</span> Chất lượng nước</NavLink>
+                <NavLink href="/analytics/feed"><span>◆</span> Thức ăn</NavLink>
+                <NavLink href="/analytics/equipment"><span>⚡</span> Thiết bị & năng lượng</NavLink>
+                <NavLink href="/analytics/risks"><span>!</span> Cảnh báo & rủi ro @if (ActiveAlerts > 0) { <em>@ActiveAlerts</em> }</NavLink>
+            </nav>
+        }
+
+        <div class="nav-caption">SẢN XUẤT & NGHIỆP VỤ</div>
+        <nav class="main-nav" @onclick="CloseSidebar">
+            <NavLink href="/production-cycles"><span>◉</span> Quản lý vụ nuôi</NavLink>
+            <AuthorizeView Roles="Administrator"><NavLink href="/admin/users"><span>♙</span> Người dùng & phân quyền</NavLink></AuthorizeView>
+        </nav>
+
+        <button class="sidebar-section-toggle pond-toggle @(pondsOpen ? "expanded" : string.Empty)" @onclick="TogglePonds">
+            <span><i>≈</i> Danh sách ao nuôi</span><em>@State.Ponds.Count</em><b>⌄</b>
+        </button>
+        @if (pondsOpen)
+        {
+            <div class="sidebar-pond-list">
+                @foreach (var pond in State.Ponds)
+                {
+                    var alertCount = State.Alerts.Count(a => a.PondId == pond.Id && !a.IsResolved);
+                    <a class="sidebar-pond @(IsCurrentPond(pond.Id) ? "active" : string.Empty)" href="@($"/pond/{pond.Id}/overview")" @onclick="() => State.SelectPond(pond.Id)">
+                        <span class="pond-list-icon">≈</span>
+                        <span><strong>@pond.Name</strong><small>@pond.Species</small></span>
+                        @if (alertCount > 0) { <b>@alertCount</b> } else { <i></i> }
+                    </a>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(CurrentPondId))
+        {
+            <button class="sidebar-section-toggle @(currentPondOpen ? "expanded" : string.Empty)" @onclick="ToggleCurrentPond">
+                <span><i>◫</i> Quản lý ao đang chọn</span><b>⌄</b>
+            </button>
+            @if (currentPondOpen)
+            {
+                <nav class="main-nav pond-subnav sidebar-nested-nav" @onclick="CloseSidebar">
+                    <NavLink href="@($"/pond/{CurrentPondId}/overview")"><span>◫</span> Tổng quan ao</NavLink>
+                    <NavLink href="@($"/pond/{CurrentPondId}/sensors")"><span>⌁</span> Cảm biến</NavLink>
+                    <NavLink href="@($"/pond/{CurrentPondId}/devices")"><span>⚡</span> Điều khiển thiết bị</NavLink>
+                    <NavLink href="@($"/pond/{CurrentPondId}/feeding")"><span>◉</span> Quản lý cho ăn</NavLink>
+                    <NavLink href="@($"/pond/{CurrentPondId}/alerts")"><span>!</span> Cảnh báo ao</NavLink>
+                    <NavLink href="@($"/pond/{CurrentPondId}/cycles")"><span>◉</span> Vụ nuôi</NavLink>
+                </nav>
+            }
+        }
+
+        <div class="sidebar-foot">
+            <div class="signal"><i></i><span>Server realtime đang hoạt động</span></div>
+            <small>Blazor Interactive Server · .NET 10</small>
+        </div>
+    </aside>
+
+    @if (sidebarOpen) { <button class="sidebar-backdrop" aria-label="Đóng menu" @onclick="CloseSidebar"></button> }
+
+    <div class="workspace">
+        <header class="topbar viot-topbar">
+            <div class="topbar-left">
+                <button class="icon-button menu-button" @onclick="ToggleSidebar">☰</button>
+                <div><strong>HỆ THỐNG GIÁM SÁT NUÔI TRỒNG THỦY SẢN</strong><span><i class="live-dot"></i> Dữ liệu trực tuyến · @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") @if (DashboardSimulation.CurrentValue.Enabled) { <b class="topbar-simulation">SIMULATION</b> }</span></div>
+            </div>
+            <div class="topbar-actions">
+                <button class="icon-button" @onclick="State.ToggleTheme">@(State.IsDarkMode ? "☀" : "☾")</button>
+                <a class="alert-shortcut" href="/alerts"><span>!</span>@if (ActiveAlerts > 0) { <b>@ActiveAlerts</b> }</a>
+                <AuthorizeView>
+                    <Authorized Context="auth">
+                        <div class="user-chip"><span>@Initials</span><div><strong>@DisplayName</strong><small>@PrimaryRole</small></div></div>
+                        <a class="text-button" href="/account/change-password">Đổi mật khẩu</a>
+                        <form method="post" action="/auth/logout"><AntiforgeryToken /><button class="text-button" type="submit">Đăng xuất</button></form>
+                    </Authorized>
+                </AuthorizeView>
+            </div>
+        </header>
+        <main class="main-content viot-content">@Body</main>
+    </div>
+</div>
+
+@code {
+    private bool sidebarOpen;
+    private bool analyticsOpen = true;
+    private bool pondsOpen = true;
+    private bool currentPondOpen = true;
+    private readonly CancellationTokenSource cts = new();
+    private Task? clockTask;
+    private int ActiveAlerts => State.Alerts.Count(a => !a.IsResolved);
+    private string CurrentPondId => State.SelectedPondId;
+    private string displayName = "Người dùng";
+    private string primaryRole = SystemRoles.Viewer;
+    private string DisplayName => displayName;
+    private string PrimaryRole => primaryRole;
+    private string Initials => string.Join("", displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries).TakeLast(2).Select(x => char.ToUpperInvariant(x[0])));
+
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += HandleChanged;
+        await State.InitializeUserAsync();
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        displayName = auth.User.FindFirst("display_name")?.Value ?? auth.User.Identity?.Name ?? "Người dùng";
+        primaryRole = auth.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? SystemRoles.Viewer;
+        clockTask = RunClockAsync(cts.Token);
+    }
+    private async Task RunClockAsync(CancellationToken token)
+    {
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Max(1, DashboardSimulation.CurrentValue.RefreshSeconds));
+                await Task.Delay(delay, token);
+                await InvokeAsync(State.Tick);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when the circuit is disposed.
+        }
+    }
+    private bool IsCurrentPond(string id) => Navigation.Uri.Contains($"/pond/{id}/", StringComparison.OrdinalIgnoreCase);
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    private void ToggleSidebar() => sidebarOpen = !sidebarOpen;
+    private void ToggleAnalytics() => analyticsOpen = !analyticsOpen;
+    private void TogglePonds() => pondsOpen = !pondsOpen;
+    private void ToggleCurrentPond() => currentPondOpen = !currentPondOpen;
+    private void CloseSidebar() => sidebarOpen = false;
+    public async ValueTask DisposeAsync() { State.Changed -= HandleChanged; cts.Cancel(); if (clockTask is not null) { try { await clockTask; } catch { } } cts.Dispose(); }
+}

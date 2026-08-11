@@ -1,0 +1,87 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@layout LandingLayout
+
+<PageTitle>Đăng nhập · AquaOps</PageTitle>
+
+<section class="auth-page auth-page-split">
+    <aside class="auth-showcase" aria-label="Giới thiệu hệ thống AquaOps">
+        <a class="brand auth-brand" href="/">
+            <span class="brand-mark">≈</span>
+            <span><strong>AquaOps</strong><small>SMART AQUACULTURE</small></span>
+        </a>
+
+        <div class="auth-showcase-copy">
+            <span class="eyebrow"><i></i> AQUACULTURE OPERATIONS CENTER</span>
+            <h1>Giám sát toàn trại.<br /><em>Điều hành đúng lúc.</em></h1>
+            <p>Đăng nhập để truy cập Dashboard tổng, Live Monitoring, quản lý vụ nuôi, cảm biến, thiết bị và cảnh báo vận hành.</p>
+        </div>
+
+        <div class="auth-feature-list">
+            <article><span>01</span><div><strong>Dữ liệu tập trung</strong><small>MongoDB, MQTT, Modbus và nguồn mô phỏng dùng chung một pipeline.</small></div></article>
+            <article><span>02</span><div><strong>Phân quyền phía server</strong><small>Administrator, Farm Manager, Technician và Viewer.</small></div></article>
+            <article><span>03</span><div><strong>Theo dõi liên tục</strong><small>Trạng thái ao, cảm biến, thiết bị và vụ nuôi trong một hệ thống.</small></div></article>
+        </div>
+
+        <div class="auth-system-line"><i></i><span>Blazor Interactive Server</span><small>AquaOps AMS</small></div>
+    </aside>
+
+    <main class="auth-form-area">
+        <article class="panel auth-card">
+            <a class="auth-back-link" href="/">← Quay lại trang chủ</a>
+            <span class="eyebrow">SECURE OPERATIONS ACCESS</span>
+            <h2>Đăng nhập AquaOps</h2>
+            <p>Sử dụng tài khoản do quản trị viên cấp. Quyền truy cập được kiểm tra theo vai trò và phạm vi ao ở phía server.</p>
+
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="auth-error" role="alert">@ErrorMessage</div>
+            }
+
+            <form class="auth-form" method="post" action="/auth/login">
+                <AntiforgeryToken />
+                <input type="hidden" name="returnUrl" value="@SafeReturnUrl" />
+                <label>
+                    <span>Tên đăng nhập</span>
+                    <input name="username" autocomplete="username" placeholder="Nhập tên đăng nhập" required autofocus />
+                </label>
+                <label>
+                    <span>Mật khẩu</span>
+                    <span class="password-input-wrap">
+                        <input id="login-password" type="password" name="password" autocomplete="current-password" placeholder="Nhập mật khẩu" required />
+                        <button type="button" class="password-toggle" onclick="window.aquaOps.togglePassword('login-password', this)" aria-label="Hiện mật khẩu" aria-pressed="false"><span aria-hidden="true">👁</span></button>
+                    </span>
+                </label>
+                <button class="button primary auth-submit" type="submit">Đăng nhập hệ thống <span>→</span></button>
+            </form>
+
+            <div class="auth-help">
+                <strong>Lưu ý bảo mật</strong>
+                <span>Tài khoản khởi tạo chỉ dùng cho lần chạy đầu. Hãy đổi mật khẩu và không lưu mật khẩu production trong Git.</span>
+            </div>
+        </article>
+    </main>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? RequestedReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? ErrorCode { get; set; }
+
+    private string SafeReturnUrl =>
+        string.IsNullOrWhiteSpace(RequestedReturnUrl) ||
+        !RequestedReturnUrl.StartsWith('/') ||
+        RequestedReturnUrl.StartsWith("//", StringComparison.Ordinal) ||
+        RequestedReturnUrl.StartsWith("/\\", StringComparison.Ordinal)
+            ? "/dashboard"
+            : RequestedReturnUrl;
+
+    private string ErrorMessage => ErrorCode switch
+    {
+        "locked" => "Tài khoản đang tạm khóa do đăng nhập sai nhiều lần.",
+        "invalid" => "Tên đăng nhập hoặc mật khẩu không đúng.",
+        _ => string.Empty
+    };
+}

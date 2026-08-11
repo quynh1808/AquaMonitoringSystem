@@ -1,0 +1,12 @@
+{
+  "sensorId": "sensor_pond_01_dissolvedOxygen",
+  "pondId": "pond_01",
+  "metric": "dissolvedOxygen",
+  "unit": "mg/L",
+  "value": 5.76,
+  "timestampUtc": "2026-07-25T10:00:00Z",
+  "quality": "good",
+  "batteryLevel": 93,
+  "signalStrength": -61,
+  "firmwareVersion": "esp32-do-1.0.0"
+}

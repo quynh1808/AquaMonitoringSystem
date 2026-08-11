@@ -1,0 +1,28 @@
+{
+  "ProductionCycleSimulation": {
+    "Enabled": true,
+    "RefreshHours": 6,
+    "SampleEveryDays": 7,
+    "RandomSeed": 20260726,
+    "Species": {
+      "Tôm thẻ chân trắng": {
+        "InitialWeightGrams": 0.02,
+        "DailyGrowthGrams": 0.24,
+        "DailyGrowthVariationPercent": 7,
+        "DailySurvivalLossPercent": 0.025,
+        "ExpectedFcr": 1.35,
+        "DefaultGrowDays": 110,
+        "DefaultSampleSize": 60
+      },
+      "Cá rô phi": {
+        "InitialWeightGrams": 15,
+        "DailyGrowthGrams": 2.7,
+        "DailyGrowthVariationPercent": 9,
+        "DailySurvivalLossPercent": 0.01,
+        "ExpectedFcr": 1.55,
+        "DefaultGrowDays": 180,
+        "DefaultSampleSize": 30
+      }
+    }
+  }
+}

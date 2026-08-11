@@ -1,0 +1,21 @@
+<a class="ams-kpi-card @Tone" href="@Href">
+    <span class="ams-kpi-icon">@Icon</span>
+    <span class="ams-kpi-copy">
+        <small>@Label</small>
+        <strong>@Value <em>@Unit</em></strong>
+        <span>@Detail</span>
+    </span>
+    <span class="ams-kpi-meta">@Meta</span>
+    <span class="ams-kpi-arrow">→</span>
+</a>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public string Unit { get; set; } = string.Empty;
+    [Parameter] public string Detail { get; set; } = string.Empty;
+    [Parameter] public string Meta { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = "•";
+    [Parameter] public string Tone { get; set; } = "blue";
+    [Parameter] public string Href { get; set; } = "/dashboard";
+}

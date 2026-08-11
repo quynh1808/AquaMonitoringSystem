@@ -1,0 +1,17 @@
+@inherits LayoutComponentBase
+@inject FarmStateService State
+@implements IDisposable
+
+<div class="app-theme @(State.IsDarkMode ? "theme-dark" : "theme-light")">
+    @Body
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        State.Changed += HandleChanged;
+        await State.InitializeUserAsync();
+    }
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

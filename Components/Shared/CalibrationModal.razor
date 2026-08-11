@@ -1,0 +1,77 @@
+@inject FarmStateService State
+
+@if (IsOpen && Sensor is not null)
+{
+    <div class="modal-layer" role="dialog" aria-modal="true">
+        <button class="modal-backdrop" @onclick="Close" aria-label="Đóng"></button>
+        <section class="modal-card compact">
+            <button class="modal-close" @onclick="Close">×</button>
+            <div class="modal-heading">
+                <span class="eyebrow">SENSOR CALIBRATION</span>
+                <h2>Ghi nhận hiệu chuẩn</h2>
+                <p>@Sensor.Name · @Sensor.Id</p>
+            </div>
+
+            <EditForm Model="model" OnValidSubmit="Submit">
+                <DataAnnotationsValidator />
+                <div class="form-grid">
+                    <label>Người thực hiện
+                        <InputText @bind-Value="model.PerformedBy" placeholder="Tên kỹ thuật viên" />
+                        <ValidationMessage For="() => model.PerformedBy" />
+                    </label>
+                    <label>Giá trị trước hiệu chuẩn (@Sensor.Unit)
+                        <InputNumber @bind-Value="model.ValueBefore" step="any" />
+                    </label>
+                    <label>Giá trị sau hiệu chuẩn (@Sensor.Unit)
+                        <InputNumber @bind-Value="model.ValueAfter" step="any" />
+                    </label>
+                    <label>Ghi chú
+                        <InputTextArea @bind-Value="model.Notes" placeholder="Dung dịch chuẩn, thiết bị đối chứng, sai lệch..." />
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="button ghost" @onclick="Close">Hủy</button>
+                    <button type="submit" class="button primary">Lưu biên bản</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string SensorId { get; set; } = string.Empty;
+
+    private CalibrationRequest model = new();
+    private string initializedSensorId = string.Empty;
+    private SensorDefinition? Sensor => State.Sensors.FirstOrDefault(x => x.Id == SensorId);
+
+    protected override void OnParametersSet()
+    {
+        if (!IsOpen || Sensor is null || initializedSensorId == SensorId) return;
+        initializedSensorId = SensorId;
+        var value = State.GetSensorCurrentValue(Sensor);
+        model = new CalibrationRequest
+        {
+            SensorId = Sensor.Id,
+            PerformedBy = State.CurrentDisplayName,
+            ValueBefore = value,
+            ValueAfter = value
+        };
+    }
+
+    private async Task Submit()
+    {
+        model.SensorId = SensorId;
+        await State.RecordCalibrationAsync(model);
+        initializedSensorId = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private async Task Close()
+    {
+        initializedSensorId = string.Empty;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}

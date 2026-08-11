@@ -1,0 +1,20 @@
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+            <NotAuthorized>
+                <LayoutView Layout="typeof(LandingLayout)"><section class="auth-page"><article class="panel auth-card"><span class="eyebrow">KHU VỰC ĐƯỢC BẢO VỆ</span><h1>Cần đăng nhập</h1><p>Phiên hiện tại chưa có quyền truy cập chức năng này.</p><a class="button primary" href="/login">Đăng nhập hệ thống</a></article></section></LayoutView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <section class="empty-state">
+                <div class="empty-icon">404</div>
+                <h1>Không tìm thấy trang</h1>
+                <p>Đường dẫn bạn mở không tồn tại trong hệ thống.</p>
+                <a class="button primary" href="/dashboard">Về dashboard</a>
+            </section>
+        </LayoutView>
+    </NotFound>
+</Router>

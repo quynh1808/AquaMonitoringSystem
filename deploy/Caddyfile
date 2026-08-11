@@ -1,0 +1,22 @@
+{
+    email {$ACME_EMAIL:}
+    servers {
+        protocols h1 h2 h3
+    }
+}
+
+{$AQUAOPS_DOMAIN} {
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # Caddy forwards WebSocket upgrades automatically, which is required by Blazor Server.
+    reverse_proxy aquaops:8080
+}
+

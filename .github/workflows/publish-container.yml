@@ -1,0 +1,58 @@
+name: verify-and-publish
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+      - name: Restore locked dependencies
+        run: dotnet restore AquacultureMonitoring.sln --locked-mode
+      - name: Build release
+        run: dotnet build AquacultureMonitoring.sln -c Release --no-restore
+      - name: Run tests
+        run: dotnet test Tests/AquacultureMonitoring.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore locked Linux runtime assets
+        run: dotnet restore AquacultureMonitoring.csproj --locked-mode --runtime linux-x64
+      - name: Authenticate to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Select immutable image tag
+        id: image
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish OCI image with the .NET SDK
+        run: >-
+          dotnet publish AquacultureMonitoring.csproj -c Release --no-restore
+          --os linux --arch x64 /t:PublishContainer
+          -p:ContainerRegistry=ghcr.io
+          -p:ContainerRepository=${{ github.repository_owner }}/aquaops
+          -p:ContainerImageTag=${{ steps.image.outputs.tag }}

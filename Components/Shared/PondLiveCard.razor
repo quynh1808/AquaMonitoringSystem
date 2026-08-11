@@ -1,0 +1,48 @@
+<a class="ams-pond-card @(Pond.ActiveAlerts > 0 ? "attention" : string.Empty)" href="@($"/pond/{Pond.PondId}/overview")">
+    <header>
+        <span class="ams-pond-state @HealthClass"><i></i>@StatusText</span>
+        <span class="ams-health-score @HealthClass">@Pond.HealthScore%</span>
+        <div><strong>@Pond.Name</strong><small>@Pond.Species · @Pond.AreaM2.ToString("N0", Vi) m² · Ngày @Pond.CultureAgeDays</small></div>
+    </header>
+
+    <div class="ams-live-metrics">
+        <div class='@MetricClass("dissolvedOxygen", Pond.Telemetry.DissolvedOxygen)'><small>DO</small><strong>@Pond.Telemetry.DissolvedOxygen.ToString("N2", Vi)</strong><em>mg/L</em></div>
+        <div class='@MetricClass("ph", Pond.Telemetry.Ph)'><small>pH</small><strong>@Pond.Telemetry.Ph.ToString("N2", Vi)</strong><em>pH</em></div>
+        <div class='@MetricClass("temperature", Pond.Telemetry.Temperature)'><small>Nhiệt độ</small><strong>@Pond.Telemetry.Temperature.ToString("N1", Vi)</strong><em>°C</em></div>
+        <div class='@MetricClass("ammonia", Pond.Telemetry.Ammonia)'><small>NH₃</small><strong>@Pond.Telemetry.Ammonia.ToString("N3", Vi)</strong><em>mg/L</em></div>
+    </div>
+
+    <div class="ams-pond-facts">
+        <span><small>Biomass</small><strong>@((Pond.EstimatedBiomassKg / 1000d).ToString("N2", Vi)) tấn</strong></span>
+        <span><small>Thức ăn hôm nay</small><strong>@Pond.FeedActualTodayKg.ToString("N0", Vi)/@Pond.FeedPlanTodayKg.ToString("N0", Vi) kg</strong></span>
+        <span><small>Mật độ</small><strong>@Pond.StockingDensity.ToString("N0", Vi) con/m²</strong></span>
+        <span><small>Thu hoạch dự kiến</small><strong>@Pond.EstimatedHarvestDate.ToString("dd/MM/yyyy")</strong></span>
+    </div>
+
+    <footer>
+        <span>⚙ @Pond.RunningDevices/@Pond.TotalDevices thiết bị</span>
+        <span>⌁ @Pond.OnlineSensors/@Pond.TotalSensors cảm biến</span>
+        <span class="@(Pond.ActiveAlerts > 0 ? "danger-text" : "success-text")">@(Pond.ActiveAlerts > 0 ? $"! {Pond.ActiveAlerts} cảnh báo" : "✓ Bình thường")</span>
+    </footer>
+    <div class="ams-data-source"><span>@Pond.DataSourceSummary</span><span>Cập nhật @RelativeUpdate</span></div>
+</a>
+
+@code {
+    [Parameter, EditorRequired] public DashboardPondSummary Pond { get; set; } = new();
+    [Parameter, EditorRequired] public DashboardAnalyticsService Analytics { get; set; } = default!;
+
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private string HealthClass => Pond.HealthStatus;
+    private string StatusText => !Pond.Telemetry.IsOnline ? "Mất dữ liệu" : Pond.ActiveAlerts > 0 ? "Cần chú ý" : "Đang vận hành";
+    private string RelativeUpdate
+    {
+        get
+        {
+            var age = DateTime.Now - Pond.LastUpdateLocal;
+            if (age.TotalSeconds < 60) return $"{Math.Max(0, (int)age.TotalSeconds)} giây trước";
+            if (age.TotalMinutes < 60) return $"{(int)age.TotalMinutes} phút trước";
+            return Pond.LastUpdateLocal.ToString("dd/MM HH:mm");
+        }
+    }
+    private string MetricClass(string metric, double value) => Analytics.MetricStatus(metric, value, Pond.Telemetry.IsOnline, Pond.Telemetry.Quality);
+}

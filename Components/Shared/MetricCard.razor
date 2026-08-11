@@ -1,0 +1,29 @@
+<article class="metric-card @StatusClass">
+    <div class="metric-head">
+        <span class="metric-icon">@Icon</span>
+        <span class="metric-status">@StatusText</span>
+    </div>
+    <p>@Label</p>
+    <div class="metric-value"><strong>@FormattedValue</strong><span>@Unit</span></div>
+    <small>@TargetText</small>
+    <div class="meter"><i style="@($"width:{Progress}%")"></i></div>
+</article>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = "•";
+    [Parameter] public double Value { get; set; }
+    [Parameter] public string Unit { get; set; } = string.Empty;
+    [Parameter] public int Digits { get; set; } = 1;
+    [Parameter] public double Min { get; set; }
+    [Parameter] public double Max { get; set; } = 100;
+    [Parameter] public double SafeMin { get; set; } = double.MinValue;
+    [Parameter] public double SafeMax { get; set; } = double.MaxValue;
+    [Parameter] public string TargetText { get; set; } = string.Empty;
+
+    private bool IsSafe => Value >= SafeMin && Value <= SafeMax;
+    private string StatusClass => IsSafe ? "safe" : "warning";
+    private string StatusText => IsSafe ? "Ổn định" : "Cần chú ý";
+    private string FormattedValue => Value.ToString($"N{Digits}", CultureInfo.GetCultureInfo("vi-VN"));
+    private string Progress => Math.Clamp((Value - Min) / Math.Max(0.0001, Max - Min) * 100, 3, 100).ToString("0.##", CultureInfo.InvariantCulture);
+}

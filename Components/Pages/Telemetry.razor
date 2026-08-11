@@ -1,0 +1,220 @@
+@page "/telemetry"
+@attribute [Authorize]
+@inject FarmStateService State
+@implements IDisposable
+
+<PageTitle>Cảm biến · AquaOps</PageTitle>
+
+<AuthGate>
+    <section class="page-stack">
+        <header class="page-heading">
+            <div>
+                <span class="eyebrow">QUAN TRẮC MÔI TRƯỜNG</span>
+                <h1>Báo cáo cảm biến</h1>
+                <p>Dữ liệu mới nhất và lịch sử thực tế đã đi qua pipeline MongoDB.</p>
+            </div>
+            <div class="heading-actions pond-filter">
+                <label>Chọn ao
+                    <select value="@selectedPondId" @onchange="ChangePond">
+                        @foreach (var pond in State.Ponds)
+                        {
+                            <option value="@pond.Id">@pond.Name</option>
+                        }
+                    </select>
+                </label>
+                <button class="button ghost" @onclick="State.Tick">↻ Làm mới giao diện</button>
+            </div>
+        </header>
+
+        @if (Pond is not null)
+        {
+            <section class="panel telemetry-banner">
+                <div>
+                    <span class="live-dot"></span>
+                    <strong>@Pond.Name</strong>
+                    <small>@Pond.Species · @Pond.Area.ToString("N0", Vi) m²</small>
+                </div>
+                <span class="@(CurrentTelemetry.IsOnline ? "success-text" : "danger-text")">
+                    @(CurrentTelemetry.IsOnline ? "ONLINE" : "NO DATA") · @CurrentTelemetry.Timestamp.ToLocalTime().ToString("HH:mm:ss")
+                </span>
+            </section>
+
+            <div class="metric-grid six">
+                <SensorMetricCard Metric="dissolvedOxygen" Label="Oxy hòa tan" Icon="O₂" Value="CurrentTelemetry.DissolvedOxygen" />
+                <SensorMetricCard Metric="ph" Label="Độ pH" Icon="pH" Value="CurrentTelemetry.Ph" />
+                <SensorMetricCard Metric="temperature" Label="Nhiệt độ" Icon="°C" Value="CurrentTelemetry.Temperature" />
+                <SensorMetricCard Metric="salinity" Label="Độ mặn" Icon="‰" Value="CurrentTelemetry.Salinity" />
+                <SensorMetricCard Metric="ammonia" Label="Amoniac NH₃" Icon="NH₃" Value="CurrentTelemetry.Ammonia" />
+                <SensorMetricCard Metric="waterLevel" Label="Mực nước" Icon="↕" Value="CurrentTelemetry.WaterLevel" />
+            </div>
+
+            <section class="panel chart-panel">
+                <div class="panel-heading">
+                    <div><span class="eyebrow">HISTORICAL DATA</span><h2>@MetricTitle</h2></div>
+                    <div class="segmented-control">
+                        @foreach (var item in Metrics)
+                        {
+                            <button class="@(activeMetric == item.Id ? "active" : "")" @onclick="() => activeMetric = item.Id">@item.Label</button>
+                        }
+                    </div>
+                </div>
+                <TrendChart Points="Trend" Unit="@MetricUnit" Digits="@MetricDigits" />
+            </section>
+
+            <section class="panel table-panel">
+                <div class="panel-heading">
+                    <div><span class="eyebrow">SENSOR INVENTORY</span><h2>Tình trạng cảm biến của ao</h2></div>
+                    <small>@PondSensors.Count sensor được khai báo</small>
+                </div>
+                <div class="responsive-table">
+                    <table>
+                        <thead>
+                            <tr><th>Cảm biến</th><th>Metric</th><th>Nguồn</th><th>Trạng thái</th><th>Quality</th><th>Last seen</th><th>Pin/RSSI</th><th>Firmware</th><th>Hiệu chuẩn tiếp theo</th><th>Thao tác</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sensor in PondSensors)
+                            {
+                                <tr>
+                                    <td><strong>@sensor.Name</strong><small class="table-subtext">@sensor.Id</small></td>
+                                    <td>@FarmStateService.GetMetricLabel(sensor.Metric)</td>
+                                    <td>@sensor.SourceType</td>
+                                    <td><span class="status-pill @(sensor.Status == "online" ? "success" : "danger")">@sensor.Status.ToUpperInvariant()</span></td>
+                                    <td>@sensor.LastQuality</td>
+                                    <td>@(sensor.LastSeenAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss") ?? "Chưa có")</td>
+                                    <td>@(sensor.BatteryLevel?.ToString() ?? "—")% / @(sensor.SignalStrength?.ToString() ?? "—") dBm</td>
+                                    <td>@sensor.FirmwareVersion</td>
+                                    <td>@(sensor.CalibrationDueDateUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "Chưa đặt")</td>
+                                    <td><button class="button ghost" @onclick="() => OpenCalibration(sensor.Id)">Hiệu chuẩn</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel table-panel">
+                <div class="panel-heading">
+                    <div><span class="eyebrow">MAINTENANCE</span><h2>Lịch hiệu chuẩn và biên bản gần nhất</h2></div>
+                    <small>@PondMaintenance.Count công việc · @PondCalibrations.Count biên bản</small>
+                </div>
+                <div class="responsive-table">
+                    <table>
+                        <thead><tr><th>Cảm biến</th><th>Loại</th><th>Trạng thái</th><th>Đến hạn/Thực hiện</th><th>Người thực hiện</th><th>Ghi chú</th></tr></thead>
+                        <tbody>
+                            @foreach (var task in PondMaintenance.OrderBy(x => x.DueAtUtc))
+                            {
+                                <tr>
+                                    <td><strong>@SensorName(task.AssetId)</strong></td>
+                                    <td>Công việc hiệu chuẩn</td>
+                                    <td><span class="status-pill @(task.Status == "completed" ? "success" : task.Status == "overdue" ? "danger" : "warning")">@task.Status.ToUpperInvariant()</span></td>
+                                    <td>@task.DueAtUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                    <td>@(task.AssignedTo ?? "—")</td>
+                                    <td>@task.Title</td>
+                                </tr>
+                            }
+                            @foreach (var record in PondCalibrations.Take(10))
+                            {
+                                <tr>
+                                    <td><strong>@SensorName(record.SensorId)</strong></td>
+                                    <td>Biên bản hiệu chuẩn</td>
+                                    <td><span class="status-pill success">COMPLETED</span></td>
+                                    <td>@record.PerformedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>@record.PerformedBy</td>
+                                    <td>@(string.IsNullOrWhiteSpace(record.Notes) ? $"{record.ValueBefore} → {record.ValueAfter}" : record.Notes)</td>
+                                </tr>
+                            }
+                            @if (PondMaintenance.Count == 0 && PondCalibrations.Count == 0)
+                            {
+                                <tr><td colspan="6">Chưa có công việc hoặc biên bản hiệu chuẩn.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel table-panel">
+                <div class="panel-heading">
+                    <div><span class="eyebrow">DATA SOURCES</span><h2>Trạng thái adapter kết nối</h2></div>
+                </div>
+                <div class="responsive-table">
+                    <table>
+                        <thead><tr><th>Nguồn</th><th>Bật</th><th>Kết nối</th><th>Bản tin</th><th>Bản tin gần nhất</th><th>Lỗi gần nhất</th></tr></thead>
+                        <tbody>
+                            @foreach (var source in State.DataSources.OrderBy(x => x.SourceName))
+                            {
+                                <tr>
+                                    <td><strong>@source.SourceName</strong></td>
+                                    <td>@(source.IsEnabled ? "Có" : "Không")</td>
+                                    <td><span class="status-pill @(source.IsConnected ? "success" : "danger")">@(source.IsConnected ? "CONNECTED" : "DISCONNECTED")</span></td>
+                                    <td>@source.MessagesReceived.ToString("N0", Vi)</td>
+                                    <td>@(source.LastMessageAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss") ?? "Chưa có")</td>
+                                    <td>@(string.IsNullOrWhiteSpace(source.LastError) ? "—" : source.LastError)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    </section>
+    <CalibrationModal @bind-IsOpen="calibrationOpen" SensorId="@calibrationSensorId" />
+</AuthGate>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private string selectedPondId = string.Empty;
+    private string activeMetric = "dissolvedOxygen";
+    private bool calibrationOpen;
+    private string calibrationSensorId = string.Empty;
+
+    private static readonly (string Id, string Label)[] Metrics =
+    [
+        ("dissolvedOxygen", "Oxy DO"),
+        ("ph", "pH"),
+        ("temperature", "Nhiệt độ"),
+        ("salinity", "Độ mặn"),
+        ("ammonia", "NH₃"),
+        ("waterLevel", "Mực nước")
+    ];
+
+    private Pond? Pond => State.Ponds.FirstOrDefault(p => p.Id == selectedPondId);
+    private TelemetryData CurrentTelemetry => State.GetTelemetry(selectedPondId);
+    private List<SensorDefinition> PondSensors => State.Sensors.Where(x => x.PondId == selectedPondId).OrderBy(x => x.Metric).ToList();
+    private List<MaintenanceTask> PondMaintenance => State.MaintenanceTasks.Where(x => x.PondId == selectedPondId).ToList();
+    private List<CalibrationRecord> PondCalibrations
+    {
+        get
+        {
+            var sensorIds = PondSensors.Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return State.CalibrationRecords.Where(x => sensorIds.Contains(x.SensorId)).OrderByDescending(x => x.PerformedAtUtc).ToList();
+        }
+    }
+    private IReadOnlyList<TrendPoint> Trend => State.GetTrend(selectedPondId, activeMetric, 120);
+    private string MetricTitle => Metrics.First(m => m.Id == activeMetric).Label;
+    private string MetricUnit => State.GetThreshold(activeMetric).Unit;
+    private int MetricDigits => State.GetThreshold(activeMetric).DecimalPlaces;
+
+    protected override void OnInitialized()
+    {
+        selectedPondId = State.SelectedPondId;
+        if (string.IsNullOrWhiteSpace(selectedPondId)) selectedPondId = State.Ponds.FirstOrDefault()?.Id ?? string.Empty;
+        State.Changed += HandleChanged;
+    }
+
+    private void ChangePond(ChangeEventArgs args)
+    {
+        selectedPondId = args.Value?.ToString() ?? selectedPondId;
+        State.SelectPond(selectedPondId);
+    }
+
+    private string SensorName(string sensorId) => State.Sensors.FirstOrDefault(x => x.Id == sensorId)?.Name ?? sensorId;
+
+    private void OpenCalibration(string sensorId)
+    {
+        calibrationSensorId = sensorId;
+        calibrationOpen = true;
+    }
+
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

@@ -1,0 +1,23 @@
+@inject FarmStateService State
+
+<MetricCard Label="@Label"
+            Icon="@Icon"
+            Value="@Value"
+            Unit="@Threshold.Unit"
+            Digits="@Threshold.DecimalPlaces"
+            Min="@Threshold.ValidMin"
+            Max="@Threshold.ValidMax"
+            SafeMin="@SafeMin"
+            SafeMax="@SafeMax"
+            TargetText="@State.GetTargetText(Metric)" />
+
+@code {
+    [Parameter, EditorRequired] public string Metric { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Icon { get; set; } = "●";
+    [Parameter] public double Value { get; set; }
+
+    private MetricThresholdOptions Threshold => State.GetThreshold(Metric);
+    private double SafeMin => Threshold.WarningLow ?? Threshold.ValidMin;
+    private double SafeMax => Threshold.WarningHigh ?? Threshold.ValidMax;
+}

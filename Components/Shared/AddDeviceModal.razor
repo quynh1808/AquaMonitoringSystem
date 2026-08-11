@@ -1,0 +1,91 @@
+@inject FarmStateService State
+
+@if (IsOpen)
+{
+    <div class="modal-layer" role="dialog" aria-modal="true">
+        <button class="modal-backdrop" @onclick="Close" aria-label="Đóng"></button>
+        <section class="modal-card compact">
+            <button class="modal-close" @onclick="Close">×</button>
+            <div class="modal-heading">
+                <span class="eyebrow">KHAI BÁO RƠ-LE</span>
+                <h2>Thêm thiết bị mới</h2>
+                <p>@PondName</p>
+            </div>
+
+            <EditForm Model="model" OnValidSubmit="Submit">
+                <DataAnnotationsValidator />
+                <div class="form-grid">
+                    <label>Tên thiết bị
+                        <InputText @bind-Value="model.Name" placeholder="Ví dụ: Máy sục khí đáy S4" />
+                        <ValidationMessage For="() => model.Name" />
+                    </label>
+                    <label>Loại thiết bị
+                        <InputSelect @bind-Value="model.Type">
+                            <option value="paddle_wheel">Giàn quạt nước</option>
+                            <option value="aerator">Máy sục khí</option>
+                            <option value="auto_feeder">Máy cho ăn tự động</option>
+                            <option value="water_pump">Máy bơm nước</option>
+                            <option value="light">Hệ thống chiếu sáng</option>
+                        </InputSelect>
+                    </label>
+                    <label>Công suất (kW)
+                        <InputNumber @bind-Value="model.PowerKw" step="0.1" />
+                        <ValidationMessage For="() => model.PowerKw" />
+                    </label>
+                    <label>Transport điều khiển
+                        <InputText @bind-Value="model.ControlTransport" placeholder="simulation hoặc tên adapter PLC" />
+                        <ValidationMessage For="() => model.ControlTransport" />
+                    </label>
+                    <label>Địa chỉ ngoài
+                        <InputText @bind-Value="model.ExternalAddress" placeholder="Ví dụ: plc-a/coil/aerator-01" />
+                    </label>
+                    <label>Trạng thái fail-safe
+                        <InputSelect @bind-Value="model.FailSafeState">
+                            <option value="off">Tắt khi mất liên lạc</option>
+                            <option value="on">Bật khi mất liên lạc</option>
+                        </InputSelect>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="button ghost" @onclick="Close">Hủy</button>
+                    <button type="submit" class="button primary">Thêm thiết bị</button>
+                </div>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string PondId { get; set; } = string.Empty;
+    [Parameter] public string PondName { get; set; } = string.Empty;
+
+    private AddDeviceRequest model = new();
+
+    protected override void OnParametersSet()
+    {
+        if (model.PondId != PondId)
+        {
+            model = NewModel();
+        }
+    }
+
+    private async Task Submit()
+    {
+        model.PondId = PondId;
+        await State.AddDeviceAsync(model);
+        model = NewModel();
+        await IsOpenChanged.InvokeAsync(false);
+    }
+
+    private Task Close() => IsOpenChanged.InvokeAsync(false);
+    private AddDeviceRequest NewModel() => new()
+    {
+        PondId = PondId,
+        Type = "paddle_wheel",
+        PowerKw = 2.2,
+        ControlTransport = "simulation",
+        FailSafeState = "off"
+    };
+}

@@ -1,0 +1,69 @@
+<div class="trend-chart">
+    <div class="chart-y-label max">@Max.ToString(Format, CultureInfo.GetCultureInfo("vi-VN"))</div>
+    <div class="chart-y-label mid">@Mid.ToString(Format, CultureInfo.GetCultureInfo("vi-VN"))</div>
+    <div class="chart-y-label min">@Min.ToString(Format, CultureInfo.GetCultureInfo("vi-VN"))</div>
+    <svg viewBox="0 0 760 220" preserveAspectRatio="none" role="img" aria-label="Biểu đồ xu hướng">
+        <defs>
+            <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="currentColor" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+            </linearGradient>
+        </defs>
+        <g class="chart-grid">
+            <line x1="36" y1="20" x2="748" y2="20" />
+            <line x1="36" y1="105" x2="748" y2="105" />
+            <line x1="36" y1="190" x2="748" y2="190" />
+        </g>
+        <polygon class="chart-area" points="@AreaPoints" />
+        <polyline class="chart-line" points="@LinePoints" />
+        @foreach (var point in RenderPoints)
+        {
+            <circle cx="@point.X" cy="@point.Y" r="3.4"><title>@point.Label: @point.Value.ToString(Format, CultureInfo.GetCultureInfo("vi-VN")) @Unit</title></circle>
+        }
+    </svg>
+    <div class="chart-x-labels">
+        @foreach (var point in LabelPoints)
+        {
+            <span>@point.Label</span>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<TrendPoint> Points { get; set; } = [];
+    [Parameter] public string Unit { get; set; } = string.Empty;
+    [Parameter] public int Digits { get; set; } = 2;
+
+    private string Format => $"N{Digits}";
+    private double Min => Points.Count == 0 ? 0 : Points.Min(p => p.Value);
+    private double Max => Points.Count == 0 ? 1 : Points.Max(p => p.Value);
+    private double Mid => (Min + Max) / 2;
+
+    private IReadOnlyList<ChartPoint> RenderPoints
+    {
+        get
+        {
+            if (Points.Count == 0) return [];
+            var range = Math.Max(0.0001, Max - Min);
+            return Points.Select((p, i) => new ChartPoint
+            {
+                X = 36 + i * (712d / Math.Max(1, Points.Count - 1)),
+                Y = 190 - ((p.Value - Min) / range * 170),
+                Label = p.Label,
+                Value = p.Value
+            }).ToList();
+        }
+    }
+
+    private string LinePoints => string.Join(" ", RenderPoints.Select(p => $"{p.X.ToString("0.##", CultureInfo.InvariantCulture)},{p.Y.ToString("0.##", CultureInfo.InvariantCulture)}"));
+    private string AreaPoints => $"36,190 {LinePoints} 748,190";
+    private IReadOnlyList<ChartPoint> LabelPoints => RenderPoints.Where((_, i) => i == 0 || i == RenderPoints.Count - 1 || i % 5 == 0).ToList();
+
+    private sealed class ChartPoint
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public double Value { get; set; }
+    }
+}

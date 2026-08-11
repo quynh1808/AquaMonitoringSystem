@@ -1,0 +1,8 @@
+{
+  "DeviceControl": {
+    "DefaultTransport": "simulation",
+    "HardwareControlEnabled": false,
+    "SimulationEnabled": true,
+    "CommandTimeoutSeconds": 10
+  }
+}

@@ -1,0 +1,32 @@
+<div class="ams-heatmap-wrap">
+    <table class="ams-heatmap-table">
+        <thead>
+            <tr>
+                <th>Ao nuôi</th>
+                @foreach (var metric in Headers)
+                {
+                    <th>@metric.Label</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr>
+                    <th><a href="@($"/pond/{row.PondId}/overview")">@row.PondName</a></th>
+                    @foreach (var cell in row.Cells)
+                    {
+                        <td class="@cell.Status" title="@cell.Label: @cell.FormattedValue @cell.Unit">
+                            <strong>@cell.FormattedValue</strong><small>@cell.Unit</small>
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<DashboardHeatmapRow> Rows { get; set; } = [];
+    private IReadOnlyList<DashboardHeatmapCell> Headers => Rows.FirstOrDefault()?.Cells ?? [];
+}

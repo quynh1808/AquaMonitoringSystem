@@ -1,0 +1,87 @@
+@page "/alerts"
+@attribute [Authorize]
+@inject FarmStateService State
+@implements IDisposable
+
+<PageTitle>Cảnh báo · AquaOps</PageTitle>
+
+<AuthGate>
+    <section class="page-stack">
+        <header class="page-heading">
+            <div><span class="eyebrow">AN TOÀN VẬN HÀNH</span><h1>Cảnh báo và tự động hóa</h1><p>Theo dõi sự kiện vượt ngưỡng, đề xuất kiểm tra và lịch sử điều khiển.</p></div>
+            <div class="heading-actions"><button class="button ghost" @onclick="State.Tick">↻ Kiểm tra lại</button></div>
+        </header>
+
+        <div class="threshold-grid">
+            @foreach (var rule in ThresholdCards)
+            {
+                <article><span>@rule.Icon</span><small>@rule.Label</small><strong>@State.GetTargetText(rule.Metric)</strong><p>@State.GetThreshold(rule.Metric).ProposedSolution</p></article>
+            }
+        </div>
+
+        <div class="alerts-layout">
+            <section class="panel alert-list-panel">
+                <div class="panel-heading">
+                    <div><span class="eyebrow">SỰ KIỆN GHI NHẬN</span><h2>@ActiveAlerts.Count cảnh báo đang mở</h2></div>
+                    <div class="segmented-control"><button class="@(!showResolved ? "active" : "")" @onclick="() => showResolved = false">Đang mở</button><button class="@(showResolved ? "active" : "")" @onclick="() => showResolved = true">Đã xử lý</button></div>
+                </div>
+
+                <div class="alert-list">
+                    @foreach (var alert in VisibleAlerts)
+                    {
+                        <article class="alert-item @alert.Severity">
+                            <div class="alert-symbol">!</div>
+                            <div class="alert-body">
+                                <div><span class="status-pill @(alert.Severity == "critical" ? "danger" : "warning")">@(alert.Severity == "critical" ? "NGHIÊM TRỌNG" : "CẢNH BÁO")</span><time>@alert.Timestamp.ToLocalTime().ToString("dd/MM HH:mm:ss")</time></div>
+                                <h3>@alert.PondName · @FarmStateService.GetMetricLabel(alert.Metric)</h3>
+                                <p>@alert.Message</p>
+                                <dl><div><dt>Giá trị</dt><dd>@alert.Value.ToString("N3", Vi)</dd></div><div><dt>Ngưỡng</dt><dd>@alert.Threshold</dd></div></dl>
+                                <div class="solution-box"><strong>Đề xuất kiểm tra</strong><p>@alert.ProposedSolution</p></div>
+                            </div>
+                            @if (!alert.IsResolved)
+                            {
+                                <AuthorizeView Roles="Administrator,FarmManager,Technician">
+                                    <button class="button success" @onclick="async () => await State.ResolveAlertAsync(alert.Id)">✓ Đã xử lý</button>
+                                </AuthorizeView>
+                            }
+                            else
+                            {
+                                <span class="resolved-label">Đã đóng @alert.ResolvedAt?.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                            }
+                        </article>
+                    }
+                    @if (VisibleAlerts.Count == 0)
+                    {
+                        <div class="empty-state compact"><div class="empty-icon">✓</div><h3>Không có cảnh báo trong nhóm này</h3><p>Các sự kiện mới sẽ xuất hiện tại đây.</p></div>
+                    }
+                </div>
+            </section>
+
+            <aside class="panel automation-panel">
+                <div class="panel-heading"><div><span class="eyebrow">NHẬT KÝ AUTO</span><h2>Thao tác hệ thống</h2></div><AuthorizeView Roles="Administrator,FarmManager"><button class="text-button" @onclick="async () => await State.ClearAutomationLogsAsync()">Xóa lịch sử</button></AuthorizeView></div>
+                <div class="timeline">
+                    @foreach (var log in State.AutomationLogs.Take(20))
+                    {
+                        <article><i></i><div><time>@log.Timestamp.ToLocalTime().ToString("HH:mm:ss")</time><strong>@log.PondName</strong><p>@log.Message</p></div></article>
+                    }
+                    @if (State.AutomationLogs.Count == 0)
+                    {
+                        <p class="helper-text">Chưa có thao tác tự động nào.</p>
+                    }
+                </div>
+            </aside>
+        </div>
+    </section>
+</AuthGate>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private bool showResolved;
+    private static readonly (string Metric, string Icon, string Label)[] ThresholdCards = [("dissolvedOxygen", "O₂", "Oxy hòa tan"), ("ph", "pH", "Độ pH"), ("ammonia", "NH₃", "Amoniac"), ("waterLevel", "↕", "Mực nước")];
+    private List<AlertItem> ActiveAlerts => State.Alerts.Where(a => !a.IsResolved).ToList();
+    private List<AlertItem> VisibleAlerts => State.Alerts.Where(a => a.IsResolved == showResolved).OrderByDescending(a => a.Timestamp).ToList();
+
+    protected override void OnInitialized() => State.Changed += HandleChanged;
+    private void HandleChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => State.Changed -= HandleChanged;
+}

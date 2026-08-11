@@ -1,0 +1,184 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = SystemRoles.Administrator)]
+@inject UserAccountService Accounts
+@inject FarmStateService State
+
+<PageTitle>Người dùng & phân quyền · AquaOps</PageTitle>
+
+<section class="page-stack">
+    <header class="page-heading">
+        <div><span class="eyebrow">IDENTITY & ACCESS MANAGEMENT</span><h1>Đăng nhập và phân quyền</h1><p>Quản lý role, trạng thái tài khoản, phạm vi ao và reset mật khẩu.</p></div>
+        <button class="button primary" @onclick="() => showCreate = !showCreate">＋ Tạo tài khoản</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="notice" role="status">@message</div>
+    }
+
+    @if (showCreate)
+    {
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Tài khoản mới</h2><p>Mật khẩu được băm PBKDF2 trước khi lưu MongoDB.</p></div></div>
+            <EditForm Model="model" OnValidSubmit="CreateAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="cycle-form-grid">
+                    <label>Tên đăng nhập<InputText @bind-Value="model.Username" /></label>
+                    <label>Tên hiển thị<InputText @bind-Value="model.DisplayName" /></label>
+                    <label>Mật khẩu
+                        <span class="password-input-wrap">
+                            <input type="@(showCreatePassword ? "text" : "password")" @bind="model.Password" autocomplete="new-password" />
+                            <button type="button" class="password-toggle" @onclick="() => showCreatePassword = !showCreatePassword" aria-label="@(showCreatePassword ? "Ẩn mật khẩu" : "Hiện mật khẩu")"><span aria-hidden="true">@(showCreatePassword ? "🙈" : "👁")</span></button>
+                        </span>
+                    </label>
+                    <label>Vai trò<InputSelect @bind-Value="model.Role">@foreach (var role in SystemRoles.All) { <option value="@role">@role</option> }</InputSelect></label>
+                    <label class="full">Phạm vi ao<select multiple @onchange="SelectPonds">@foreach (var pond in State.Ponds) { <option value="@pond.Id">@pond.Name</option> }</select></label>
+                </div>
+                <div class="heading-actions"><button class="button primary" type="submit">Lưu tài khoản</button></div>
+            </EditForm>
+        </article>
+    }
+
+    @if (resetUser is not null)
+    {
+        <article class="panel account-reset-panel">
+            <div class="panel-heading">
+                <div><span class="eyebrow">PASSWORD RESET</span><h2>Đặt lại mật khẩu · @resetUser.DisplayName</h2><p>Thao tác sẽ đồng thời xóa lockout của tài khoản.</p></div>
+                <button class="text-button" @onclick="CloseReset">Đóng</button>
+            </div>
+            <EditForm Model="resetModel" OnValidSubmit="ResetPasswordAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <div class="cycle-form-grid">
+                    <label>Mật khẩu mới
+                        <span class="password-input-wrap">
+                            <input type="@(showResetPassword ? "text" : "password")" @bind="resetModel.Password" autocomplete="new-password" />
+                            <button type="button" class="password-toggle" @onclick="() => showResetPassword = !showResetPassword" aria-label="@(showResetPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu")"><span aria-hidden="true">@(showResetPassword ? "🙈" : "👁")</span></button>
+                        </span>
+                    </label>
+                    <label>Xác nhận mật khẩu
+                        <span class="password-input-wrap">
+                            <input type="@(showResetConfirm ? "text" : "password")" @bind="resetModel.ConfirmPassword" autocomplete="new-password" />
+                            <button type="button" class="password-toggle" @onclick="() => showResetConfirm = !showResetConfirm" aria-label="@(showResetConfirm ? "Ẩn mật khẩu" : "Hiện mật khẩu")"><span aria-hidden="true">@(showResetConfirm ? "🙈" : "👁")</span></button>
+                        </span>
+                    </label>
+                </div>
+                <button class="button primary" type="submit">Xác nhận đặt lại</button>
+            </EditForm>
+        </article>
+    }
+
+    <div class="user-admin-grid">
+        <div class="summary-tile"><small>TỔNG TÀI KHOẢN</small><strong>@users.Count</strong><span>@users.Count(x => x.IsEnabled) đang hoạt động</span></div>
+        <div class="summary-tile"><small>QUẢN TRỊ VIÊN</small><strong>@users.Count(x => x.Roles.Contains(SystemRoles.Administrator))</strong><span>Quyền toàn hệ thống</span></div>
+        <div class="summary-tile"><small>KỸ THUẬT VIÊN</small><strong>@users.Count(x => x.Roles.Contains(SystemRoles.Technician))</strong><span>Điều khiển ao được giao</span></div>
+        <div class="summary-tile"><small>TÀI KHOẢN KHÓA</small><strong>@users.Count(x => !x.IsEnabled || x.LockedUntilUtc > DateTime.UtcNow)</strong><span>Cần quản trị kiểm tra</span></div>
+    </div>
+
+    <article class="panel">
+        <div class="panel-heading"><div><h2>Danh sách người dùng</h2><p>Policy được kiểm tra ở server, không chỉ ẩn nút trên UI.</p></div></div>
+        <div class="ams-table-wrap">
+            <table class="ams-data-table">
+                <thead><tr><th>Người dùng</th><th>Vai trò</th><th>Phạm vi ao</th><th>Đăng nhập cuối</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr>
+                            <td><strong>@user.DisplayName</strong><small>@user.Username</small></td>
+                            <td>@foreach (var role in user.Roles) { <span class="permission-badge @(role == SystemRoles.Administrator ? "admin" : "")">@role</span> }</td>
+                            <td>@(user.AllowedPondIds.Count == 0 ? "Toàn bộ theo role" : $"{user.AllowedPondIds.Count} ao")</td>
+                            <td>@(user.LastLoginAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Chưa đăng nhập")</td>
+                            <td><span class="permission-badge @(!user.IsEnabled ? "disabled" : "")">@(user.IsEnabled ? "Hoạt động" : "Đã khóa")</span></td>
+                            <td class="table-actions"><button class="text-button" @onclick="() => OpenReset(user)">Reset mật khẩu</button><button class="text-button" @onclick="() => ToggleAsync(user)">@(user.IsEnabled ? "Khóa" : "Mở khóa")</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </article>
+</section>
+
+@code {
+    private List<AppUser> users = [];
+    private bool showCreate;
+    private bool showCreatePassword;
+    private bool showResetPassword;
+    private bool showResetConfirm;
+    private string message = string.Empty;
+    private NewUser model = new();
+    private ResetPasswordModel resetModel = new();
+    private AppUser? resetUser;
+    private List<string> selectedPonds = [];
+
+    protected override async Task OnInitializedAsync() => users = await Accounts.GetUsersAsync(CancellationToken.None);
+
+    private void SelectPonds(ChangeEventArgs args)
+    {
+        if (args.Value is string value) selectedPonds = [value];
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            await Accounts.CreateAsync(model.Username, model.DisplayName, model.Password, [model.Role], selectedPonds, CancellationToken.None);
+            users = await Accounts.GetUsersAsync(CancellationToken.None);
+            model = new();
+            showCreate = false;
+            showCreatePassword = false;
+            message = "Đã tạo tài khoản.";
+        }
+        catch (Exception ex) { message = ex.Message; }
+    }
+
+    private void OpenReset(AppUser user)
+    {
+        resetUser = user;
+        resetModel = new();
+        showResetPassword = false;
+        showResetConfirm = false;
+        message = string.Empty;
+    }
+
+    private void CloseReset() => resetUser = null;
+
+    private async Task ResetPasswordAsync()
+    {
+        if (resetUser is null) return;
+        try
+        {
+            await Accounts.ResetPasswordAsync(resetUser.Id, resetModel.Password, CancellationToken.None);
+            message = $"Đã đặt lại mật khẩu và xóa lockout cho {resetUser.Username}.";
+            resetUser = null;
+            resetModel = new();
+        }
+        catch (Exception ex) { message = ex.Message; }
+    }
+
+    private async Task ToggleAsync(AppUser user)
+    {
+        try
+        {
+            await Accounts.SetEnabledAsync(user.Id, !user.IsEnabled, CancellationToken.None);
+            users = await Accounts.GetUsersAsync(CancellationToken.None);
+            message = "Đã cập nhật trạng thái tài khoản.";
+        }
+        catch (Exception ex) { message = ex.Message; }
+    }
+
+    private sealed class NewUser
+    {
+        [Required] public string Username { get; set; } = string.Empty;
+        [Required] public string DisplayName { get; set; } = string.Empty;
+        [Required, MinLength(12)] public string Password { get; set; } = string.Empty;
+        public string Role { get; set; } = SystemRoles.Viewer;
+    }
+
+    private sealed class ResetPasswordModel
+    {
+        [Required, MinLength(12)] public string Password { get; set; } = string.Empty;
+        [Required, Compare(nameof(Password), ErrorMessage = "Xác nhận mật khẩu không khớp.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

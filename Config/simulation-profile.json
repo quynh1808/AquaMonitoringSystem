@@ -1,0 +1,108 @@
+{
+  "SimulationProfile": {
+    "Enabled": true,
+    "AllowSimulationOverrideRealSensors": false,
+    "IntervalMilliseconds": 3000,
+    "RandomSeed": 20260725,
+    "DefaultBatteryLevel": 100,
+    "DefaultSignalStrength": -45,
+    "FirmwareVersion": "sim-1.0",
+    "ManualBatteryLevel": 100,
+    "ManualSignalStrength": -40,
+    "ManualFirmwareVersion": "manual-sim-1.0",
+    "Metrics": {
+      "temperature": {
+        "BaseValue": 29.4,
+        "MinValue": 25.5,
+        "MaxValue": 34.0,
+        "MaxStep": 0.12,
+        "DailyAmplitude": 1.2,
+        "DecimalPlaces": 1,
+        "AnomalyProbability": 0.002,
+        "AnomalyAmplitude": 2.0,
+        "TargetCorrectionFactor": 0.12
+      },
+      "ph": {
+        "BaseValue": 7.95,
+        "MinValue": 6.8,
+        "MaxValue": 9.2,
+        "MaxStep": 0.035,
+        "DailyAmplitude": 0.18,
+        "DecimalPlaces": 2,
+        "AnomalyProbability": 0.002,
+        "AnomalyAmplitude": 0.45,
+        "TargetCorrectionFactor": 0.12
+      },
+      "dissolvedOxygen": {
+        "BaseValue": 5.8,
+        "MinValue": 3.0,
+        "MaxValue": 8.5,
+        "MaxStep": 0.12,
+        "DailyAmplitude": 0.65,
+        "DecimalPlaces": 2,
+        "AnomalyProbability": 0.006,
+        "AnomalyAmplitude": 1.1,
+        "TargetCorrectionFactor": 0.12
+      },
+      "salinity": {
+        "BaseValue": 18.0,
+        "MinValue": 5.0,
+        "MaxValue": 35.0,
+        "MaxStep": 0.12,
+        "DailyAmplitude": 0.25,
+        "DecimalPlaces": 1,
+        "AnomalyProbability": 0.001,
+        "AnomalyAmplitude": 2.5,
+        "TargetCorrectionFactor": 0.12
+      },
+      "ammonia": {
+        "BaseValue": 0.025,
+        "MinValue": 0.005,
+        "MaxValue": 0.15,
+        "MaxStep": 0.004,
+        "DailyAmplitude": 0.006,
+        "DecimalPlaces": 3,
+        "AnomalyProbability": 0.006,
+        "AnomalyAmplitude": 0.04,
+        "TargetCorrectionFactor": 0.12
+      },
+      "waterLevel": {
+        "BaseValue": 1.42,
+        "MinValue": 1.05,
+        "MaxValue": 1.75,
+        "MaxStep": 0.008,
+        "DailyAmplitude": 0.025,
+        "DecimalPlaces": 2,
+        "AnomalyProbability": 0.004,
+        "AnomalyAmplitude": 0.12,
+        "TargetCorrectionFactor": 0.12
+      }
+    },
+    "PondMetricOffsets": {
+      "pond_01": {
+        "temperature": 0.2,
+        "ph": 0.05,
+        "dissolvedOxygen": 0.15,
+        "salinity": 0.1,
+        "ammonia": 0.002,
+        "waterLevel": 0.0
+      },
+      "pond_02": {
+        "temperature": 0.6,
+        "ph": -0.15,
+        "dissolvedOxygen": -0.65,
+        "salinity": 2.2,
+        "ammonia": 0.018,
+        "waterLevel": -0.12
+      },
+      "pond_03": {
+        "temperature": -0.4,
+        "ph": -0.03,
+        "dissolvedOxygen": 0.35,
+        "salinity": -3.4,
+        "ammonia": -0.004,
+        "waterLevel": 0.02
+      }
+    }
+  }
+}

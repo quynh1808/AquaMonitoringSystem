@@ -1,0 +1,64 @@
+{
+  "SystemBehavior": {
+    "SensorOfflineAfterSeconds": 30,
+    "SensorHealthCheckIntervalSeconds": 10,
+    "ReadingRetentionDays": 365,
+    "RuntimeReadingLimit": 20000,
+    "DashboardHistoryPointLimit": 240,
+    "DefaultShrimpGrowDays": 105,
+    "DefaultFishGrowDays": 180,
+    "DefaultCalibrationIntervalDays": 30,
+    "HealthScore": {
+      "OfflineScore": 25,
+      "InitialScore": 100,
+      "MetricOutOfRangePenalty": 12,
+      "CriticalAlertPenalty": 8,
+      "StableMinimum": 85,
+      "MonitorMinimum": 65,
+      "DashboardHealthyMinimum": 80
+    },
+    "AutomationPolicies": [
+      {
+        "Metric": "dissolvedOxygen",
+        "TriggerDirection": "low",
+        "StartAt": 5.0,
+        "StopAt": 6.5,
+        "DeviceTypes": [
+          "paddle_wheel",
+          "aerator"
+        ],
+        "StartMessage": "DO {value} mg/L: tự động bật {device}.",
+        "StopMessage": "DO {value} mg/L: tự động tắt {device}."
+      },
+      {
+        "Metric": "waterLevel",
+        "TriggerDirection": "low",
+        "StartAt": 1.3,
+        "StopAt": 1.45,
+        "DeviceTypes": [
+          "water_pump"
+        ],
+        "StartMessage": "Mực nước {value} m: tự động bật {device}.",
+        "StopMessage": "Mực nước {value} m: tự động tắt {device}."
+      }
+    ],
+    "DefaultDevices": [
+      {
+        "Name": "Quạt nước chính",
+        "Type": "paddle_wheel",
+        "Status": "off",
+        "Mode": "auto",
+        "PowerKw": 2.2
+      },
+      {
+        "Name": "Bơm cấp nước",
+        "Type": "water_pump",
+        "Status": "off",
+        "Mode": "manual",
+        "PowerKw": 1.5
+      }
+    ],
+    "CalibrationReminderDaysBefore": 7,
+    "MaintenanceCheckIntervalMinutes": 15
+  }
+}

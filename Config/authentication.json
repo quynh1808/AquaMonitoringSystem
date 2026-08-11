@@ -1,0 +1,11 @@
+{
+  "Authentication": {
+    "BootstrapAdminUsername": "admin",
+    "BootstrapAdminPassword": "Development2026",
+    "BootstrapAdminDisplayName": "Quản trị hệ thống",
+    "PasswordIterations": 210000,
+    "MaxFailedLoginAttempts": 5,
+    "LockoutMinutes": 15,
+    "CookieHours": 8
+  }
+}
