@@ -13,7 +13,7 @@
 
 - AquaOps chạy root filesystem read-only, `no-new-privileges`, chỉ publish cổng HTTP trên địa chỉ LAN được cấu hình.
 - MongoDB nằm trên network internal và không publish port.
-- Data Protection keys dùng named volume, tránh logout toàn bộ user sau deploy.
+- Data Protection keys dùng named volume; `data-protection-init` giới hạn directory ở mode `700` cho UID/GID non-root 1654, tránh lỗi ghi key và tránh logout toàn bộ user sau deploy.
 - Log container có rotation để không lấp đĩa.
 - `.env`, `secrets/`, keys và backup đã Git ignore; giới hạn quyền file trên Ubuntu.
 

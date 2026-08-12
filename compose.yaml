@@ -52,6 +52,24 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
+  data-protection-init:
+    image: ${BUSYBOX_IMAGE:-busybox:1.37}
+    restart: "no"
+    user: "0:0"
+    # Named volumes start as root-owned. This one-shot service grants only the non-root AquaOps
+    # identity access before ASP.NET creates antiforgery and cookie-encryption keys.
+    command:
+      - sh
+      - -c
+      - >-
+        chown -R ${AQUAOPS_CONTAINER_UID:-1654}:${AQUAOPS_CONTAINER_GID:-1654} /keys &&
+        chmod 700 /keys
+    volumes:
+      - data_protection_keys:/keys
+    network_mode: none
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+
   aquaops:
     image: ${AQUAOPS_IMAGE:-ghcr.io/quynh1808/aquaops}:${AQUAOPS_VERSION:?set AQUAOPS_VERSION in .env}
     restart: unless-stopped
@@ -62,6 +80,10 @@ services:
         restart: true
       mosquitto:
         condition: service_healthy
+      data-protection-init:
+        condition: service_completed_successfully
+    # Must match ContainerUser in AquacultureMonitoring.csproj and the init service above.
+    user: "${AQUAOPS_CONTAINER_UID:-1654}:${AQUAOPS_CONTAINER_GID:-1654}"
     # Publish HTTP only on the selected LAN interface. For the narrowest exposure, set
     # AQUAOPS_BIND_ADDRESS to the Ubuntu server's fixed LAN IPv4 instead of 0.0.0.0.
     ports:

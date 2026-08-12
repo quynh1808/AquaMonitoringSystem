@@ -33,7 +33,7 @@
 ## Production middleware
 
 - Ứng dụng phục vụ HTTP trực tiếp trên cổng LAN do Compose publish; không dùng forwarded headers, HTTPS redirect hoặc HSTS.
-- Data Protection keys được persist vào path cấu hình; Compose mount named volume tại `/var/lib/aquaops/keys`.
+- Data Protection keys được persist vào `/var/lib/aquaops/keys`. Compose chạy `data-protection-init` một lần để đặt volume về UID/GID 1654 trước khi AquaOps non-root khởi động.
 - `/health/live` kiểm process, `/health/ready` và `/health` kiểm MongoDB.
 
 ## Static assets

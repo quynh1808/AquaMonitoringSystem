@@ -25,6 +25,7 @@ Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` c�
 - Device command đi qua `IDeviceCommandTransport`, safety switch, durable intent, timeout và ACK/read-back trước khi cập nhật trạng thái.
 - Vụ nuôi, tăng trưởng, hao hụt, thu hoạch, FCR, feeding, calibration và maintenance.
 - Readiness/liveness health check, persistent Data Protection keys và container filesystem read-only.
+- AquaOps chạy non-root UID 1654; init container chuẩn hóa quyền volume key trước khi ứng dụng khởi động.
 - CI build/test và publish image bất biến `sha-<commit>` hoặc tag `v*` lên GHCR.
 
 ## Chạy phát triển trên Windows

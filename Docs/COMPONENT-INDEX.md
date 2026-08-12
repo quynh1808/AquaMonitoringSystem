@@ -81,6 +81,7 @@ Mỗi file `.razor` trong `Components/` có file `.md` cùng tên. Các trang qu
 - `Docs/GIT-PUBLISH.md`
 - `Docs/BUILD-AND-VERIFY.md`
 - `Docs/VALIDATION-REPORT.md`
+- `Docs/TROUBLESHOOTING.md`
 - `Examples/README.md`
 
 ## Vận hành MongoDB

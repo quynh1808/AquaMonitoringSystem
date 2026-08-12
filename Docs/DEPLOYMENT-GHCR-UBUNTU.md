@@ -95,13 +95,13 @@ NEW_SHA="$(git rev-parse HEAD)"
 ./scripts/deploy-ubuntu.sh "sha-${NEW_SHA}"
 ```
 
-Bootstrap tạo `secrets/mosquitto_passwords`, kiểm username, đặt owner/mode cho user Mosquitto và validate Compose. Deploy pull image, cập nhật Compose và kiểm tra `http://<bind-address>:<port>/health/ready`.
+Bootstrap tạo `secrets/mosquitto_passwords`, kiểm username, đặt owner/mode cho user Mosquitto và validate Compose. Khi stack khởi động, `data-protection-init` đặt named volume key về UID/GID non-root 1654 rồi thoát với mã `0`; đây là trạng thái bình thường. Deploy pull image, cập nhật Compose và kiểm tra `http://<bind-address>:<port>/health/ready`.
 
 Kiểm tra:
 
 ```bash
 docker compose ps
-docker compose logs --tail=200 aquaops mongodb mosquitto
+docker compose logs --tail=200 data-protection-init aquaops mongodb mosquitto
 curl -fsS http://192.168.1.20:8080/health/live
 curl -fsS http://192.168.1.20:8080/health/ready
 ```
@@ -136,5 +136,7 @@ Nếu mất toàn bộ tài khoản Administrator:
 ```
 
 Các named volume giữ MongoDB, Mosquitto và Data Protection keys khi container được thay. `docker compose down` không xóa volume; không dùng `docker compose down -v` trong vận hành.
+
+Nếu log có `UnauthorizedAccessException` tại `/var/lib/aquaops/keys`, xem `Docs/TROUBLESHOOTING.md`. Không xóa volume key để sửa permission; init service sửa tại chỗ và giữ lại cookie/key hiện có.
 
 Thiết lập timer cho `scripts/backup-mongodb.sh`, mã hóa backup, lưu một bản ngoài máy chủ và diễn tập restore định kỳ.

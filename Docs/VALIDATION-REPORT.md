@@ -20,6 +20,7 @@ Ngày kiểm tra gần nhất: 12/08/2026
 - Mongo write queue và sensor bus có backpressure, không còn silent `TryWrite`.
 - Projection và mutation kiểm role/phạm vi ao ở service.
 - Login/logout có antiforgery; login có rate limit; Data Protection keys được persist.
+- Init container chuẩn hóa quyền named volume Data Protection trước khi app non-root khởi động.
 - Đổi/reset mật khẩu luôn tạo salt mới, xóa trạng thái khóa và không ghi mật khẩu vào file cấu hình hay tham số dòng lệnh.
 - Device command ghi pending intent trước dispatch, chỉ cập nhật state sau ACK/read-back, có master hardware switch và không retry mù.
 - MongoDB không publish host port; Kestrel chỉ publish HTTP trên địa chỉ/cổng LAN được cấu hình.

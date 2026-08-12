@@ -14,6 +14,9 @@
     <EnableSdkContainerSupport>true</EnableSdkContainerSupport>
     <ContainerRepository>aquaops</ContainerRepository>
     <ContainerPort>8080</ContainerPort>
+    <!-- Keep the runtime identity explicit. Compose uses the same UID/GID when preparing the
+         persistent Data Protection volume, so the application never needs to run as root. -->
+    <ContainerUser>1654</ContainerUser>
   </PropertyGroup>
 
   <ItemGroup>

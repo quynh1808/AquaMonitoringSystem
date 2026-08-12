@@ -10,6 +10,8 @@ Trên Ubuntu chạy `chmod +x scripts/*.sh` sau lần clone đầu tiên. Không
 
 Ứng dụng không dùng domain/Caddy/HTTPS. Cấu hình `AQUAOPS_BIND_ADDRESS` bằng IPv4 LAN tĩnh và `AQUAOPS_HTTP_PORT` trong `.env`; không port-forward cổng này ra Internet.
 
+Compose có `data-protection-init`, một init container chạy root trong phạm vi volume key rồi thoát. AquaOps vẫn chạy non-root UID/GID 1654; xem `Docs/TROUBLESHOOTING.md` nếu antiforgery báo permission denied.
+
 ## Recovery mật khẩu Administrator
 
 Ubuntu/Compose, khi MongoDB đang chạy:
