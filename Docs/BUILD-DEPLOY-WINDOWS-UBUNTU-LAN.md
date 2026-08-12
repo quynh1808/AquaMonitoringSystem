@@ -362,7 +362,7 @@ AQUAOPS_IMAGE=ghcr.io/quynh1808/aquaops
 AQUAOPS_VERSION=sha-replace-with-successful-full-commit-sha
 AQUAOPS_BIND_ADDRESS=192.168.100.66
 AQUAOPS_HTTP_PORT=8080
-AQUAOPS_MODE=Simulation
+AQUAOPS_MODE=EdgeSimulation
 
 ALERT_WEBHOOK_ENABLED=false
 ALERT_WEBHOOK_URL=
@@ -374,7 +374,7 @@ BUSYBOX_IMAGE=busybox:1.37
 AQUAOPS_CONTAINER_UID=1654
 AQUAOPS_CONTAINER_GID=1654
 
-MQTT_BIND_ADDRESS=127.0.0.1
+MQTT_BIND_ADDRESS=192.168.100.66
 
 MONGO_ROOT_USERNAME=aquaops
 MONGO_ROOT_PASSWORD='replace-with-long-random-root-password'
@@ -390,7 +390,9 @@ AQUAOPS_ADMIN_PASSWORD='replace-with-long-random-admin-password'
 AQUAOPS_ADMIN_DISPLAY_NAME='Quản trị hệ thống'
 
 HARDWARE_CONTROL_ENABLED=false
-DEVICE_SIMULATION_ENABLED=true
+FX5U_HOST=192.168.100.81
+FX5U_PORT=1502
+FX5U_UNIT_ID=1
 ```
 
 Giữ cấu hình trên trong toàn bộ giai đoạn phát triển, chạy thử và shadow telemetry. Khi đã hoàn tất commissioning sensor/PLC thật, chuyển sang profile production bằng cách thêm vào `.env`:
@@ -400,7 +402,7 @@ COMPOSE_FILE=compose.yaml:compose.production.yaml
 ALERT_WEBHOOK_URL=http://alert-receiver.lan/aquaops
 ```
 
-Overlay production tự tắt sensor/dashboard/cycle/device simulation, bật hardware control, yêu cầu MQTT thật và webhook cảnh báo. `OperationalModeGuard` sẽ dừng ứng dụng ngay nếu các điều kiện này bị cấu hình mâu thuẫn. Không dùng overlay production trong giai đoạn vẫn cần dữ liệu giả.
+Overlay production bật kiểm tra commissioning nghiêm ngặt: MQTT, hardware control và webhook cảnh báo phải sẵn sàng. Server không chứa generator simulation; xem `Docs/OPERATING-MODES.md` trước khi dùng overlay.
 
 Quy tắc `.env`:
 
@@ -410,11 +412,11 @@ Quy tắc `.env`:
 - Không gửi toàn bộ `.env` lên chat/log.
 - `AQUAOPS_BIND_ADDRESS` phải là IP thuộc interface `UP`.
 - Có thể dùng `0.0.0.0`, nhưng khi curl phải dùng `127.0.0.1` hoặc IP LAN thật.
-- `MQTT_BIND_ADDRESS=127.0.0.1` giữ MQTT chỉ trên server. Chỉ đổi sang IP LAN khi gateway thật cần kết nối.
+- `MQTT_BIND_ADDRESS` phải là IPv4 LAN của Ubuntu để hai ESP32 kết nối, và không được port-forward ra Internet.
 - Không đổi UID/GID 1654 ở một phía; chúng phải khớp `ContainerUser` trong project và init service trong Compose.
 - Chọn credential chính thức trước lần tạo volume MongoDB đầu tiên. Đổi password Mongo trong `.env` sau đó không tự đổi user/password đã lưu trong database.
 - `AQUAOPS_ADMIN_PASSWORD` chỉ tạo admin khi collection `users` rỗng; nó không reset password admin đã tồn tại.
-- `AQUAOPS_MODE=Simulation` là mặc định an toàn; chỉ dùng `compose.production.yaml` sau biên bản commissioning.
+- `AQUAOPS_MODE=EdgeSimulation` là profile P03; chỉ dùng `Production` và overlay sau biên bản commissioning.
 - `ALERT_WEBHOOK_URL` nên là endpoint trong LAN; không cần đưa AquaOps hoặc webhook ra Internet.
 
 Kiểm tra các biến không bí mật:
@@ -801,6 +803,9 @@ Không dùng `git reset --hard` khi chưa chắc các thay đổi cục bộ có
 - `Docs/SECURITY-HARDENING.md`: checklist bảo mật.
 - `Docs/TROUBLESHOOTING.md`: lỗi vận hành.
 - `Docs/HARDWARE-INTEGRATION.md`: commissioning PLC/relay.
+- `Docs/OPERATING-MODES.md`: chuyển Simulation → EdgeSimulation → Production và rollback.
+- `Docs/P03-IMPLEMENTATION.md`: phạm vi MQTT sensor node, ESP32 FX5U simulator và register map P03.
+- `Firmware/README.md`: build/flash hai project ESP-IDF trên Windows.
 - `scripts/README.md`: script vận hành.
 
 Tài liệu chính thức cần đối chiếu khi phiên bản công cụ thay đổi:

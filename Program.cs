@@ -24,13 +24,10 @@ var builder = WebApplication.CreateBuilder(hostArguments);
 
 builder.Configuration
     .AddJsonFile("Config/sensor-thresholds.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/simulation-profile.json", optional: false, reloadOnChange: true)
     .AddJsonFile("Config/sensor-connections.json", optional: false, reloadOnChange: true)
     .AddJsonFile("Config/system-behavior.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/dashboard-simulation.json", optional: false, reloadOnChange: true)
     .AddJsonFile("Config/authentication.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/device-control.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/production-cycle-simulation.json", optional: false, reloadOnChange: true);
+    .AddJsonFile("Config/device-control.json", optional: false, reloadOnChange: true);
 
 builder.Services
     .AddRazorComponents()
@@ -46,18 +43,12 @@ builder.Services.AddOptions<AlertNotificationOptions>()
     .Bind(builder.Configuration.GetSection(AlertNotificationOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SensorThresholdCatalog>()
     .Bind(builder.Configuration.GetSection(SensorThresholdCatalog.SectionName)).ValidateOnStart();
-builder.Services.AddOptions<SimulationProfileOptions>()
-    .Bind(builder.Configuration.GetSection(SimulationProfileOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SensorConnectionOptions>()
     .Bind(builder.Configuration.GetSection(SensorConnectionOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SystemBehaviorOptions>()
     .Bind(builder.Configuration.GetSection(SystemBehaviorOptions.SectionName)).ValidateOnStart();
-builder.Services.AddOptions<DashboardSimulationOptions>()
-    .Bind(builder.Configuration.GetSection(DashboardSimulationOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<AquaAuthenticationOptions>()
     .Bind(builder.Configuration.GetSection(AquaAuthenticationOptions.SectionName)).ValidateOnStart();
-builder.Services.AddOptions<ProductionCycleSimulationOptions>()
-    .Bind(builder.Configuration.GetSection(ProductionCycleSimulationOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<DeviceControlOptions>()
     .Bind(builder.Configuration.GetSection(DeviceControlOptions.SectionName)).ValidateOnStart();
 
@@ -65,12 +56,9 @@ builder.Services.AddSingleton<IValidateOptions<MongoDbOptions>, MongoDbOptionsVa
 builder.Services.AddSingleton<IValidateOptions<OperationalModeOptions>, OperationalModeOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<AlertNotificationOptions>, AlertNotificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorThresholdCatalog>, SensorThresholdCatalogValidator>();
-builder.Services.AddSingleton<IValidateOptions<SimulationProfileOptions>, SimulationProfileValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorConnectionOptions>, SensorConnectionOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SystemBehaviorOptions>, SystemBehaviorOptionsValidator>();
-builder.Services.AddSingleton<IValidateOptions<DashboardSimulationOptions>, DashboardSimulationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<AquaAuthenticationOptions>, AuthenticationOptionsValidator>();
-builder.Services.AddSingleton<IValidateOptions<ProductionCycleSimulationOptions>, ProductionCycleSimulationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<DeviceControlOptions>, DeviceControlOptionsValidator>();
 
 builder.Services.AddSingleton<MongoContext>();
@@ -89,7 +77,8 @@ builder.Services.AddSingleton<UserAccountService>();
 builder.Services.AddSingleton<ProductionCycleService>();
 builder.Services.AddSingleton<FarmOperationsService>();
 builder.Services.AddSingleton<FarmAccessService>();
-builder.Services.AddSingleton<IDeviceCommandTransport, SimulatedDeviceCommandTransport>();
+builder.Services.AddSingleton<ModbusTcpProtocol>();
+builder.Services.AddSingleton<IDeviceCommandTransport, Fx5uModbusTcpDeviceTransport>();
 builder.Services.AddSingleton<DeviceCommandService>();
 builder.Services.AddSingleton<OperationalModeGuard>();
 
@@ -159,7 +148,6 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton<MongoWriteQueue>();
 builder.Services.AddSingleton<IMongoWriteQueue>(sp => sp.GetRequiredService<MongoWriteQueue>());
 
-builder.Services.AddSingleton<ISensorDataSource, SimulatedSensorSource>();
 builder.Services.AddSingleton<ISensorDataSource, MqttSensorSource>();
 builder.Services.AddSingleton<ISensorDataSource, ModbusTcpSensorSource>();
 builder.Services.AddSingleton<ISensorDataSource, ModbusRtuSensorSource>();
@@ -173,7 +161,7 @@ builder.Services.AddHostedService<SensorIngestionWorker>();
 builder.Services.AddHostedService<SensorSourceCoordinator>();
 builder.Services.AddHostedService<SensorOfflineMonitor>();
 builder.Services.AddHostedService<AssetMaintenanceMonitor>();
-builder.Services.AddHostedService<ProductionCycleSimulationHostedService>();
+builder.Services.AddHostedService<Fx5uPlcMonitor>();
 
 var app = builder.Build();
 app.Services.GetRequiredService<OperationalModeGuard>().Validate();

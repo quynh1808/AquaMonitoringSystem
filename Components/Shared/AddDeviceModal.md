@@ -1,3 +1,3 @@
 # AddDeviceModal
 
-Form dành cho Administrator/FarmManager để khai báo thiết bị cho một ao. Ngoài tên/loại/công suất, form lưu `ControlTransport`, `ExternalAddress` và `FailSafeState`, nhờ đó có thể chuyển từng thiết bị từ simulation sang adapter PLC/relay mà không đổi component. Service vẫn kiểm quyền và safety switch ở server.
+Form khai báo actuator và transport `fx5u-modbus-tcp`. Thiết bị mới chưa điều khiển được chỉ bằng việc nhập `ExternalAddress`; quản trị viên còn phải thêm command/feedback/fault mapping vào `Config/device-control.json` và commissioning trước khi bật safety switch.

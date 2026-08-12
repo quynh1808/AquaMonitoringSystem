@@ -12,26 +12,20 @@ public sealed class MongoDatabaseInitializer
     private readonly MongoContext _db;
     private readonly IWebHostEnvironment _environment;
     private readonly SensorThresholdCatalog _thresholds;
-    private readonly SimulationProfileOptions _simulation;
     private readonly SystemBehaviorOptions _behavior;
-    private readonly ProductionCycleSimulationOptions _cycleSimulation;
     private readonly ILogger<MongoDatabaseInitializer> _logger;
 
     public MongoDatabaseInitializer(
         MongoContext db,
         IWebHostEnvironment environment,
         IOptions<SensorThresholdCatalog> thresholds,
-        IOptions<SimulationProfileOptions> simulation,
         IOptions<SystemBehaviorOptions> behavior,
-        IOptions<ProductionCycleSimulationOptions> cycleSimulation,
         ILogger<MongoDatabaseInitializer> logger)
     {
         _db = db;
         _environment = environment;
         _thresholds = thresholds.Value;
-        _simulation = simulation.Value;
         _behavior = behavior.Value;
-        _cycleSimulation = cycleSimulation.Value;
         _logger = logger;
     }
 
@@ -46,7 +40,6 @@ public sealed class MongoDatabaseInitializer
         {
             await SeedAsync(cancellationToken);
         }
-        await EnsureProductionCycleSeedAsync(cancellationToken);
         await BackfillFeedCycleIdsAsync(cancellationToken);
     }
 
@@ -257,10 +250,10 @@ public sealed class MongoDatabaseInitializer
             Status = x.Status,
             Mode = x.Mode,
             PowerKw = x.PowerKw,
-            ControlTransport = "simulation",
+            ControlTransport = x.ControlTransport,
+            ExternalAddress = x.ExternalAddress,
             FailSafeState = "off",
-            ConnectionStatus = "online",
-            LastSeenAtUtc = DateTime.UtcNow,
+            ConnectionStatus = "offline",
             UpdatedAtUtc = DateTime.UtcNow
         }).ToList();
 
@@ -277,7 +270,6 @@ public sealed class MongoDatabaseInitializer
         }).ToList();
 
         var sensors = new List<SensorDefinition>();
-        var readings = new List<SensorReading>();
         var latest = new List<TelemetryData>();
         var now = DateTime.UtcNow;
 
@@ -288,22 +280,16 @@ public sealed class MongoDatabaseInitializer
                 Id = pond.Id,
                 PondId = pond.Id,
                 Timestamp = now,
-                LastSeenAtUtc = now,
-                IsOnline = true,
-                Quality = "good",
-                SourceType = "simulation"
+                LastSeenAtUtc = DateTime.MinValue,
+                IsOnline = false,
+                Quality = "no-data",
+                SourceType = "mqtt"
             };
 
             foreach (var pair in _thresholds.Metrics)
             {
                 var metric = pair.Key;
                 var threshold = pair.Value;
-                var profile = _simulation.Metrics[metric];
-                var offset = _simulation.PondMetricOffsets.TryGetValue(pond.Id, out var pondOffsets) &&
-                             pondOffsets.TryGetValue(metric, out var configuredOffset)
-                    ? configuredOffset
-                    : 0;
-                var value = Math.Round(profile.BaseValue + offset, profile.DecimalPlaces);
                 var sensor = new SensorDefinition
                 {
                     Id = $"sensor_{pond.Id}_{metric}",
@@ -311,36 +297,16 @@ public sealed class MongoDatabaseInitializer
                     Name = $"{threshold.DisplayName} · {pond.Name}",
                     Metric = metric,
                     Unit = threshold.Unit,
-                    SourceType = "simulation",
-                    ExternalAddress = $"simulation://{pond.Id}/{metric}",
-                    Status = "online",
-                    LastSeenAtUtc = now,
-                    FirmwareVersion = _simulation.FirmwareVersion,
-                    CalibrationDateUtc = now,
-                    CalibrationDueDateUtc = now.AddDays(_behavior.DefaultCalibrationIntervalDays),
+                    SourceType = "mqtt",
+                    ExternalAddress = $"mqtt://aquaculture/{seed.FarmId}/{pond.Id}/sensors/{metric}/telemetry",
+                    Status = "offline",
+                    FirmwareVersion = string.Empty,
                     MinValidValue = threshold.ValidMin,
                     MaxValidValue = threshold.ValidMax,
-                    LastQuality = "good",
+                    LastQuality = "no-data",
                     UpdatedAtUtc = now
                 };
                 sensors.Add(sensor);
-                readings.Add(new SensorReading
-                {
-                    Metadata = new SensorReadingMetadata
-                    {
-                        PondId = pond.Id,
-                        SensorId = sensor.Id,
-                        Metric = metric,
-                        SourceType = "simulation"
-                    },
-                    Value = value,
-                    Unit = threshold.Unit,
-                    Quality = "good",
-                    Timestamp = now,
-                    ReceivedAtUtc = now,
-                    FirmwareVersion = _simulation.FirmwareVersion
-                });
-                ApplyMetric(telemetry, metric, value);
             }
 
             latest.Add(telemetry);
@@ -350,58 +316,9 @@ public sealed class MongoDatabaseInitializer
         if (devices.Count > 0) await _db.Devices.InsertManyAsync(devices, cancellationToken: ct);
         if (feeds.Count > 0) await _db.FeedLogs.InsertManyAsync(feeds, cancellationToken: ct);
         if (sensors.Count > 0) await _db.Sensors.InsertManyAsync(sensors, cancellationToken: ct);
-        if (readings.Count > 0) await _db.SensorReadings.InsertManyAsync(readings, cancellationToken: ct);
         if (latest.Count > 0) await _db.LatestTelemetry.InsertManyAsync(latest, cancellationToken: ct);
 
         _logger.LogInformation("Đã tạo dữ liệu MongoDB ban đầu cho {PondCount} ao và {SensorCount} cảm biến.", ponds.Count, sensors.Count);
     }
 
-    private async Task EnsureProductionCycleSeedAsync(CancellationToken ct)
-    {
-        if (!_cycleSimulation.Enabled || await _db.ProductionCycles.CountDocumentsAsync(FilterDefinition<ProductionCycle>.Empty, cancellationToken: ct) > 0) return;
-        var ponds = await _db.Ponds.Find(x => x.Status == "active").ToListAsync(ct);
-        var now = DateTime.UtcNow;
-        foreach (var pond in ponds)
-        {
-            if (!_cycleSimulation.Species.TryGetValue(pond.Species, out var profile))
-                profile = _cycleSimulation.Species.Values.FirstOrDefault() ?? new CycleSpeciesSimulationOptions();
-            var age = Math.Max(1, DateOnly.FromDateTime(DateTime.Today).DayNumber - pond.StockingDate.DayNumber);
-            var initialQuantity = Math.Max(1L, (long)Math.Round(pond.Area * pond.StockingDensity));
-            var survival = Math.Clamp(100 - age * profile.DailySurvivalLossPercent, 40, 100);
-            var weight = Math.Max(profile.InitialWeightGrams, profile.InitialWeightGrams + age * profile.DailyGrowthGrams);
-            var biomass = initialQuantity * survival / 100d * weight / 1000d;
-            var cycle = new ProductionCycle
-            {
-                PondId = pond.Id, Code = $"{pond.Id.ToUpperInvariant()}-{pond.StockingDate:yyyyMMdd}", Species = pond.Species,
-                SeedBatch = "SIM-SEED", PreparationStartedDate = pond.StockingDate.AddDays(-14), StockingDate = pond.StockingDate,
-                InitialQuantity = initialQuantity, InitialAverageWeightGrams = profile.InitialWeightGrams,
-                StockingDensityPerM2 = pond.StockingDensity, ExpectedHarvestDate = pond.EstimatedHarvestDate,
-                Status = "growing", EstimatedSurvivalRatePercent = survival, LatestAverageWeightGrams = weight,
-                EstimatedBiomassKg = biomass, FeedConversionRatio = profile.ExpectedFcr,
-                Notes = "Vụ nuôi mô phỏng được tạo từ dữ liệu ao ban đầu.", CreatedAtUtc = now, UpdatedAtUtc = now
-            };
-            await _db.ProductionCycles.InsertOneAsync(cycle, cancellationToken: ct);
-            await _db.GrowthSamples.InsertOneAsync(new GrowthSample
-            {
-                CycleId = cycle.Id, PondId = pond.Id, SampledAtUtc = now, SampleSize = profile.DefaultSampleSize,
-                AverageWeightGrams = Math.Round(weight, 2), EstimatedSurvivalRatePercent = Math.Round(survival, 2),
-                EstimatedBiomassKg = Math.Round(biomass, 2), SampledBy = "Mongo seed", Source = "simulation",
-                Notes = "Giá trị mô phỏng ban đầu; thay bằng lấy mẫu thực tế khi vận hành."
-            }, cancellationToken: ct);
-        }
-        _logger.LogInformation("Đã tạo {Count} vụ nuôi mô phỏng ban đầu.", ponds.Count);
-    }
-
-    public static void ApplyMetric(TelemetryData telemetry, string metric, double value)
-    {
-        switch (metric)
-        {
-            case "temperature": telemetry.Temperature = value; break;
-            case "ph": telemetry.Ph = value; break;
-            case "dissolvedOxygen": telemetry.DissolvedOxygen = value; break;
-            case "salinity": telemetry.Salinity = value; break;
-            case "ammonia": telemetry.Ammonia = value; break;
-            case "waterLevel": telemetry.WaterLevel = value; break;
-        }
-    }
 }

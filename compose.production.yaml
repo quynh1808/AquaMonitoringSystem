@@ -1,13 +1,9 @@
-# Production overlay: removes every built-in data/control simulator and requires real MQTT.
-# Run with COMPOSE_FILE=compose.yaml:compose.production.yaml after commissioning.
+# Production overlay. Apply only after the real sensor probes and FX5U read-back/fail-safe
+# checklist in Docs/OPERATING-MODES.md has passed.
 services:
   aquaops:
     environment:
       OperationalMode__Mode: Production
-      SimulationProfile__Enabled: "false"
-      DashboardSimulation__Enabled: "false"
-      ProductionCycleSimulation__Enabled: "false"
-      DeviceControl__SimulationEnabled: "false"
       DeviceControl__HardwareControlEnabled: "true"
       SensorConnections__ActiveSources__0: mqtt
       SensorConnections__Mqtt__Enabled: "true"

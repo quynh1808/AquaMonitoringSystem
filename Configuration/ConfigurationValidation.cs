@@ -5,7 +5,7 @@ namespace AquacultureMonitoring.Configuration;
 
 public sealed class OperationalModeOptionsValidator : IValidateOptions<OperationalModeOptions>
 {
-    private static readonly string[] Modes = ["Simulation", "Shadow", "Monitoring", "Production"];
+    private static readonly string[] Modes = ["Simulation", "EdgeSimulation", "Production"];
     public ValidateOptionsResult Validate(string? name, OperationalModeOptions options) =>
         Modes.Contains(options.Mode, StringComparer.OrdinalIgnoreCase)
             ? ValidateOptionsResult.Success
@@ -72,37 +72,10 @@ public sealed class SensorThresholdCatalogValidator : IValidateOptions<SensorThr
     }
 }
 
-public sealed class SimulationProfileValidator : IValidateOptions<SimulationProfileOptions>
-{
-    private static readonly string[] RequiredMetrics =
-        ["temperature", "ph", "dissolvedOxygen", "salinity", "ammonia", "waterLevel"];
-
-    public ValidateOptionsResult Validate(string? name, SimulationProfileOptions options)
-    {
-        var errors = new List<string>();
-        if (options.IntervalMilliseconds < 250) errors.Add("SimulationProfile:IntervalMilliseconds tối thiểu là 250 ms.");
-        foreach (var metric in RequiredMetrics)
-            if (!options.Metrics.ContainsKey(metric)) errors.Add($"SimulationProfile:Metrics thiếu '{metric}'.");
-        foreach (var (metric, profile) in options.Metrics)
-        {
-            if (profile.MinValue >= profile.MaxValue) errors.Add($"SimulationProfile:{metric}: MinValue phải nhỏ hơn MaxValue.");
-            if (profile.BaseValue < profile.MinValue || profile.BaseValue > profile.MaxValue)
-                errors.Add($"SimulationProfile:{metric}: BaseValue phải nằm trong MinValue–MaxValue.");
-            if (profile.MaxStep < 0 || profile.DailyAmplitude < 0 || profile.AnomalyAmplitude < 0)
-                errors.Add($"SimulationProfile:{metric}: biên độ không được âm.");
-            if (profile.TargetCorrectionFactor is < 0 or > 1)
-                errors.Add($"SimulationProfile:{metric}: TargetCorrectionFactor phải trong khoảng 0–1.");
-            if (profile.AnomalyProbability is < 0 or > 1)
-                errors.Add($"SimulationProfile:{metric}: AnomalyProbability phải trong khoảng 0–1.");
-        }
-        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
-    }
-}
-
 public sealed class SensorConnectionOptionsValidator : IValidateOptions<SensorConnectionOptions>
 {
     private static readonly HashSet<string> SupportedSources = new(StringComparer.OrdinalIgnoreCase)
-        { "simulation", "mqtt", "modbus-tcp", "modbus-rtu" };
+        { "mqtt", "modbus-tcp", "modbus-rtu" };
     private static readonly HashSet<string> SupportedDataTypes = new(StringComparer.OrdinalIgnoreCase)
         { "UInt16", "Int16", "UInt32", "Int32", "Float32", "Float64" };
     private static readonly HashSet<string> SupportedMetrics = new(StringComparer.OrdinalIgnoreCase)
@@ -191,41 +164,6 @@ public sealed class SystemBehaviorOptionsValidator : IValidateOptions<SystemBeha
 }
 
 
-public sealed class DashboardSimulationOptionsValidator : IValidateOptions<DashboardSimulationOptions>
-{
-    public ValidateOptionsResult Validate(string? name, DashboardSimulationOptions options)
-    {
-        var errors = new List<string>();
-        if (options.RefreshSeconds <= 0) errors.Add("DashboardSimulation:RefreshSeconds phải lớn hơn 0.");
-        if (options.DynamicVariationPercent < 0) errors.Add("DashboardSimulation:DynamicVariationPercent không được âm.");
-        if (options.HarvestSoonDays < 0 || options.NewCycleDays < 0 || options.EarlyGrowthDays < options.NewCycleDays)
-            errors.Add("DashboardSimulation: các mốc giai đoạn nuôi không hợp lệ.");
-        if (options.DefaultBiomassDensityFactor <= 0 || options.DefaultDailyBiomassGrowthPercent < 0)
-            errors.Add("DashboardSimulation: hệ số Biomass phải hợp lệ.");
-        if (options.DefaultFeedRatePercentOfBiomass < 0 || options.DefaultCycleFeedMultiplier < 0 || options.DefaultFcr <= 0)
-            errors.Add("DashboardSimulation: tham số thức ăn/FCR phải hợp lệ.");
-        if (options.ExpectedOperatingHoursPerDay <= 0 || options.PeakPowerFactor <= 0 || options.EnergyLoadFactor <= 0)
-            errors.Add("DashboardSimulation: tham số năng lượng phải lớn hơn 0.");
-        if (options.Ponds.Any(x => string.IsNullOrWhiteSpace(x.PondId))) errors.Add("DashboardSimulation:Ponds có PondId trống.");
-        if (options.Ponds.Select(x => x.PondId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Ponds.Count)
-            errors.Add("DashboardSimulation:Ponds phải có PondId duy nhất.");
-        foreach (var pond in options.Ponds)
-        {
-            if (pond.BiomassAtReferenceKg < 0 || pond.BiomassDailyGrowthKg < 0 || pond.FeedPlanTodayKg < 0 || pond.FeedActualTodayKg < 0)
-                errors.Add($"DashboardSimulation:Ponds:{pond.PondId} có giá trị âm không hợp lệ.");
-            if (pond.SurvivalRatePercent is < 0 or > 100)
-                errors.Add($"DashboardSimulation:Ponds:{pond.PondId}: SurvivalRatePercent phải trong 0–100.");
-        }
-        foreach (var task in options.Tasks)
-        {
-            if (!task.DueAtUtc.HasValue && !TimeOnly.TryParseExact(task.TimeLocal, "HH:mm", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
-                errors.Add($"DashboardSimulation:Tasks:{task.Id}: TimeLocal phải có định dạng HH:mm.");
-        }
-        if (options.DailyHistory.Count == 0) errors.Add("DashboardSimulation:DailyHistory cần ít nhất một điểm.");
-        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
-    }
-}
-
 /// <summary>Fails startup when actuator safety configuration is ambiguous.</summary>
 public sealed class DeviceControlOptionsValidator : IValidateOptions<DeviceControlOptions>
 {
@@ -236,6 +174,23 @@ public sealed class DeviceControlOptionsValidator : IValidateOptions<DeviceContr
             errors.Add("DeviceControl:DefaultTransport không được để trống.");
         if (options.CommandTimeoutSeconds is < 1 or > 300)
             errors.Add("DeviceControl:CommandTimeoutSeconds phải trong khoảng 1–300 giây.");
+        if (string.IsNullOrWhiteSpace(options.Fx5u.Host) || options.Fx5u.Port is <= 0 or > 65535)
+            errors.Add("DeviceControl:Fx5u cần Host và Port hợp lệ.");
+        if (options.Fx5u.UnitId == 0)
+            errors.Add("DeviceControl:Fx5u:UnitId phải lớn hơn 0.");
+        if (options.Fx5u.Devices.Count == 0 || options.Fx5u.Devices.Select(x => x.DeviceId)
+                .Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Fx5u.Devices.Count)
+            errors.Add("DeviceControl:Fx5u:Devices phải có DeviceId duy nhất và không được rỗng.");
+        foreach (var mapping in options.Fx5u.Devices)
+        {
+            try
+            {
+                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.CommandDevice);
+                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.FeedbackDevice);
+                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.FaultDevice);
+            }
+            catch (FormatException ex) { errors.Add($"{mapping.DeviceId}: {ex.Message}"); }
+        }
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }
@@ -253,24 +208,6 @@ public sealed class AuthenticationOptionsValidator : IValidateOptions<Authentica
         if (options.PasswordIterations < 100_000) errors.Add("Authentication:PasswordIterations tối thiểu là 100000.");
         if (options.MaxFailedLoginAttempts <= 0 || options.LockoutMinutes <= 0 || options.CookieHours <= 0)
             errors.Add("Authentication: các giá trị lockout/cookie phải lớn hơn 0.");
-        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
-    }
-}
-
-/// <summary>Validates production-cycle simulation without requiring it to be enabled.</summary>
-public sealed class ProductionCycleSimulationOptionsValidator : IValidateOptions<ProductionCycleSimulationOptions>
-{
-    public ValidateOptionsResult Validate(string? name, ProductionCycleSimulationOptions options)
-    {
-        var errors = new List<string>();
-        if (options.RefreshHours <= 0 || options.SampleEveryDays <= 0)
-            errors.Add("ProductionCycleSimulation: RefreshHours và SampleEveryDays phải lớn hơn 0.");
-        foreach (var (species, profile) in options.Species)
-        {
-            if (string.IsNullOrWhiteSpace(species)) errors.Add("ProductionCycleSimulation có tên loài trống.");
-            if (profile.InitialWeightGrams <= 0 || profile.DailyGrowthGrams < 0 || profile.DefaultGrowDays <= 0 || profile.DefaultSampleSize <= 0)
-                errors.Add($"ProductionCycleSimulation:{species} có tham số không hợp lệ.");
-        }
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }

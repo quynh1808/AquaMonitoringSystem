@@ -1,7 +1,7 @@
 @inherits LayoutComponentBase
 @inject FarmStateService State
 @inject NavigationManager Navigation
-@inject Microsoft.Extensions.Options.IOptionsMonitor<DashboardSimulationOptions> DashboardSimulation
+@inject Microsoft.Extensions.Options.IOptionsMonitor<OperationalModeOptions> OperationalMode
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @implements IAsyncDisposable
 
@@ -87,7 +87,7 @@
         <header class="topbar viot-topbar">
             <div class="topbar-left">
                 <button class="icon-button menu-button" @onclick="ToggleSidebar">☰</button>
-                <div><strong>HỆ THỐNG GIÁM SÁT NUÔI TRỒNG THỦY SẢN</strong><span><i class="live-dot"></i> Dữ liệu trực tuyến · @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") @if (DashboardSimulation.CurrentValue.Enabled) { <b class="topbar-simulation">SIMULATION</b> }</span></div>
+                <div><strong>HỆ THỐNG GIÁM SÁT NUÔI TRỒNG THỦY SẢN</strong><span><i class="live-dot"></i> Dữ liệu trực tuyến · @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") <b class="topbar-mode">@OperationalMode.CurrentValue.Mode.ToUpperInvariant()</b></span></div>
             </div>
             <div class="topbar-actions">
                 <button class="icon-button" @onclick="State.ToggleTheme">@(State.IsDarkMode ? "☀" : "☾")</button>
@@ -135,7 +135,7 @@
         {
             while (!token.IsCancellationRequested)
             {
-                var delay = TimeSpan.FromSeconds(Math.Max(1, DashboardSimulation.CurrentValue.RefreshSeconds));
+                var delay = TimeSpan.FromSeconds(8);
                 await Task.Delay(delay, token);
                 await InvokeAsync(State.Tick);
             }

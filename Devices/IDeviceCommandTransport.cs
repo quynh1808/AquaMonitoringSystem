@@ -10,7 +10,7 @@ public sealed record DeviceTransportRequest(
     string Reason,
     TimeSpan Timeout);
 
-/// <summary>Normalized acknowledgement returned by simulation, MQTT, Modbus or PLC adapters.</summary>
+/// <summary>Normalized acknowledgement returned by a PLC or other physical adapter.</summary>
 public sealed record DeviceTransportResult(
     bool Success,
     string Status,
@@ -27,4 +27,3 @@ public interface IDeviceCommandTransport
     string Name { get; }
     Task<DeviceTransportResult> SendAsync(DeviceTransportRequest request, CancellationToken cancellationToken);
 }
-

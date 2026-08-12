@@ -27,10 +27,10 @@ public sealed class TelemetryData
     public double Ammonia { get; set; }
     public double WaterLevel { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    public DateTime LastSeenAtUtc { get; set; } = DateTime.UtcNow;
-    public bool IsOnline { get; set; } = true;
-    public string Quality { get; set; } = "good";
-    public string SourceType { get; set; } = "simulation";
+    public DateTime LastSeenAtUtc { get; set; } = DateTime.MinValue;
+    public bool IsOnline { get; set; }
+    public string Quality { get; set; } = "no-data";
+    public string SourceType { get; set; } = "mqtt";
 }
 
 public sealed class SensorDefinition
@@ -40,14 +40,14 @@ public sealed class SensorDefinition
     public string Name { get; set; } = string.Empty;
     public string Metric { get; set; } = string.Empty;
     public string Unit { get; set; } = string.Empty;
-    public string SourceType { get; set; } = "simulation";
+    public string SourceType { get; set; } = "mqtt";
     public string ExternalAddress { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
-    public string Status { get; set; } = "online";
+    public string Status { get; set; } = "offline";
     public DateTime? LastSeenAtUtc { get; set; }
     public int? BatteryLevel { get; set; }
     public int? SignalStrength { get; set; }
-    public string FirmwareVersion { get; set; } = "sim-1.0";
+    public string FirmwareVersion { get; set; } = string.Empty;
     public DateTime? CalibrationDateUtc { get; set; }
     public DateTime? CalibrationDueDateUtc { get; set; }
     public double MinValidValue { get; set; }
@@ -92,15 +92,15 @@ public sealed class Device
     public string Mode { get; set; } = "manual";
     public double PowerKw { get; set; }
     /// <summary>
-    /// Name of the command transport registered in dependency injection. Use
-    /// "simulation" until an explicit PLC/relay mapping has been commissioned.
+    /// Name of the command transport registered in dependency injection. A device remains
+    /// uncontrollable until its explicit PLC mapping has been commissioned.
     /// </summary>
-    public string ControlTransport { get; set; } = "simulation";
+    public string ControlTransport { get; set; } = "fx5u-modbus-tcp";
     /// <summary>Transport-specific address such as an MQTT topic or PLC coil mapping ID.</summary>
     public string ExternalAddress { get; set; } = string.Empty;
     /// <summary>State the local controller must prefer after communication or power failure.</summary>
     public string FailSafeState { get; set; } = "off";
-    public string ConnectionStatus { get; set; } = "online";
+    public string ConnectionStatus { get; set; } = "offline";
     public DateTime? LastSeenAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
@@ -112,7 +112,7 @@ public sealed class DeviceCommand
     public string DeviceId { get; set; } = string.Empty;
     public string RequestedState { get; set; } = string.Empty;
     public string Status { get; set; } = "pending";
-    public string Transport { get; set; } = "simulation";
+    public string Transport { get; set; } = "fx5u-modbus-tcp";
     public string RequestedBy { get; set; } = "system";
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? SentAtUtc { get; set; }
@@ -418,7 +418,7 @@ public sealed class AddDeviceRequest
     /// <summary>Name registered by an IDeviceCommandTransport implementation.</summary>
     [Required]
     [RegularExpression("^[a-z0-9-]+$", ErrorMessage = "Transport chỉ gồm chữ thường, số và dấu gạch ngang.")]
-    public string ControlTransport { get; set; } = "simulation";
+    public string ControlTransport { get; set; } = "fx5u-modbus-tcp";
 
     /// <summary>Stable mapping id/topic/coil alias understood by the selected transport.</summary>
     public string ExternalAddress { get; set; } = string.Empty;
@@ -454,16 +454,6 @@ public sealed class CalibrationRequest
     public double? ValueBefore { get; set; }
     public double? ValueAfter { get; set; }
     public string Notes { get; set; } = string.Empty;
-}
-
-public sealed class SimulationRequest
-{
-    public double Temperature { get; set; }
-    public double Ph { get; set; }
-    public double DissolvedOxygen { get; set; }
-    public double Salinity { get; set; }
-    public double Ammonia { get; set; }
-    public double WaterLevel { get; set; }
 }
 
 public sealed class TrendPoint

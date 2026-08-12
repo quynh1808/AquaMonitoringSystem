@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AquacultureMonitoring.Configuration;
+using AquacultureMonitoring.Devices;
 using AquacultureMonitoring.Models;
 using AquacultureMonitoring.Sensors;
 using AquacultureMonitoring.Services;
@@ -72,7 +73,7 @@ public sealed class CoreSafetyTests
     {
         var result = new DeviceControlOptionsValidator().Validate(null, new DeviceControlOptions
         {
-            DefaultTransport = "simulation",
+            DefaultTransport = "fx5u-modbus-tcp",
             CommandTimeoutSeconds = 0
         });
 
@@ -104,16 +105,31 @@ public sealed class CoreSafetyTests
     }
 
     [TestMethod]
-    public void OperationalModeGuard_AllowsSimulationDefaults()
+    public void Fx5uMDeviceMapping_UsesOfficialModbusBase()
     {
-        var guard = CreateGuard("Simulation", simulationEnabled: true, activeSources: ["simulation"], notificationsEnabled: false);
+        Assert.AreEqual((ushort)0x2064, Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress("M100"));
+        Assert.AreEqual((ushort)0x20C8, Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress("M200"));
+        Assert.AreEqual((ushort)0x212C, Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress("M300"));
+    }
+
+    [TestMethod]
+    public void Fx5uMDeviceMapping_RejectsInvalidAddress()
+    {
+        Assert.ThrowsExactly<FormatException>(() => Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress("D100"));
+        Assert.ThrowsExactly<FormatException>(() => Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress("M7680"));
+    }
+
+    [TestMethod]
+    public void OperationalModeGuard_AllowsEdgeSimulationContract()
+    {
+        var guard = CreateGuard("EdgeSimulation", hardwareEnabled: false, notificationsEnabled: false);
         guard.Validate();
     }
 
     [TestMethod]
-    public void OperationalModeGuard_RejectsSimulatorInProduction()
+    public void OperationalModeGuard_RejectsUncommissionedProduction()
     {
-        var guard = CreateGuard("Production", simulationEnabled: true, activeSources: ["simulation"], notificationsEnabled: false);
+        var guard = CreateGuard("Production", hardwareEnabled: false, notificationsEnabled: false);
         Assert.ThrowsExactly<OptionsValidationException>(guard.Validate);
     }
 
@@ -128,14 +144,17 @@ public sealed class CoreSafetyTests
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
 
-    private static OperationalModeGuard CreateGuard(string mode, bool simulationEnabled,
-        List<string> activeSources, bool notificationsEnabled) =>
+    private static OperationalModeGuard CreateGuard(string mode, bool hardwareEnabled,
+        bool notificationsEnabled) =>
         new(Options.Create(new OperationalModeOptions { Mode = mode }),
-            Options.Create(new SimulationProfileOptions { Enabled = simulationEnabled }),
-            Options.Create(new DashboardSimulationOptions { Enabled = simulationEnabled }),
-            Options.Create(new ProductionCycleSimulationOptions { Enabled = simulationEnabled }),
-            Options.Create(new SensorConnectionOptions { ActiveSources = activeSources }),
-            Options.Create(new DeviceControlOptions { SimulationEnabled = simulationEnabled }),
+            Options.Create(new SensorConnectionOptions
+            {
+                ActiveSources = ["mqtt"], Mqtt = new MqttConnectionOptions { Enabled = true }
+            }),
+            Options.Create(new DeviceControlOptions
+            {
+                DefaultTransport = "fx5u-modbus-tcp", HardwareControlEnabled = hardwareEnabled
+            }),
             Options.Create(new AlertNotificationOptions
             {
                 Enabled = notificationsEnabled,

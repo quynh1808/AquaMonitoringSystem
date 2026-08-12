@@ -14,7 +14,7 @@
             <h1>Dashboard điều hành toàn bộ ao nuôi</h1>
             <p>Tình trạng hiện tại, rủi ro cần xử lý và tiến độ vận hành của toàn trại.</p>
             <div class="ams-source-line">
-                <span class="ams-source-badge @(Snapshot.IsSimulation ? "simulation" : "real")">@(Snapshot.IsSimulation ? "SIMULATION + RUNTIME" : "LIVE DATA")</span>
+                <span class="ams-source-badge real">MQTT + MODBUS LIVE</span>
                 <span>@Snapshot.DataSourceLabel</span>
                 <span>Cập nhật: @Snapshot.GeneratedAtLocal.ToString("dd/MM/yyyy HH:mm:ss")</span>
             </div>

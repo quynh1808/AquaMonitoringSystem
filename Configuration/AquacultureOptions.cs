@@ -16,7 +16,11 @@ public sealed class MongoDbOptions
 public sealed class OperationalModeOptions
 {
     public const string SectionName = "OperationalMode";
-    public string Mode { get; set; } = "Simulation";
+    /// <summary>
+    /// Declares where field signals originate. All modes still use the same MQTT/Modbus
+    /// interfaces; only deployment endpoints and production safety validation differ.
+    /// </summary>
+    public string Mode { get; set; } = "EdgeSimulation";
     public bool IsProduction => Mode.Equals("Production", StringComparison.OrdinalIgnoreCase);
 }
 
@@ -32,7 +36,7 @@ public sealed class AlertNotificationOptions
 public sealed class SensorConnectionOptions
 {
     public const string SectionName = "SensorConnections";
-    public List<string> ActiveSources { get; set; } = ["simulation"];
+    public List<string> ActiveSources { get; set; } = ["mqtt"];
     public MqttConnectionOptions Mqtt { get; set; } = new();
     public List<ModbusTcpConnectionOptions> ModbusTcp { get; set; } = [];
     public List<ModbusRtuConnectionOptions> ModbusRtu { get; set; } = [];
@@ -117,36 +121,6 @@ public sealed class MetricThresholdOptions
     public string ProposedSolution { get; set; } = string.Empty;
 }
 
-public sealed class SimulationProfileOptions
-{
-    public const string SectionName = "SimulationProfile";
-    public bool Enabled { get; set; } = true;
-    public bool AllowSimulationOverrideRealSensors { get; set; } = false;
-    public int IntervalMilliseconds { get; set; } = 3000;
-    public int RandomSeed { get; set; } = 20260725;
-    public int DefaultBatteryLevel { get; set; } = 100;
-    public int DefaultSignalStrength { get; set; } = -45;
-    public string FirmwareVersion { get; set; } = "sim-1.0";
-    public int ManualBatteryLevel { get; set; } = 100;
-    public int ManualSignalStrength { get; set; } = -40;
-    public string ManualFirmwareVersion { get; set; } = "manual-sim-1.0";
-    public Dictionary<string, SimulationMetricOptions> Metrics { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-    public Dictionary<string, Dictionary<string, double>> PondMetricOffsets { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-}
-
-public sealed class SimulationMetricOptions
-{
-    public double BaseValue { get; set; }
-    public double MinValue { get; set; }
-    public double MaxValue { get; set; }
-    public double MaxStep { get; set; }
-    public double TargetCorrectionFactor { get; set; } = 0.12;
-    public double DailyAmplitude { get; set; }
-    public int DecimalPlaces { get; set; } = 2;
-    public double AnomalyProbability { get; set; }
-    public double AnomalyAmplitude { get; set; }
-}
-
 public sealed class SystemBehaviorOptions
 {
     public const string SectionName = "SystemBehavior";
@@ -164,7 +138,6 @@ public sealed class SystemBehaviorOptions
     public int MaxTelemetryAgeMinutes { get; set; } = 30;
     public HealthScoreOptions HealthScore { get; set; } = new();
     public List<AutomationPolicyOptions> AutomationPolicies { get; set; } = [];
-    public List<DefaultDeviceTemplateOptions> DefaultDevices { get; set; } = [];
 }
 
 
@@ -177,15 +150,6 @@ public sealed class HealthScoreOptions
     public int StableMinimum { get; set; } = 85;
     public int MonitorMinimum { get; set; } = 65;
     public int DashboardHealthyMinimum { get; set; } = 80;
-}
-
-public sealed class DefaultDeviceTemplateOptions
-{
-    public string Name { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty;
-    public string Status { get; set; } = "off";
-    public string Mode { get; set; } = "manual";
-    public double PowerKw { get; set; }
 }
 
 public sealed class AutomationPolicyOptions
@@ -228,6 +192,8 @@ public sealed class DeviceSeedItem
     public string Status { get; set; } = "off";
     public string Mode { get; set; } = "manual";
     public double PowerKw { get; set; }
+    public string ControlTransport { get; set; } = "fx5u-modbus-tcp";
+    public string ExternalAddress { get; set; } = string.Empty;
 }
 
 public sealed class FeedSeedItem
@@ -252,25 +218,4 @@ public sealed class AuthenticationOptions
     public int MaxFailedLoginAttempts { get; set; } = 5;
     public int LockoutMinutes { get; set; } = 15;
     public int CookieHours { get; set; } = 8;
-}
-
-public sealed class ProductionCycleSimulationOptions
-{
-    public const string SectionName = "ProductionCycleSimulation";
-    public bool Enabled { get; set; } = true;
-    public int RefreshHours { get; set; } = 6;
-    public int SampleEveryDays { get; set; } = 7;
-    public int RandomSeed { get; set; } = 20260726;
-    public Dictionary<string, CycleSpeciesSimulationOptions> Species { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-}
-
-public sealed class CycleSpeciesSimulationOptions
-{
-    public double InitialWeightGrams { get; set; } = 0.02;
-    public double DailyGrowthGrams { get; set; } = 0.25;
-    public double DailyGrowthVariationPercent { get; set; } = 8;
-    public double DailySurvivalLossPercent { get; set; } = 0.02;
-    public double ExpectedFcr { get; set; } = 1.35;
-    public int DefaultGrowDays { get; set; } = 110;
-    public int DefaultSampleSize { get; set; } = 50;
 }

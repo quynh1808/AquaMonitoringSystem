@@ -69,15 +69,7 @@ public sealed class DeviceCommandService
             return command;
         }
 
-        if (transportName.Equals("simulation", StringComparison.OrdinalIgnoreCase) && !options.SimulationEnabled)
-        {
-            command.Status = "blocked";
-            command.Error = "Simulation transport đang bị vô hiệu hóa.";
-            await CompleteAsync(command, device, reason, null, ct);
-            return command;
-        }
-
-        if (!transportName.Equals("simulation", StringComparison.OrdinalIgnoreCase) && !options.HardwareControlEnabled)
+        if (!options.HardwareControlEnabled)
         {
             command.Status = "blocked";
             command.Error = "HardwareControlEnabled=false; lệnh phần cứng đã bị chặn bởi safety switch.";

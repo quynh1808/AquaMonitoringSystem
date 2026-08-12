@@ -1,15 +1,7 @@
-# Device command transports
+# Device command transport
 
-`IDeviceCommandTransport` is the only boundary between AquaOps business logic and physical
-actuators. The application currently registers `SimulatedDeviceCommandTransport`.
+`Fx5uModbusTcpDeviceTransport` là boundary giữa nghiệp vụ AquaOps và PLC. Adapter chuyển tên M-device sang coil FX5, ghi command bằng FC05, đọc fault/feedback bằng FC01 và chỉ báo thành công khi read-back đúng.
 
-A production adapter must:
+`Fx5uPlcMonitor` đọc `D100` bằng FC03 và trạng thái thiết bị độc lập với thao tác UI. Mất heartbeat/kết nối không được giữ một trạng thái `on` cũ trên dashboard.
 
-1. expose a unique `Name` (`mqtt-relay`, `modbus-tcp-coil`, ...);
-2. validate the device `ExternalAddress` mapping;
-3. honor the cancellation token and configured timeout;
-4. return success only after ACK or state read-back;
-5. leave emergency stop, overload and dry-run protection inside PLC/local relay logic.
-
-See `Docs/HARDWARE-INTEGRATION.md` for the commissioning sequence.
-
+Map mặc định nằm trong `Config/device-control.json`; endpoint được ghi đè bằng `FX5U_HOST/PORT/UNIT_ID`. Emergency stop, overload, dry-run, minimum on/off time và watchdog tải phải nằm trong PLC/tủ điện.

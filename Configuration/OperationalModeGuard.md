@@ -1,4 +1,3 @@
 # OperationalModeGuard
 
-Lớp kiểm tra fail-fast khi tiến trình khởi động. Chế độ `Simulation` cho phép các generator mặc định; chế độ `Production` bắt buộc tắt toàn bộ simulation, có ít nhất một sensor source thật, tắt device simulation và bật webhook cảnh báo. Mục tiêu là không thể vô tình trình bày dữ liệu giả hoặc gửi lệnh giả như dữ liệu production.
-
+Mọi profile P03 phải bật MQTT và dùng transport `fx5u-modbus-tcp`. Riêng `Production` còn bắt buộc hardware control và alert webhook đã bật. Guard fail-fast trước khi hosted services chạy; ba profile không tạo ba pipeline server khác nhau.

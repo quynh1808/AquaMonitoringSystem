@@ -76,7 +76,7 @@ sudo ufw allow from 192.168.1.0/24 to any port 8080 proto tcp
 sudo ufw status
 ```
 
-MQTT mặc định bind `127.0.0.1`. Chỉ đổi `MQTT_BIND_ADDRESS` sang IP LAN khi gateway thật cần kết nối và đã giới hạn nguồn truy cập. MongoDB không publish port ra host.
+P03 cần đặt `MQTT_BIND_ADDRESS` thành IPv4 LAN của Ubuntu để ESP32 truy cập broker. Không dùng port-forward ra Internet; giới hạn nguồn truy cập tại firewall/router. MongoDB không publish port ra host.
 
 HTTP truyền cookie và mật khẩu không mã hóa. Chỉ dùng trên LAN tin cậy; nếu LAN có khách, Wi-Fi dùng chung hoặc thiết bị không quản lý, hãy tách VLAN hoặc bổ sung TLS/VPN nội bộ.
 

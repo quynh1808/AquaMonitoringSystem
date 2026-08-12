@@ -5,11 +5,9 @@
 - `Program.md`
 - `Configuration/AquacultureOptions.md`
 - `Configuration/ConfigurationValidation.md`
-- `Configuration/DashboardSimulationOptions.md`
 - `Configuration/DeviceControlOptions.md`
 - `Configuration/OperationalModeGuard.md`
 - `Config/README.md`
-- `Config/dashboard-simulation.md`
 
 ## MongoDB và runtime
 
@@ -28,7 +26,10 @@
 - `Sensors/SensorEnvelope.md`
 - `Sensors/SensorMessageBus.md`
 - `Sensors/SensorSourceCoordinator.md`
-- `Sensors/SimulatedSensorSource.md`
+- `Devices/README.md`
+- `Docs/P03-IMPLEMENTATION.md`
+- `Docs/OPERATING-MODES.md`
+- `Firmware/README.md`
 - `Sensors/MqttSensorSource.md`
 - `Sensors/ModbusTcpSensorSource.md`
 - `Sensors/ModbusRtuSensorSource.md`
@@ -75,12 +76,9 @@ Mỗi file `.razor` trong `Components/` có file `.md` cùng tên. Các trang qu
 ## Yêu cầu và thiết kế Dashboard
 
 - `Docs/DASHBOARD-REQUIREMENTS.md`
-- `Docs/DASHBOARD-IMPLEMENTATION.md`
-- `Docs/DASHBOARD-CHANGELOG.md`
 
 ## Chuyển sang phần cứng
 
-- `Docs/REPLACE-SIMULATION-WITH-HARDWARE.md`
 - `Docs/HARDWARE-INTEGRATION.md`
 - `Docs/DEPLOYMENT-GHCR-UBUNTU.md`
 - `Docs/SECURITY-HARDENING.md`

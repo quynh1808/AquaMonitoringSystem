@@ -1,18 +1,3 @@
 # SensorIngestionWorker
 
-Worker kiểm tra pond/metric/timestamp, miền hợp lệ, idempotency và sequence trước khi cập nhật runtime. Reading được lưu bền vững trước; bản tin backfill dừng sau bước lưu để không làm lùi dashboard hoặc kích automation. Sequence gap tạo quality `suspect` và cần operator/gateway đối soát.
-
-Pipeline trung tâm xử lý mọi bản tin cảm biến.
-
-## Các bước
-
-1. Kiểm tra `PondId`, `Metric` và lấy cấu hình metric.
-2. Tạo hoặc cập nhật `SensorDefinition`.
-3. Chuyển nguồn tự động khi cùng `SensorId` bắt đầu nhận dữ liệu MQTT/Modbus; cập nhật `ExternalAddress`. Bản tin simulation bị bỏ qua nếu sensor đang dùng nguồn thật, trừ khi cấu hình cho phép override.
-4. Kiểm tra NaN, Infinity và miền `ValidMin`–`ValidMax`.
-5. Tạo `SensorReading` append-only.
-6. Cập nhật `telemetry_latest`, sensor state, runtime cache và source health.
-7. Đóng cảnh báo mất kết nối khi sensor hoạt động lại.
-8. Gọi data-quality alert, threshold alert và automation engine.
-
-Ngưỡng và hành vi không ghi trực tiếp trong worker; chúng được đọc qua `IOptionsMonitor`.
+Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backfill; chỉ cập nhật live state sau khi reading đã ghi MongoDB. Không có nhánh simulation override. Dữ liệu MQTT được xử lý như phép đo field, còn provenance nằm ở operational mode/firmware version.

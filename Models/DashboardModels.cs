@@ -3,7 +3,6 @@ namespace AquacultureMonitoring.Models;
 public sealed class DashboardSnapshot
 {
     public DateTime GeneratedAtLocal { get; set; } = DateTime.Now;
-    public bool IsSimulation { get; set; }
     public string DataSourceLabel { get; set; } = string.Empty;
     public int RefreshSeconds { get; set; } = 8;
     public int HealthStableMinimum { get; set; } = 85;
@@ -99,8 +98,6 @@ public sealed class DashboardPondSummary
     public int TotalDevices { get; set; }
     public int OnlineSensors { get; set; }
     public int TotalSensors { get; set; }
-    public int RealSensors { get; set; }
-    public int SimulatedSensors { get; set; }
     public string DataQuality { get; set; } = "unknown";
     public string DataSourceSummary { get; set; } = string.Empty;
     public DateTime LastUpdateLocal { get; set; }

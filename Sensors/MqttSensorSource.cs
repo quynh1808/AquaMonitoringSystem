@@ -48,6 +48,7 @@ public sealed class MqttSensorSource : ISensorDataSource
                     {
                         var envelope = JsonSerializer.Deserialize<SensorEnvelope>(payload, _jsonOptions)
                             ?? throw new JsonException("MQTT payload không đúng SensorEnvelope.");
+                        ValidateTopicContract(args.ApplicationMessage.Topic, envelope);
                         envelope.SourceType = SourceName;
                         envelope.SourceId = SourceName;
                         envelope.SourceAddress = $"mqtt://{settings.Host}:{settings.Port}/{args.ApplicationMessage.Topic}";
@@ -68,7 +69,9 @@ public sealed class MqttSensorSource : ISensorDataSource
                 var builder = new MqttClientOptionsBuilder()
                     .WithClientId(settings.ClientId)
                     .WithTcpServer(settings.Host, settings.Port)
-                    .WithCleanSession();
+                    // A stable client id plus a persistent session lets Mosquitto retain QoS 1
+                    // traffic across short AquaOps reconnects.
+                    .WithCleanSession(false);
 
                 if (!string.IsNullOrWhiteSpace(settings.Username))
                     builder.WithCredentials(settings.Username, settings.Password);
@@ -105,5 +108,19 @@ public sealed class MqttSensorSource : ISensorDataSource
                 await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, settings.ReconnectDelaySeconds)), cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Prevents a valid payload from being injected under another pond or metric topic. The
+    /// contract is aquaculture/{farm}/{pond}/sensors/{metric}/telemetry.
+    /// </summary>
+    private static void ValidateTopicContract(string topic, SensorEnvelope envelope)
+    {
+        var levels = topic.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (levels.Length != 6 || levels[0] != "aquaculture" || levels[3] != "sensors" || levels[5] != "telemetry")
+            throw new JsonException("MQTT topic không đúng contract AquaOps.");
+        if (!levels[2].Equals(envelope.PondId, StringComparison.OrdinalIgnoreCase) ||
+            !levels[4].Equals(envelope.Metric, StringComparison.OrdinalIgnoreCase))
+            throw new JsonException("PondId/Metric trong payload không khớp MQTT topic.");
     }
 }

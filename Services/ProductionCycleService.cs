@@ -104,10 +104,6 @@ public sealed class ProductionCycleService
         await AddSampleCoreAsync(sample, FarmAccessService.ActorName(user), ct);
     }
 
-    /// <summary>Trusted worker entry point; simulation never receives a user principal.</summary>
-    public Task AddSimulatedSampleAsync(GrowthSample sample, CancellationToken ct = default) =>
-        AddSampleCoreAsync(sample, "simulation", ct);
-
     public async Task AddMortalityAsync(MortalityRecord record, ClaimsPrincipal user, CancellationToken ct = default)
     {
         var cycle = await EnsureRecordCycleAsync(record.CycleId, record.PondId, user, ct);

@@ -1,10 +1,10 @@
 {
   "SensorConnections": {
     "ActiveSources": [
-      "simulation"
+      "mqtt"
     ],
     "Mqtt": {
-      "Enabled": false,
+      "Enabled": true,
       "Host": "mosquitto",
       "Port": 1883,
       "ClientId": "aquaops-server",

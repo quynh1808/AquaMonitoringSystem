@@ -8,5 +8,8 @@
   "quality": "good",
   "batteryLevel": 93,
   "signalStrength": -61,
-  "firmwareVersion": "esp32-do-1.0.0"
+  "firmwareVersion": "edge-sim-0.1.0",
+  "eventId": "sensor-a1b2c3-1-100-dissolvedOxygen",
+  "sequenceNumber": 4294967396,
+  "isBackfill": false
 }

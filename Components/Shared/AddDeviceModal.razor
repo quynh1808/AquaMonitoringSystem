@@ -33,7 +33,7 @@
                         <ValidationMessage For="() => model.PowerKw" />
                     </label>
                     <label>Transport điều khiển
-                        <InputText @bind-Value="model.ControlTransport" placeholder="simulation hoặc tên adapter PLC" />
+                        <InputText @bind-Value="model.ControlTransport" placeholder="fx5u-modbus-tcp" />
                         <ValidationMessage For="() => model.ControlTransport" />
                     </label>
                     <label>Địa chỉ ngoài
@@ -85,7 +85,7 @@
         PondId = PondId,
         Type = "paddle_wheel",
         PowerKw = 2.2,
-        ControlTransport = "simulation",
+        ControlTransport = "fx5u-modbus-tcp",
         FailSafeState = "off"
     };
 }

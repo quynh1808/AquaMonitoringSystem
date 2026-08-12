@@ -56,7 +56,6 @@ else
         </div>
         <div class="two-column-layout">
             <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">HISTORICAL DATA</span><h2>@MetricLabel trong 24 giờ</h2></div><div class="segmented-control">@foreach(var metric in Metrics){<button class="@(chartMetric==metric.Id?"active":"")" @onclick="()=>chartMetric=metric.Id">@metric.Short</button>}</div></div><TrendChart Points="Trend" Unit="@MetricUnit" Digits="@MetricDigits" /></section>
-            <AuthorizeView Roles="Administrator,FarmManager"><section class="panel simulator-panel"><div class="panel-heading"><div><span class="eyebrow">SENSOR INPUT</span><h2>Mô phỏng dữ liệu</h2></div></div><div class="form-grid two"><label>DO (mg/L)<InputNumber @bind-Value="simulation.DissolvedOxygen" /></label><label>pH<InputNumber @bind-Value="simulation.Ph" /></label><label>Nhiệt độ<InputNumber @bind-Value="simulation.Temperature" /></label><label>Độ mặn<InputNumber @bind-Value="simulation.Salinity" /></label><label>NH₃<InputNumber @bind-Value="simulation.Ammonia" /></label><label>Mực nước<InputNumber @bind-Value="simulation.WaterLevel" /></label></div><button class="button primary full" @onclick="ApplySimulation">Áp dụng và đánh giá ngưỡng</button>@if(!string.IsNullOrWhiteSpace(notice)){<p class="form-notice">@notice</p>}</section></AuthorizeView>
         </div>
     }
     else if (CurrentSection == "devices")
@@ -105,12 +104,11 @@ else
             return HealthScore >= options.StableMinimum ? "good" : HealthScore >= options.MonitorMinimum ? "medium" : "poor";
         }
     }
-    private bool showAddDevice; private string chartMetric="dissolvedOxygen"; private SimulationRequest simulation=new(); private AddFeedRequest feedModel=new(); private string initializedId=""; private string notice=""; private string feedMessage="";
+    private bool showAddDevice; private string chartMetric="dissolvedOxygen"; private AddFeedRequest feedModel=new(); private string initializedId=""; private string feedMessage="";
     private static readonly (string Id,string Short,string Label)[] Metrics=[("dissolvedOxygen","DO","Oxy hòa tan"),("ph","pH","Độ pH"),("temperature","Nhiệt","Nhiệt độ"),("salinity","Mặn","Độ mặn"),("ammonia","NH₃","Amoniac"),("waterLevel","Mực nước","Mực nước")];
     private IReadOnlyList<TrendPoint> OverviewTrend=>State.GetTrend(Id,"dissolvedOxygen"); private string OverviewMetricUnit=>State.GetThreshold("dissolvedOxygen").Unit; private int OverviewMetricDigits=>State.GetThreshold("dissolvedOxygen").DecimalPlaces; private IReadOnlyList<TrendPoint> Trend=>State.GetTrend(Id,chartMetric); private string MetricLabel=>Metrics.First(x=>x.Id==chartMetric).Label; private string MetricUnit=>State.GetThreshold(chartMetric).Unit; private int MetricDigits=>State.GetThreshold(chartMetric).DecimalPlaces;
     protected override void OnInitialized()=>State.Changed+=Changed;
-    protected override void OnParametersSet(){if(Pond is null)return;State.SelectPond(Id);if(initializedId!=Id){initializedId=Id;simulation=new(){DissolvedOxygen=Telemetry.DissolvedOxygen,Ph=Telemetry.Ph,Temperature=Telemetry.Temperature,Salinity=Telemetry.Salinity,Ammonia=Telemetry.Ammonia,WaterLevel=Telemetry.WaterLevel};feedModel=new(){PondId=Id,FeedType="Thức ăn tăng trọng cỡ 1,5 mm",AmountKg=20};}}
-    private async Task ApplySimulation(){await State.ApplySimulationAsync(Id,simulation);notice="Đã cập nhật dữ liệu cảm biến và đánh giá lại các ngưỡng tự động.";}
+    protected override void OnParametersSet(){if(Pond is null)return;State.SelectPond(Id);if(initializedId!=Id){initializedId=Id;feedModel=new(){PondId=Id,FeedType="Thức ăn tăng trọng cỡ 1,5 mm",AmountKg=20};}}
     private async Task SubmitFeed(){feedModel.PondId=Id;await State.AddFeedLogAsync(feedModel);feedMessage=$"Đã lưu {feedModel.AmountKg:N1} kg lúc {DateTime.Now:HH:mm}.";feedModel=new(){PondId=Id,FeedType=feedModel.FeedType,AmountKg=feedModel.AmountKg};}
     private static string DeviceSymbol(string type)=>type switch{"aerator"=>"◌","auto_feeder"=>"◉","water_pump"=>"↥","light"=>"☼",_=>"≈"};
     private void Changed()=>InvokeAsync(StateHasChanged); public void Dispose()=>State.Changed-=Changed;

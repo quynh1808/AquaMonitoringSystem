@@ -1,8 +1,21 @@
 {
   "DeviceControl": {
-    "DefaultTransport": "simulation",
+    "DefaultTransport": "fx5u-modbus-tcp",
     "HardwareControlEnabled": false,
-    "SimulationEnabled": true,
-    "CommandTimeoutSeconds": 10
+    "CommandTimeoutSeconds": 10,
+    "Fx5u": {
+      "Host": "192.168.100.81",
+      "Port": 1502,
+      "UnitId": 1,
+      "PollIntervalMilliseconds": 250,
+      "HealthCheckIntervalSeconds": 5,
+      "OfflineAfterFailures": 3,
+      "HeartbeatRegister": 100,
+      "Devices": [
+        { "DeviceId": "dev_01", "CommandDevice": "M100", "FeedbackDevice": "M101", "FaultDevice": "M102" },
+        { "DeviceId": "dev_02", "CommandDevice": "M200", "FeedbackDevice": "M201", "FaultDevice": "M202" },
+        { "DeviceId": "dev_03", "CommandDevice": "M300", "FeedbackDevice": "M301", "FaultDevice": "M302" }
+      ]
+    }
   }
 }

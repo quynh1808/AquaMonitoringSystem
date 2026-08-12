@@ -18,7 +18,6 @@ public sealed class SensorIngestionWorker : BackgroundService
     private readonly AutomationEngineService _automation;
     private readonly DataSourceHealthService _sourceHealth;
     private readonly IOptionsMonitor<SensorThresholdCatalog> _thresholds;
-    private readonly IOptionsMonitor<SimulationProfileOptions> _simulation;
     private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
     private readonly ILogger<SensorIngestionWorker> _logger;
     private readonly ConcurrentDictionary<string, long> _lastSequences = new(StringComparer.OrdinalIgnoreCase);
@@ -31,7 +30,6 @@ public sealed class SensorIngestionWorker : BackgroundService
         AutomationEngineService automation,
         DataSourceHealthService sourceHealth,
         IOptionsMonitor<SensorThresholdCatalog> thresholds,
-        IOptionsMonitor<SimulationProfileOptions> simulation,
         IOptionsMonitor<SystemBehaviorOptions> behavior,
         ILogger<SensorIngestionWorker> logger)
     {
@@ -42,7 +40,6 @@ public sealed class SensorIngestionWorker : BackgroundService
         _automation = automation;
         _sourceHealth = sourceHealth;
         _thresholds = thresholds;
-        _simulation = simulation;
         _behavior = behavior;
         _logger = logger;
     }
@@ -96,14 +93,6 @@ public sealed class SensorIngestionWorker : BackgroundService
             (!currentSensor.PondId.Equals(envelope.PondId, StringComparison.OrdinalIgnoreCase) ||
              !currentSensor.Metric.Equals(envelope.Metric, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException($"SensorId '{envelope.SensorId}' không khớp PondId/Metric đã đăng ký.");
-
-        if (currentSensor is not null && IsSimulationSource(envelope.SourceType) &&
-            !IsSimulationSource(currentSensor.SourceType) && !_simulation.CurrentValue.AllowSimulationOverrideRealSensors)
-        {
-            _logger.LogDebug("Bỏ qua bản tin {SourceType} của {SensorId} vì sensor đang dùng nguồn thật {CurrentSource}.",
-                envelope.SourceType, envelope.SensorId, currentSensor.SourceType);
-            return;
-        }
 
         var sensor = currentSensor ?? new SensorDefinition
         {
@@ -208,10 +197,6 @@ public sealed class SensorIngestionWorker : BackgroundService
         await _alerts.EvaluateAsync(sensor, reading, ct);
         await _automation.ProcessAsync(sensor.PondId, sensor.Metric, reading.Value, ct);
     }
-
-    private static bool IsSimulationSource(string sourceType) =>
-        sourceType.Equals("simulation", StringComparison.OrdinalIgnoreCase) ||
-        sourceType.Equals("manual-simulation", StringComparison.OrdinalIgnoreCase);
 
     private static SensorDefinition? CloneSensor(SensorDefinition? source) => source is null ? null : new SensorDefinition
     {

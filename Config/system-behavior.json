@@ -1,6 +1,6 @@
 {
   "SystemBehavior": {
-    "SensorOfflineAfterSeconds": 30,
+    "SensorOfflineAfterSeconds": 120,
     "SensorHealthCheckIntervalSeconds": 10,
     "ReadingRetentionDays": 365,
     "RuntimeReadingLimit": 20000,
@@ -40,22 +40,6 @@
         ],
         "StartMessage": "Mực nước {value} m: tự động bật {device}.",
         "StopMessage": "Mực nước {value} m: tự động tắt {device}."
-      }
-    ],
-    "DefaultDevices": [
-      {
-        "Name": "Quạt nước chính",
-        "Type": "paddle_wheel",
-        "Status": "off",
-        "Mode": "auto",
-        "PowerKw": 2.2
-      },
-      {
-        "Name": "Bơm cấp nước",
-        "Type": "water_pump",
-        "Status": "off",
-        "Mode": "manual",
-        "PowerKw": 1.5
       }
     ],
     "CalibrationReminderDaysBefore": 7,

@@ -17,9 +17,7 @@ public sealed class FarmStateService : IDisposable
     private readonly FarmRuntimeState _runtime;
     private readonly FarmRepository _repository;
     private readonly IMongoWriteQueue _writeQueue;
-    private readonly SensorMessageBus _sensorBus;
     private readonly IOptionsMonitor<SensorThresholdCatalog> _thresholds;
-    private readonly IOptionsMonitor<SimulationProfileOptions> _simulation;
     private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly FarmAccessService _access;
@@ -31,9 +29,7 @@ public sealed class FarmStateService : IDisposable
         FarmRuntimeState runtime,
         FarmRepository repository,
         IMongoWriteQueue writeQueue,
-        SensorMessageBus sensorBus,
         IOptionsMonitor<SensorThresholdCatalog> thresholds,
-        IOptionsMonitor<SimulationProfileOptions> simulation,
         IOptionsMonitor<SystemBehaviorOptions> behavior,
         AuthenticationStateProvider authenticationStateProvider,
         FarmAccessService access,
@@ -43,9 +39,7 @@ public sealed class FarmStateService : IDisposable
         _runtime = runtime;
         _repository = repository;
         _writeQueue = writeQueue;
-        _sensorBus = sensorBus;
         _thresholds = thresholds;
-        _simulation = simulation;
         _behavior = behavior;
         _authenticationStateProvider = authenticationStateProvider;
         _access = access;
@@ -145,17 +139,14 @@ public sealed class FarmStateService : IDisposable
             Id = id,
             PondId = id,
             Timestamp = DateTime.UtcNow,
-            LastSeenAtUtc = DateTime.UtcNow,
-            IsOnline = true,
-            Quality = "good",
-            SourceType = "simulation"
+            LastSeenAtUtc = DateTime.MinValue,
+            IsOnline = false,
+            Quality = "no-data",
+            SourceType = "mqtt"
         };
         var sensors = new List<SensorDefinition>();
         foreach (var pair in _thresholds.CurrentValue.Metrics)
         {
-            var profile = _simulation.CurrentValue.Metrics[pair.Key];
-            var value = Math.Round(profile.BaseValue, profile.DecimalPlaces);
-            MongoDatabaseInitializer.ApplyMetric(telemetry, pair.Key, value);
             sensors.Add(new SensorDefinition
             {
                 Id = $"sensor_{id}_{pair.Key}",
@@ -163,32 +154,19 @@ public sealed class FarmStateService : IDisposable
                 Name = $"{pair.Value.DisplayName} · {pond.Name}",
                 Metric = pair.Key,
                 Unit = pair.Value.Unit,
-                SourceType = "simulation",
-                ExternalAddress = $"simulation://{id}/{pair.Key}",
-                Status = "online",
-                LastSeenAtUtc = DateTime.UtcNow,
-                FirmwareVersion = _simulation.CurrentValue.FirmwareVersion,
-                CalibrationDateUtc = DateTime.UtcNow,
-                CalibrationDueDateUtc = DateTime.UtcNow.AddDays(_behavior.CurrentValue.DefaultCalibrationIntervalDays),
+                SourceType = "mqtt",
+                ExternalAddress = $"mqtt://aquaculture/farm_main/{id}/sensors/{pair.Key}/telemetry",
+                Status = "offline",
+                FirmwareVersion = string.Empty,
                 MinValidValue = pair.Value.ValidMin,
                 MaxValidValue = pair.Value.ValidMax,
-                LastQuality = "good"
+                LastQuality = "no-data"
             });
         }
 
-        var devices = _behavior.CurrentValue.DefaultDevices.Select(x => new Device
-        {
-            PondId = id,
-            Name = x.Name,
-            Type = x.Type,
-            Status = x.Status,
-            Mode = x.Mode,
-            PowerKw = x.PowerKw,
-            ControlTransport = "simulation",
-            FailSafeState = "off",
-            ConnectionStatus = "online",
-            LastSeenAtUtc = DateTime.UtcNow
-        }).ToList();
+        // Device addresses are intentionally not generated. Every new actuator must receive an
+        // explicit, reviewed PLC mapping before it can be controlled.
+        var devices = new List<Device>();
 
         _runtime.AddPond(pond, telemetry, sensors, devices);
         SelectedPondId = id;
@@ -199,25 +177,6 @@ public sealed class FarmStateService : IDisposable
             foreach (var sensor in sensors) await _repository.UpsertSensorAsync(sensor, writeCt);
             foreach (var device in devices) await _repository.UpsertDeviceAsync(device, writeCt);
         }, ct);
-
-        foreach (var sensor in sensors)
-        {
-            await _sensorBus.PublishAsync(new SensorEnvelope
-            {
-                SensorId = sensor.Id,
-                PondId = id,
-                Metric = sensor.Metric,
-                Unit = sensor.Unit,
-                Value = GetMetricValue(telemetry, sensor.Metric),
-                TimestampUtc = DateTime.UtcNow,
-                SourceType = "simulation",
-                SourceId = "simulation",
-                Quality = "good",
-                BatteryLevel = _simulation.CurrentValue.DefaultBatteryLevel,
-                SignalStrength = _simulation.CurrentValue.DefaultSignalStrength,
-                FirmwareVersion = _simulation.CurrentValue.FirmwareVersion
-            }, ct);
-        }
         return pond;
     }
 
@@ -247,8 +206,7 @@ public sealed class FarmStateService : IDisposable
             ControlTransport = request.ControlTransport.Trim(),
             ExternalAddress = request.ExternalAddress.Trim(),
             FailSafeState = request.FailSafeState,
-            ConnectionStatus = "online",
-            LastSeenAtUtc = DateTime.UtcNow
+            ConnectionStatus = "offline"
         };
         _runtime.AddDevice(device);
         await AddAutomationLogAsync(request.PondId, $"Đã khai báo thiết bị mới: {device.Name} ({GetDeviceTypeLabel(device.Type)}).", string.Empty, null, ct);
@@ -336,43 +294,6 @@ public sealed class FarmStateService : IDisposable
         _access.EnsureCanManageFarm(_principal);
         _runtime.ClearAutomationLogs();
         await _writeQueue.EnqueueAsync(writeCt => _repository.DeleteAutomationLogsAsync(writeCt), ct);
-    }
-
-    public async Task ApplySimulationAsync(string pondId, SimulationRequest request, CancellationToken ct = default)
-    {
-        // Manual sensor injection is a commissioning tool, not a normal technician operation.
-        _access.EnsureCanManageFarm(_principal);
-        _access.EnsureCanViewPond(_principal, pondId);
-        var values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["temperature"] = request.Temperature,
-            ["ph"] = request.Ph,
-            ["dissolvedOxygen"] = request.DissolvedOxygen,
-            ["salinity"] = request.Salinity,
-            ["ammonia"] = request.Ammonia,
-            ["waterLevel"] = request.WaterLevel
-        };
-        foreach (var pair in values)
-        {
-            var sensor = Sensors.FirstOrDefault(x => x.PondId == pondId && x.Metric == pair.Key);
-            var threshold = _thresholds.CurrentValue.Metrics[pair.Key];
-            await _sensorBus.PublishAsync(new SensorEnvelope
-            {
-                SensorId = sensor?.Id ?? $"sensor_{pondId}_{pair.Key}",
-                PondId = pondId,
-                Metric = pair.Key,
-                Unit = threshold.Unit,
-                Value = pair.Value,
-                TimestampUtc = DateTime.UtcNow,
-                SourceType = "manual-simulation",
-                SourceId = "simulation",
-                SourceAddress = $"manual-simulation://{pondId}/{pair.Key}",
-                Quality = "good",
-                BatteryLevel = _simulation.CurrentValue.ManualBatteryLevel,
-                SignalStrength = _simulation.CurrentValue.ManualSignalStrength,
-                FirmwareVersion = _simulation.CurrentValue.ManualFirmwareVersion
-            }, ct);
-        }
     }
 
     public async Task<CalibrationRecord> RecordCalibrationAsync(CalibrationRequest request, CancellationToken ct = default)

@@ -18,8 +18,8 @@ Linux:
 ./Examples/publish-mqtt.sh
 ```
 
-Trước khi thử, đổi `ActiveSources` thành `["mqtt"]` hoặc `["simulation", "mqtt"]`, đặt `Mqtt.Enabled` thành `true`, rồi khởi động lại ứng dụng.
+MQTT đã là nguồn mặc định P03. Đặt đúng host, username/password rồi publish vào topic `aquaculture/farm_main/pond_01/sensors/{metric}/telemetry`.
 
 ## Lưu ý timestamp
 
-Gateway nên gửi UTC theo ISO-8601. Nếu `timestampUtc` bị bỏ trống, server dùng thời điểm nhận làm thời điểm đo.
+Gateway phải ưu tiên UTC ISO-8601 và gửi `eventId` cùng `sequenceNumber`. Server kiểm tra chéo pond/metric giữa payload và topic.

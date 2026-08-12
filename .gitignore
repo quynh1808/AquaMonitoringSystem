@@ -13,3 +13,7 @@ secrets/
 backups/
 TestResults/
 App_Data/
+# ESP-IDF generates per-machine configuration (which may contain Wi-Fi/MQTT secrets) and build output.
+Firmware/**/sdkconfig
+Firmware/**/sdkconfig.old
+Firmware/**/build/

@@ -1,0 +1,20 @@
+menu "AquaOps FX5U simulator"
+    config PLC_WIFI_SSID
+        string "Wi-Fi SSID"
+        default "CHANGE_ME"
+    config PLC_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default "CHANGE_ME"
+    config PLC_MODBUS_PORT
+        int "Modbus TCP port"
+        range 1 65535
+        default 1502
+    config PLC_UNIT_ID
+        int "Modbus Unit ID"
+        range 1 247
+        default 1
+    config PLC_WATCHDOG_SECONDS
+        int "Communication watchdog (seconds)"
+        range 5 300
+        default 15
+endmenu

@@ -267,7 +267,7 @@ public sealed class FarmRuntimeState
                 _telemetry[sensor.PondId] = telemetry;
             }
 
-            MongoDatabaseInitializer.ApplyMetric(telemetry, sensor.Metric, reading.Value);
+            ApplyMetric(telemetry, sensor.Metric, reading.Value);
             telemetry.Timestamp = reading.Timestamp;
             telemetry.LastSeenAtUtc = reading.ReceivedAtUtc;
             telemetry.IsOnline = true;
@@ -276,6 +276,19 @@ public sealed class FarmRuntimeState
         }
         NotifyChanged();
         return (sensor, telemetry);
+    }
+
+    private static void ApplyMetric(TelemetryData telemetry, string metric, double value)
+    {
+        switch (metric)
+        {
+            case "temperature": telemetry.Temperature = value; break;
+            case "ph": telemetry.Ph = value; break;
+            case "dissolvedOxygen": telemetry.DissolvedOxygen = value; break;
+            case "salinity": telemetry.Salinity = value; break;
+            case "ammonia": telemetry.Ammonia = value; break;
+            case "waterLevel": telemetry.WaterLevel = value; break;
+        }
     }
 
     public SensorDefinition? UpdateSensor(string sensorId, Action<SensorDefinition> change, bool notify = true)
