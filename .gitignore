@@ -2,7 +2,9 @@ bin/
 obj/
 .vs/
 .vscode/
-data/
+# `Data/` contains C# persistence source and must be committed. Runtime data is
+# stored in Docker named volumes; use `runtime-data/` only for local scratch data.
+runtime-data/
 *.user
 *.suo
 .env

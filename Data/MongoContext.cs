@@ -1,0 +1,48 @@
+using AquacultureMonitoring.Configuration;
+using AquacultureMonitoring.Models;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
+
+namespace AquacultureMonitoring.Data;
+
+public sealed class MongoContext
+{
+    public MongoContext(IOptions<MongoDbOptions> options)
+    {
+        var value = options.Value;
+        var settings = MongoClientSettings.FromConnectionString(value.ConnectionString);
+        settings.ServerSelectionTimeout = TimeSpan.FromSeconds(value.ServerSelectionTimeoutSeconds);
+        if (!string.IsNullOrWhiteSpace(value.Username))
+        {
+            var authenticationDatabase = string.IsNullOrWhiteSpace(value.AuthenticationDatabase)
+                ? value.DatabaseName
+                : value.AuthenticationDatabase;
+            settings.Credential = MongoCredential.CreateCredential(authenticationDatabase, value.Username, value.Password);
+        }
+        Client = new MongoClient(settings);
+        Database = Client.GetDatabase(value.DatabaseName);
+    }
+
+    public MongoClient Client { get; }
+    public IMongoDatabase Database { get; }
+
+    public IMongoCollection<Pond> Ponds => Database.GetCollection<Pond>("ponds");
+    public IMongoCollection<TelemetryData> LatestTelemetry => Database.GetCollection<TelemetryData>("telemetry_latest");
+    public IMongoCollection<SensorDefinition> Sensors => Database.GetCollection<SensorDefinition>("sensors");
+    public IMongoCollection<SensorReading> SensorReadings => Database.GetCollection<SensorReading>("sensor_readings");
+    public IMongoCollection<Device> Devices => Database.GetCollection<Device>("devices");
+    public IMongoCollection<DeviceCommand> DeviceCommands => Database.GetCollection<DeviceCommand>("device_commands");
+    public IMongoCollection<AlertItem> Alerts => Database.GetCollection<AlertItem>("alerts");
+    public IMongoCollection<AlarmRule> AlarmRules => Database.GetCollection<AlarmRule>("alarm_rules");
+    public IMongoCollection<FeedLog> FeedLogs => Database.GetCollection<FeedLog>("feed_logs");
+    public IMongoCollection<AutomationLog> AutomationLogs => Database.GetCollection<AutomationLog>("automation_logs");
+    public IMongoCollection<CalibrationRecord> CalibrationRecords => Database.GetCollection<CalibrationRecord>("calibration_records");
+    public IMongoCollection<MaintenanceTask> MaintenanceTasks => Database.GetCollection<MaintenanceTask>("maintenance_tasks");
+    public IMongoCollection<AuditLog> AuditLogs => Database.GetCollection<AuditLog>("audit_logs");
+    public IMongoCollection<DataSourceHealth> DataSourceHealth => Database.GetCollection<DataSourceHealth>("data_source_health");
+    public IMongoCollection<AppUser> Users => Database.GetCollection<AppUser>("users");
+    public IMongoCollection<ProductionCycle> ProductionCycles => Database.GetCollection<ProductionCycle>("production_cycles");
+    public IMongoCollection<GrowthSample> GrowthSamples => Database.GetCollection<GrowthSample>("growth_samples");
+    public IMongoCollection<MortalityRecord> MortalityRecords => Database.GetCollection<MortalityRecord>("mortality_records");
+    public IMongoCollection<HarvestRecord> HarvestRecords => Database.GetCollection<HarvestRecord>("harvest_records");
+}
