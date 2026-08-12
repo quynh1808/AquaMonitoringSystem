@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- Production containers target Ubuntu x64. Declaring the supported RID keeps the
+         default locked restore and the PublishContainer restore on the same lock graph. -->
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>

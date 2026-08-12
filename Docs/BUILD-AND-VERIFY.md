@@ -10,6 +10,8 @@ dotnet test Tests/AquacultureMonitoring.Tests.csproj -c Release --no-build
 
 `global.json` cố định feature band .NET SDK; hai `packages.lock.json` cố định dependency graph. Khi chủ động nâng package, chạy `dotnet restore --use-lock-file`, review diff rồi commit lock file.
 
+Project khai báo `RuntimeIdentifiers=linux-x64` để restore mặc định và restore publish container dùng cùng một dependency lock graph. Không xóa target `net10.0/linux-x64` khỏi `packages.lock.json`.
+
 ## Tạo container không cần Dockerfile
 
 Để push thủ công (CI là lựa chọn chuẩn):
