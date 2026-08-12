@@ -33,6 +33,7 @@ public sealed class MongoContext
     public IMongoCollection<Device> Devices => Database.GetCollection<Device>("devices");
     public IMongoCollection<DeviceCommand> DeviceCommands => Database.GetCollection<DeviceCommand>("device_commands");
     public IMongoCollection<AlertItem> Alerts => Database.GetCollection<AlertItem>("alerts");
+    public IMongoCollection<AlertNotification> AlertNotifications => Database.GetCollection<AlertNotification>("alert_notifications");
     public IMongoCollection<AlarmRule> AlarmRules => Database.GetCollection<AlarmRule>("alarm_rules");
     public IMongoCollection<FeedLog> FeedLogs => Database.GetCollection<FeedLog>("feed_logs");
     public IMongoCollection<AutomationLog> AutomationLogs => Database.GetCollection<AutomationLog>("automation_logs");
@@ -45,4 +46,11 @@ public sealed class MongoContext
     public IMongoCollection<GrowthSample> GrowthSamples => Database.GetCollection<GrowthSample>("growth_samples");
     public IMongoCollection<MortalityRecord> MortalityRecords => Database.GetCollection<MortalityRecord>("mortality_records");
     public IMongoCollection<HarvestRecord> HarvestRecords => Database.GetCollection<HarvestRecord>("harvest_records");
+    public IMongoCollection<InventoryItem> InventoryItems => Database.GetCollection<InventoryItem>("inventory_items");
+    public IMongoCollection<InventoryTransaction> InventoryTransactions => Database.GetCollection<InventoryTransaction>("inventory_transactions");
+    public IMongoCollection<AquaticHealthEvent> HealthEvents => Database.GetCollection<AquaticHealthEvent>("health_events");
+    public IMongoCollection<BiosecurityEvent> BiosecurityEvents => Database.GetCollection<BiosecurityEvent>("biosecurity_events");
+    public IMongoCollection<FarmWorkOrder> WorkOrders => Database.GetCollection<FarmWorkOrder>("work_orders");
+    public IMongoCollection<FarmExpense> Expenses => Database.GetCollection<FarmExpense>("expenses");
+    public IMongoCollection<HarvestLot> HarvestLots => Database.GetCollection<HarvestLot>("harvest_lots");
 }

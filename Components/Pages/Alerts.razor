@@ -41,6 +41,10 @@
                             @if (!alert.IsResolved)
                             {
                                 <AuthorizeView Roles="Administrator,FarmManager,Technician">
+                                    @if (alert.AcknowledgedAtUtc is null)
+                                    {
+                                        <button class="button ghost" @onclick="async () => await State.AcknowledgeAlertAsync(alert.Id)">Đã tiếp nhận</button>
+                                    }
                                     <button class="button success" @onclick="async () => await State.ResolveAlertAsync(alert.Id)">✓ Đã xử lý</button>
                                 </AuthorizeView>
                             }

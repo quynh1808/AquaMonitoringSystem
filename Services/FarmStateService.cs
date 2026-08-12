@@ -24,6 +24,7 @@ public sealed class FarmStateService : IDisposable
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly FarmAccessService _access;
     private readonly DeviceCommandService _deviceCommands;
+    private readonly ProductionCycleService _productionCycles;
     private ClaimsPrincipal _principal = new(new ClaimsIdentity());
 
     public FarmStateService(
@@ -36,7 +37,8 @@ public sealed class FarmStateService : IDisposable
         IOptionsMonitor<SystemBehaviorOptions> behavior,
         AuthenticationStateProvider authenticationStateProvider,
         FarmAccessService access,
-        DeviceCommandService deviceCommands)
+        DeviceCommandService deviceCommands,
+        ProductionCycleService productionCycles)
     {
         _runtime = runtime;
         _repository = repository;
@@ -48,6 +50,7 @@ public sealed class FarmStateService : IDisposable
         _authenticationStateProvider = authenticationStateProvider;
         _access = access;
         _deviceCommands = deviceCommands;
+        _productionCycles = productionCycles;
         _runtime.Changed += ForwardChanged;
         SelectedPondId = string.Empty;
     }
@@ -74,6 +77,7 @@ public sealed class FarmStateService : IDisposable
         }
     }
     public List<MaintenanceTask> MaintenanceTasks => _runtime.MaintenanceTasks.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
+    public List<ProductionCycle> ProductionCycles => _runtime.ProductionCycles.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
 
     public bool IsAuthenticated => _principal.Identity?.IsAuthenticated == true;
     public string CurrentDisplayName => FarmAccessService.DisplayName(_principal);
@@ -281,21 +285,40 @@ public sealed class FarmStateService : IDisposable
     public async Task<FeedLog> AddFeedLogAsync(AddFeedRequest request, CancellationToken ct = default)
     {
         _access.EnsureCanOperatePond(_principal, request.PondId);
+        if (request.AmountKg <= 0) throw new ArgumentOutOfRangeException(nameof(request.AmountKg), "Lượng thức ăn phải lớn hơn 0.");
         var pond = Ponds.FirstOrDefault(p => p.Id == request.PondId)
             ?? throw new InvalidOperationException("Không tìm thấy ao nuôi.");
+        var cycle = !string.IsNullOrWhiteSpace(request.CycleId)
+            ? _runtime.ProductionCycles.FirstOrDefault(x => x.Id == request.CycleId)
+            : await _productionCycles.GetActiveForPondAsync(request.PondId, ct);
+        if (cycle is null || !cycle.PondId.Equals(request.PondId, StringComparison.OrdinalIgnoreCase) || !cycle.IsOpen)
+            throw new InvalidOperationException("Ao chưa có vụ nuôi đang mở để ghi nhận thức ăn.");
         var log = new FeedLog
         {
             PondId = pond.Id,
             PondName = pond.Name,
+            CycleId = cycle.Id,
+            FeedLotId = request.FeedLotId?.Trim() ?? string.Empty,
             FeedType = request.FeedType.Trim(),
             AmountKg = request.AmountKg,
             Notes = request.Notes?.Trim(),
             Technician = FarmAccessService.DisplayName(_principal),
             Timestamp = DateTime.UtcNow
         };
+        // Feeding changes FCR; persist first, then project and recalculate the cycle.
+        await _repository.InsertFeedLogAsync(log, ct);
         _runtime.AddFeedLog(log);
-        await _writeQueue.EnqueueAsync(writeCt => _repository.InsertFeedLogAsync(log, writeCt), ct);
+        await _productionCycles.RecalculateAsync(cycle.Id, ct);
         return log;
+    }
+
+    public async Task AcknowledgeAlertAsync(string alertId, CancellationToken ct = default)
+    {
+        var current = Alerts.FirstOrDefault(x => x.Id == alertId);
+        if (current is null) return;
+        _access.EnsureCanOperatePond(_principal, current.PondId);
+        var alert = _runtime.AcknowledgeAlert(alertId, FarmAccessService.ActorName(_principal), null);
+        if (alert is not null) await _repository.UpsertAlertAsync(alert, ct);
     }
 
     public async Task ResolveAlertAsync(string alertId, CancellationToken ct = default)

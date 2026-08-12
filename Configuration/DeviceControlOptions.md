@@ -9,4 +9,3 @@ telemetry can be enabled while `HardwareControlEnabled` remains `false`.
 - `CommandTimeoutSeconds`: acknowledgement timeout that hardware transports must honor.
 
 Production rollout is documented in `Docs/HARDWARE-INTEGRATION.md`.
-

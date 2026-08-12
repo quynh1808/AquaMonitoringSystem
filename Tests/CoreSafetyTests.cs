@@ -4,6 +4,7 @@ using AquacultureMonitoring.Models;
 using AquacultureMonitoring.Sensors;
 using AquacultureMonitoring.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Microsoft.Extensions.Options;
 
 namespace AquacultureMonitoring.Tests;
 
@@ -78,6 +79,44 @@ public sealed class CoreSafetyTests
         Assert.IsTrue(result.Failed);
     }
 
+    [TestMethod]
+    public void ProductionMetrics_UsesNetBiomassGainForFcr()
+    {
+        var cycle = new ProductionCycle { InitialQuantity = 1_000, InitialAverageWeightGrams = 2, LatestAverageWeightGrams = 2 };
+        var sample = new GrowthSample { AverageWeightGrams = 100, EstimatedBiomassKg = 90 };
+        var metrics = ProductionMetricsCalculator.Calculate(cycle, sample, [], [],
+            [new FeedLog { AmountKg = 88, CycleId = cycle.Id }]);
+
+        Assert.AreEqual(88d, metrics.NetBiomassGainKg, 0.001);
+        Assert.AreEqual(1d, metrics.Fcr, 0.001);
+    }
+
+    [TestMethod]
+    public void ProductionMetrics_SubtractsMortalityAndHarvestedAnimals()
+    {
+        var cycle = new ProductionCycle { InitialQuantity = 1_000, InitialAverageWeightGrams = 2, LatestAverageWeightGrams = 100 };
+        var metrics = ProductionMetricsCalculator.Calculate(cycle, null,
+            [new MortalityRecord { Quantity = 100 }],
+            [new HarvestRecord { AnimalQuantity = 200, QuantityKg = 20 }], []);
+
+        Assert.AreEqual(700L, metrics.AliveQuantity);
+        Assert.AreEqual(70d, metrics.SurvivalRatePercent, 0.001);
+    }
+
+    [TestMethod]
+    public void OperationalModeGuard_AllowsSimulationDefaults()
+    {
+        var guard = CreateGuard("Simulation", simulationEnabled: true, activeSources: ["simulation"], notificationsEnabled: false);
+        guard.Validate();
+    }
+
+    [TestMethod]
+    public void OperationalModeGuard_RejectsSimulatorInProduction()
+    {
+        var guard = CreateGuard("Production", simulationEnabled: true, activeSources: ["simulation"], notificationsEnabled: false);
+        Assert.ThrowsExactly<OptionsValidationException>(guard.Validate);
+    }
+
     private static ClaimsPrincipal Principal(string role, params string[] ponds)
     {
         var claims = new List<Claim>
@@ -88,4 +127,18 @@ public sealed class CoreSafetyTests
         claims.AddRange(ponds.Select(pond => new Claim("pond_access", pond)));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "test"));
     }
+
+    private static OperationalModeGuard CreateGuard(string mode, bool simulationEnabled,
+        List<string> activeSources, bool notificationsEnabled) =>
+        new(Options.Create(new OperationalModeOptions { Mode = mode }),
+            Options.Create(new SimulationProfileOptions { Enabled = simulationEnabled }),
+            Options.Create(new DashboardSimulationOptions { Enabled = simulationEnabled }),
+            Options.Create(new ProductionCycleSimulationOptions { Enabled = simulationEnabled }),
+            Options.Create(new SensorConnectionOptions { ActiveSources = activeSources }),
+            Options.Create(new DeviceControlOptions { SimulationEnabled = simulationEnabled }),
+            Options.Create(new AlertNotificationOptions
+            {
+                Enabled = notificationsEnabled,
+                WebhookUrl = notificationsEnabled ? "http://alerts.lan/hook" : string.Empty
+            }));
 }

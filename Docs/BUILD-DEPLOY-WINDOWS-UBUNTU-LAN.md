@@ -362,6 +362,10 @@ AQUAOPS_IMAGE=ghcr.io/quynh1808/aquaops
 AQUAOPS_VERSION=sha-replace-with-successful-full-commit-sha
 AQUAOPS_BIND_ADDRESS=192.168.100.66
 AQUAOPS_HTTP_PORT=8080
+AQUAOPS_MODE=Simulation
+
+ALERT_WEBHOOK_ENABLED=false
+ALERT_WEBHOOK_URL=
 
 MONGO_IMAGE=mongo:8.0
 MOSQUITTO_IMAGE=eclipse-mosquitto:2
@@ -389,6 +393,15 @@ HARDWARE_CONTROL_ENABLED=false
 DEVICE_SIMULATION_ENABLED=true
 ```
 
+Giữ cấu hình trên trong toàn bộ giai đoạn phát triển, chạy thử và shadow telemetry. Khi đã hoàn tất commissioning sensor/PLC thật, chuyển sang profile production bằng cách thêm vào `.env`:
+
+```env
+COMPOSE_FILE=compose.yaml:compose.production.yaml
+ALERT_WEBHOOK_URL=http://alert-receiver.lan/aquaops
+```
+
+Overlay production tự tắt sensor/dashboard/cycle/device simulation, bật hardware control, yêu cầu MQTT thật và webhook cảnh báo. `OperationalModeGuard` sẽ dừng ứng dụng ngay nếu các điều kiện này bị cấu hình mâu thuẫn. Không dùng overlay production trong giai đoạn vẫn cần dữ liệu giả.
+
 Quy tắc `.env`:
 
 - Không có khoảng trắng quanh `=`.
@@ -401,6 +414,8 @@ Quy tắc `.env`:
 - Không đổi UID/GID 1654 ở một phía; chúng phải khớp `ContainerUser` trong project và init service trong Compose.
 - Chọn credential chính thức trước lần tạo volume MongoDB đầu tiên. Đổi password Mongo trong `.env` sau đó không tự đổi user/password đã lưu trong database.
 - `AQUAOPS_ADMIN_PASSWORD` chỉ tạo admin khi collection `users` rỗng; nó không reset password admin đã tồn tại.
+- `AQUAOPS_MODE=Simulation` là mặc định an toàn; chỉ dùng `compose.production.yaml` sau biên bản commissioning.
+- `ALERT_WEBHOOK_URL` nên là endpoint trong LAN; không cần đưa AquaOps hoặc webhook ra Internet.
 
 Kiểm tra các biến không bí mật:
 
@@ -775,6 +790,7 @@ Không dùng `git reset --hard` khi chưa chắc các thay đổi cục bộ có
 - [ ] Máy Windows trong LAN mở được ứng dụng.
 - [ ] Không có port-forward ra Internet.
 - [ ] `HARDWARE_CONTROL_ENABLED=false` cho đến khi commissioning hoàn tất.
+- [ ] Khi chuyển Production: đã bật `COMPOSE_FILE=compose.yaml:compose.production.yaml`, MQTT thật và webhook LAN.
 - [ ] Backup và restore đã được diễn tập.
 
 ## 20. Tài liệu liên quan

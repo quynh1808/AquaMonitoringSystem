@@ -101,6 +101,9 @@ services:
       Authentication__BootstrapAdminUsername: ${AQUAOPS_ADMIN_USERNAME:?set AQUAOPS_ADMIN_USERNAME in .env}
       Authentication__BootstrapAdminPassword: ${AQUAOPS_ADMIN_PASSWORD:?set AQUAOPS_ADMIN_PASSWORD in .env}
       Authentication__BootstrapAdminDisplayName: ${AQUAOPS_ADMIN_DISPLAY_NAME:-Quản trị hệ thống}
+      OperationalMode__Mode: ${AQUAOPS_MODE:-Simulation}
+      AlertNotifications__Enabled: ${ALERT_WEBHOOK_ENABLED:-false}
+      AlertNotifications__WebhookUrl: ${ALERT_WEBHOOK_URL:-}
       SensorConnections__Mqtt__Username: ${MQTT_USERNAME}
       SensorConnections__Mqtt__Password: ${MQTT_PASSWORD}
       DeviceControl__HardwareControlEnabled: ${HARDWARE_CONTROL_ENABLED:-false}

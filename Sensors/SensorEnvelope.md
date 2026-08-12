@@ -1,5 +1,7 @@
 # SensorEnvelope
 
+DTO chuẩn giữa adapter và ingestion worker. `EventId` dùng idempotency, `SequenceNumber` phát hiện mất/thứ tự sai bản tin và `IsBackfill` tách dữ liệu lịch sử khỏi live state. Backfill bắt buộc có EventId.
+
 `SensorEnvelope` là hợp đồng dữ liệu chung giữa mọi adapter và `SensorIngestionWorker`.
 
 ## Trường chính

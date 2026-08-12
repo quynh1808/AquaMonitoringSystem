@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using System.Threading.Tasks;
 using AquacultureMonitoring.Configuration;
 using AquacultureMonitoring.Data;
 using AquacultureMonitoring.Models;
@@ -7,147 +10,177 @@ using Microsoft.Extensions.Options;
 
 namespace AquacultureMonitoring.Services;
 
+/// <summary>Evaluates threshold/quality conditions and owns the alert lifecycle projection.</summary>
 public sealed class AlertEngineService
 {
-    private readonly FarmRuntimeState _runtime;
-    private readonly FarmRepository _repository;
-    private readonly IOptionsMonitor<SensorThresholdCatalog> _catalog;
-    private readonly ConcurrentDictionary<string, CandidateState> _states = new(StringComparer.OrdinalIgnoreCase);
+	private sealed class CandidateState
+	{
+		public DateTime FirstSeenAtUtc { get; set; }
 
-    public AlertEngineService(FarmRuntimeState runtime, FarmRepository repository,
-        IOptionsMonitor<SensorThresholdCatalog> catalog)
-    {
-        _runtime = runtime;
-        _repository = repository;
-        _catalog = catalog;
-    }
+		public DateTime? LastAlertAtUtc { get; set; }
 
-    public async Task EvaluateAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
-    {
-        if (!_catalog.CurrentValue.Metrics.TryGetValue(sensor.Metric, out var threshold)) return;
-        var condition = EvaluateCondition(reading.Value, threshold);
-        var key = $"{sensor.PondId}:{sensor.Metric}";
-        var active = _runtime.GetActiveAlert(sensor.PondId, sensor.Metric);
+		public string Direction { get; set; } = string.Empty;
 
-        if (condition is null)
-        {
-            _states.TryRemove(key, out _);
-            if (active is not null && IsRecovered(reading.Value, threshold))
-            {
-                var resolved = _runtime.ResolveMetricAlert(sensor.PondId, sensor.Metric, "threshold-engine");
-                if (resolved is not null) await _repository.UpsertAlertAsync(resolved, ct);
-            }
-            return;
-        }
+		public string Severity { get; set; } = string.Empty;
+	}
 
-        var state = _states.GetOrAdd(key, _ => new CandidateState
-        {
-            FirstSeenAtUtc = reading.ReceivedAtUtc,
-            Direction = condition.Direction,
-            Severity = condition.Severity
-        });
+	private sealed record AlertCondition(string Severity, string Direction, string ThresholdText);
 
-        if (state.Direction != condition.Direction || state.Severity != condition.Severity)
-        {
-            state.Direction = condition.Direction;
-            state.Severity = condition.Severity;
-            state.FirstSeenAtUtc = reading.ReceivedAtUtc;
-        }
+	private readonly FarmRuntimeState _runtime;
 
-        if ((reading.ReceivedAtUtc - state.FirstSeenAtUtc).TotalSeconds < threshold.DelaySeconds) return;
-        if (active is not null && (reading.ReceivedAtUtc - active.LastUpdatedAtUtc).TotalSeconds < threshold.CooldownSeconds) return;
+	private readonly FarmRepository _repository;
 
-        var pond = _runtime.GetPond(sensor.PondId);
-        var messageTemplate = condition.Severity == "critical" ? threshold.CriticalMessage : threshold.WarningMessage;
-        var alert = active ?? new AlertItem
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            PondId = sensor.PondId,
-            PondName = pond?.Name ?? sensor.PondId,
-            Metric = sensor.Metric,
-            SensorId = sensor.Id,
-            Status = "new",
-            Timestamp = reading.Timestamp,
-            Source = "threshold-engine"
-        };
-        alert.Value = reading.Value;
-        alert.Severity = condition.Severity;
-        alert.Threshold = condition.ThresholdText;
-        alert.Message = Expand(messageTemplate, threshold, reading.Value);
-        alert.ProposedSolution = Expand(threshold.ProposedSolution, threshold, reading.Value);
-        alert.LastUpdatedAtUtc = reading.ReceivedAtUtc;
-        alert.IsResolved = false;
+	private readonly IOptionsMonitor<SensorThresholdCatalog> _catalog;
 
-        _runtime.UpsertAlert(alert);
-        await _repository.UpsertAlertAsync(alert, ct);
-        state.LastAlertAtUtc = reading.ReceivedAtUtc;
-    }
+	private readonly ConcurrentDictionary<string, CandidateState> _states = new ConcurrentDictionary<string, CandidateState>(StringComparer.OrdinalIgnoreCase);
 
-    public async Task ReportQualityIssueAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
-    {
-        var metric = $"quality:{sensor.Metric}";
-        var active = _runtime.GetActiveAlert(sensor.PondId, metric);
-        var pond = _runtime.GetPond(sensor.PondId);
-        var alert = active ?? new AlertItem
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            PondId = sensor.PondId,
-            PondName = pond?.Name ?? sensor.PondId,
-            Metric = metric,
-            SensorId = sensor.Id,
-            Timestamp = reading.Timestamp,
-            Source = "data-quality"
-        };
-        alert.Value = reading.Value;
-        alert.Severity = "critical";
-        alert.Status = "new";
-        alert.Threshold = $"{sensor.MinValidValue}–{sensor.MaxValidValue} {sensor.Unit}";
-        alert.Message = $"Dữ liệu {sensor.Name} nằm ngoài miền hợp lệ hoặc không thể sử dụng.";
-        alert.ProposedSolution = "Kiểm tra dây tín hiệu, nguồn, register mapping và đo đối chứng trước khi dùng giá trị này để điều khiển.";
-        alert.LastUpdatedAtUtc = DateTime.UtcNow;
-        alert.IsResolved = false;
-        _runtime.UpsertAlert(alert);
-        await _repository.UpsertAlertAsync(alert, ct);
-    }
+	private readonly AlertNotificationService _notifications;
 
-    public async Task ResolveQualityIssueAsync(SensorDefinition sensor, CancellationToken ct)
-    {
-        var resolved = _runtime.ResolveMetricAlert(sensor.PondId, $"quality:{sensor.Metric}", "data-quality");
-        if (resolved is not null) await _repository.UpsertAlertAsync(resolved, ct);
-    }
+	public AlertEngineService(FarmRuntimeState runtime, FarmRepository repository, IOptionsMonitor<SensorThresholdCatalog> catalog, AlertNotificationService notifications)
+	{
+		_runtime = runtime;
+		_repository = repository;
+		_catalog = catalog;
+		_notifications = notifications;
+	}
 
-    private static AlertCondition? EvaluateCondition(double value, MetricThresholdOptions threshold)
-    {
-        if (threshold.CriticalLow.HasValue && value <= threshold.CriticalLow.Value)
-            return new("critical", "low", $"≤ {threshold.CriticalLow.Value} {threshold.Unit}");
-        if (threshold.CriticalHigh.HasValue && value >= threshold.CriticalHigh.Value)
-            return new("critical", "high", $"≥ {threshold.CriticalHigh.Value} {threshold.Unit}");
-        if (threshold.WarningLow.HasValue && value <= threshold.WarningLow.Value)
-            return new("warning", "low", $"≤ {threshold.WarningLow.Value} {threshold.Unit}");
-        if (threshold.WarningHigh.HasValue && value >= threshold.WarningHigh.Value)
-            return new("warning", "high", $"≥ {threshold.WarningHigh.Value} {threshold.Unit}");
-        return null;
-    }
+	public async Task EvaluateAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
+	{
+		if (!_catalog.CurrentValue.Metrics.TryGetValue(sensor.Metric, out var value) || value is null)
+		{
+			return;
+		}
+		AlertCondition? condition = EvaluateCondition(reading.Value, value);
+		string key = sensor.PondId + ":" + sensor.Metric;
+		AlertItem? active = _runtime.GetActiveAlert(sensor.PondId, sensor.Metric);
+		if (condition is null)
+		{
+			_states.TryRemove(key, out _);
+			if (active != null && IsRecovered(reading.Value, value))
+			{
+				AlertItem? alertItem = _runtime.ResolveMetricAlert(sensor.PondId, sensor.Metric, "threshold-engine");
+				if (alertItem != null)
+				{
+					await _repository.UpsertAlertAsync(alertItem, ct);
+				}
+			}
+			return;
+		}
+		CandidateState state = _states.GetOrAdd(key, (string _) => new CandidateState
+		{
+			FirstSeenAtUtc = reading.ReceivedAtUtc,
+			Direction = condition.Direction,
+			Severity = condition.Severity
+		});
+		if (state.Direction != condition.Direction || state.Severity != condition.Severity)
+		{
+			state.Direction = condition.Direction;
+			state.Severity = condition.Severity;
+			state.FirstSeenAtUtc = reading.ReceivedAtUtc;
+		}
+		if (!((reading.ReceivedAtUtc - state.FirstSeenAtUtc).TotalSeconds < (double)value.DelaySeconds) && (active == null || !((reading.ReceivedAtUtc - active.LastUpdatedAtUtc).TotalSeconds < (double)value.CooldownSeconds)))
+		{
+			Pond? pond = _runtime.GetPond(sensor.PondId);
+			string template = ((condition.Severity == "critical") ? value.CriticalMessage : value.WarningMessage);
+			AlertItem alert = active ?? new AlertItem
+			{
+				Id = Guid.NewGuid().ToString("N"),
+				PondId = sensor.PondId,
+				PondName = (pond?.Name ?? sensor.PondId),
+				Metric = sensor.Metric,
+				SensorId = sensor.Id,
+				Status = "new",
+				Timestamp = reading.Timestamp,
+				Source = "threshold-engine"
+			};
+			alert.Value = reading.Value;
+			alert.Severity = condition.Severity;
+			alert.Threshold = condition.ThresholdText;
+			alert.Message = Expand(template, value, reading.Value);
+			alert.ProposedSolution = Expand(value.ProposedSolution, value, reading.Value);
+			alert.LastUpdatedAtUtc = reading.ReceivedAtUtc;
+			alert.IsResolved = false;
+			alert.OccurrenceCount = ((active == null) ? 1 : Math.Max(1, alert.OccurrenceCount + 1));
+			_runtime.UpsertAlert(alert);
+			await _repository.UpsertAlertAsync(alert, ct);
+			if (active == null || condition.Severity == "critical")
+			{
+				await _notifications.SendAsync(alert, ct);
+			}
+			state.LastAlertAtUtc = reading.ReceivedAtUtc;
+		}
+	}
 
-    private static bool IsRecovered(double value, MetricThresholdOptions threshold)
-    {
-        var aboveLow = !threshold.WarningLow.HasValue || value > threshold.WarningLow.Value + threshold.Hysteresis;
-        var belowHigh = !threshold.WarningHigh.HasValue || value < threshold.WarningHigh.Value - threshold.Hysteresis;
-        return aboveLow && belowHigh;
-    }
+	public async Task ReportQualityIssueAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
+	{
+		string metric = "quality:" + sensor.Metric;
+		AlertItem? active = _runtime.GetActiveAlert(sensor.PondId, metric);
+		Pond? pond = _runtime.GetPond(sensor.PondId);
+		AlertItem alert = active ?? new AlertItem
+		{
+			Id = Guid.NewGuid().ToString("N"),
+			PondId = sensor.PondId,
+			PondName = (pond?.Name ?? sensor.PondId),
+			Metric = metric,
+			SensorId = sensor.Id,
+			Timestamp = reading.Timestamp,
+			Source = "data-quality"
+		};
+		alert.Value = reading.Value;
+		alert.Severity = "critical";
+		alert.Threshold = ((reading.Quality == "suspect") ? "Sequence telemetry phải liên tục" : $"{sensor.MinValidValue}–{sensor.MaxValidValue} {sensor.Unit}");
+		alert.Message = ((reading.Quality == "suspect") ? ("Dữ liệu " + sensor.Name + " bị thiếu một hoặc nhiều sequence.") : ("Dữ liệu " + sensor.Name + " nằm ngoài miền hợp lệ hoặc không thể sử dụng."));
+		alert.ProposedSolution = ((reading.Quality == "suspect") ? "Kiểm tra buffer/retry của gateway và gửi các mẫu bị thiếu qua luồng backfill có EventId." : "Kiểm tra dây tín hiệu, nguồn, register mapping và đo đối chứng trước khi dùng giá trị này để điều khiển.");
+		alert.LastUpdatedAtUtc = DateTime.UtcNow;
+		alert.IsResolved = false;
+		alert.OccurrenceCount = ((active == null) ? 1 : Math.Max(1, alert.OccurrenceCount + 1));
+		_runtime.UpsertAlert(alert);
+		await _repository.UpsertAlertAsync(alert, ct);
+		if (active == null)
+		{
+			await _notifications.SendAsync(alert, ct);
+		}
+	}
 
-    private static string Expand(string template, MetricThresholdOptions threshold, double value) => template
-        .Replace("{value}", value.ToString($"F{threshold.DecimalPlaces}"), StringComparison.OrdinalIgnoreCase)
-        .Replace("{unit}", threshold.Unit, StringComparison.OrdinalIgnoreCase)
-        .Replace("{metric}", threshold.DisplayName, StringComparison.OrdinalIgnoreCase);
+	public async Task ResolveQualityIssueAsync(SensorDefinition sensor, CancellationToken ct)
+	{
+		AlertItem? alertItem = _runtime.ResolveMetricAlert(sensor.PondId, "quality:" + sensor.Metric, "data-quality");
+		if (alertItem != null)
+		{
+			await _repository.UpsertAlertAsync(alertItem, ct);
+		}
+	}
 
-    private sealed class CandidateState
-    {
-        public DateTime FirstSeenAtUtc { get; set; }
-        public DateTime? LastAlertAtUtc { get; set; }
-        public string Direction { get; set; } = string.Empty;
-        public string Severity { get; set; } = string.Empty;
-    }
+	private static AlertCondition? EvaluateCondition(double value, MetricThresholdOptions threshold)
+	{
+		if (threshold.CriticalLow.HasValue && value <= threshold.CriticalLow.Value)
+		{
+			return new AlertCondition("critical", "low", $"≤ {threshold.CriticalLow.Value} {threshold.Unit}");
+		}
+		if (threshold.CriticalHigh.HasValue && value >= threshold.CriticalHigh.Value)
+		{
+			return new AlertCondition("critical", "high", $"≥ {threshold.CriticalHigh.Value} {threshold.Unit}");
+		}
+		if (threshold.WarningLow.HasValue && value <= threshold.WarningLow.Value)
+		{
+			return new AlertCondition("warning", "low", $"≤ {threshold.WarningLow.Value} {threshold.Unit}");
+		}
+		if (threshold.WarningHigh.HasValue && value >= threshold.WarningHigh.Value)
+		{
+			return new AlertCondition("warning", "high", $"≥ {threshold.WarningHigh.Value} {threshold.Unit}");
+		}
+		return null;
+	}
 
-    private sealed record AlertCondition(string Severity, string Direction, string ThresholdText);
+	private static bool IsRecovered(double value, MetricThresholdOptions threshold)
+	{
+		bool flag = !threshold.WarningLow.HasValue || value > threshold.WarningLow.Value + threshold.Hysteresis;
+		bool flag2 = !threshold.WarningHigh.HasValue || value < threshold.WarningHigh.Value - threshold.Hysteresis;
+		return flag & flag2;
+	}
+
+	private static string Expand(string template, MetricThresholdOptions threshold, double value)
+	{
+		return template.Replace("{value}", value.ToString($"F{threshold.DecimalPlaces}"), StringComparison.OrdinalIgnoreCase).Replace("{unit}", threshold.Unit, StringComparison.OrdinalIgnoreCase).Replace("{metric}", threshold.DisplayName, StringComparison.OrdinalIgnoreCase);
+	}
 }

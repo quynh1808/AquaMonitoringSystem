@@ -61,8 +61,12 @@ Chỉ được dùng khi collection `ponds` còn trống. Sửa file này không
 ## Biến môi trường Docker
 
 - `TZ`: múi giờ dùng cho hiển thị và nhịp ngày/đêm của mô phỏng.
+- `AQUAOPS_MODE`: `Simulation` hoặc `Production`; Production được startup guard kiểm tra fail-fast.
+- `ALERT_WEBHOOK_ENABLED` / `ALERT_WEBHOOK_URL`: delivery cảnh báo tới endpoint nội bộ.
 - `MQTT_BIND_ADDRESS`: mặc định `127.0.0.1`; chỉ đổi sang IP LAN/`0.0.0.0` sau khi đã bật xác thực và ACL cho broker.
 - `MONGO_*`: tài khoản root, tài khoản ứng dụng và database MongoDB.
+
+Profile mặc định trong `compose.yaml` là Simulation. `compose.production.yaml` là overlay bất biến để tắt toàn bộ simulator và bật kết nối thật sau commissioning; không chỉnh tay nhiều biến rời rạc trên server.
 
 ## dashboard-simulation.json
 

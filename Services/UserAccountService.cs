@@ -27,6 +27,10 @@ public sealed class UserAccountService
 
     public async Task<LoginResult> ValidateCredentialsAsync(string username, string password, CancellationToken ct)
     {
+        // Reject oversized credentials before querying MongoDB or running an expensive password hash.
+        if (string.IsNullOrWhiteSpace(username) || username.Length > 100 ||
+            string.IsNullOrEmpty(password) || password.Length > 256)
+            return new(false, null, "Tài khoản hoặc mật khẩu không đúng.");
         var normalized = Normalize(username);
         var user = await _db.Users.Find(x => x.NormalizedUsername == normalized).FirstOrDefaultAsync(ct);
         if (user is null || !user.IsEnabled) return new(false, null, "Tài khoản hoặc mật khẩu không đúng.");
@@ -47,7 +51,11 @@ public sealed class UserAccountService
 
     public ClaimsPrincipal CreatePrincipal(AppUser user)
     {
-        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, user.Id), new(ClaimTypes.Name, user.Username), new("display_name", user.DisplayName) };
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id), new(ClaimTypes.Name, user.Username),
+            new("display_name", user.DisplayName), new("session_version", user.SessionVersion.ToString())
+        };
         claims.AddRange(user.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
         claims.AddRange(user.AllowedPondIds.Select(id => new Claim("pond_access", id)));
         return new ClaimsPrincipal(new ClaimsIdentity(claims, "AquaOpsCookie"));
@@ -55,6 +63,14 @@ public sealed class UserAccountService
 
     public Task<List<AppUser>> GetUsersAsync(CancellationToken ct) =>
         _db.Users.Find(FilterDefinition<AppUser>.Empty).SortBy(x => x.DisplayName).ToListAsync(ct);
+
+    /// <summary>Validates that a cookie still represents an enabled, current account session.</summary>
+    public async Task<bool> IsSessionValidAsync(string id, int sessionVersion, CancellationToken ct)
+    {
+        var state = await _db.Users.Find(x => x.Id == id)
+            .Project(x => new { x.IsEnabled, x.SessionVersion }).FirstOrDefaultAsync(ct);
+        return state is not null && state.IsEnabled && state.SessionVersion == sessionVersion;
+    }
 
     public async Task<AppUser> CreateAsync(string username, string displayName, string password, IEnumerable<string> roles, IEnumerable<string> pondIds, CancellationToken ct)
     {
@@ -81,7 +97,7 @@ public sealed class UserAccountService
             if (enabledAdmins <= 1) throw new InvalidOperationException("Không thể khóa Administrator hoạt động cuối cùng.");
         }
         await _db.Users.UpdateOneAsync(x => x.Id == id,
-            Builders<AppUser>.Update.Set(x => x.IsEnabled, enabled).Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
+            Builders<AppUser>.Update.Set(x => x.IsEnabled, enabled).Inc(x => x.SessionVersion, 1).Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
             cancellationToken: ct);
     }
 
@@ -152,7 +168,7 @@ public sealed class UserAccountService
                 x => x.IsEnabled && x.Roles.Contains(SystemRoles.Administrator), cancellationToken: ct);
             if (enabledAdmins <= 1) throw new InvalidOperationException("Không thể hạ quyền Administrator hoạt động cuối cùng.");
         }
-        await _db.Users.UpdateOneAsync(x => x.Id == id, Builders<AppUser>.Update.Set(x => x.Roles, validRoles).Set(x => x.AllowedPondIds, pondIds.Distinct().ToList()).Set(x => x.UpdatedAtUtc, DateTime.UtcNow), cancellationToken: ct);
+        await _db.Users.UpdateOneAsync(x => x.Id == id, Builders<AppUser>.Update.Set(x => x.Roles, validRoles).Set(x => x.AllowedPondIds, pondIds.Distinct().ToList()).Inc(x => x.SessionVersion, 1).Set(x => x.UpdatedAtUtc, DateTime.UtcNow), cancellationToken: ct);
     }
 
     private static string Normalize(string value) => value.Trim().ToUpperInvariant();
@@ -163,6 +179,7 @@ public sealed class UserAccountService
             .Set(x => x.PasswordIterations, value.Iterations)
             .Set(x => x.FailedLoginCount, 0)
             .Set(x => x.LockedUntilUtc, null)
+            .Inc(x => x.SessionVersion, 1)
             .Set(x => x.PasswordChangedAtUtc, DateTime.UtcNow)
             .Set(x => x.UpdatedAtUtc, DateTime.UtcNow);
 

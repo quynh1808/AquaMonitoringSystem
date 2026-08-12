@@ -6,7 +6,7 @@ Ngày kiểm tra gần nhất: 12/08/2026
 
 - Clean restore theo `packages.lock.json`: đạt.
 - Release build toàn solution: đạt, 0 warning, 0 error.
-- Unit test: 6/6 đạt (Modbus CRC/decode, PBKDF2, pond authorization, device safety validation).
+- Unit test: 10/10 đạt (Modbus CRC/decode, PBKDF2, pond authorization, device safety, FCR/số con còn sống và operational-mode guard).
 - Luồng tài khoản: có đổi mật khẩu cá nhân, quản trị viên reset mật khẩu và lệnh khôi phục admin không phụ thuộc phiên đăng nhập.
 - Trường mật khẩu ở trang đăng nhập, tạo/reset tài khoản và đổi mật khẩu đều có nút hiện/ẩn; JavaScript không đọc hoặc lưu giá trị mật khẩu.
 - `.NET SDK PublishContainer`: đạt; đã tạo OCI archive `aquaops:validation` trên base `mcr.microsoft.com/dotnet/aspnet:10.0` rồi xóa artifact kiểm tra.
@@ -20,6 +20,9 @@ Ngày kiểm tra gần nhất: 12/08/2026
 - Mongo write queue và sensor bus có backpressure, không còn silent `TryWrite`.
 - Projection và mutation kiểm role/phạm vi ao ở service.
 - Login/logout có antiforgery; login có rate limit; Data Protection keys được persist.
+- Cookie có session version và bị thu hồi khi khóa tài khoản, đổi quyền hoặc đổi/reset mật khẩu.
+- Telemetry có EventId/sequence/backfill, unique index chống trùng và không cho dữ liệu lịch sử làm lùi live automation.
+- Production cycle, feeding và FCR liên kết theo CycleId; P2 bổ sung kho, health, biosecurity, work order, expenses và harvest traceability.
 - Init container chuẩn hóa quyền named volume Data Protection trước khi app non-root khởi động.
 - Đổi/reset mật khẩu luôn tạo salt mới, xóa trạng thái khóa và không ghi mật khẩu vào file cấu hình hay tham số dòng lệnh.
 - Device command ghi pending intent trước dispatch, chỉ cập nhật state sau ACK/read-back, có master hardware switch và không retry mù.

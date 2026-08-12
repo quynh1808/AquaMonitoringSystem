@@ -99,8 +99,8 @@
     private string ConfidenceLabel => Snapshot.BiomassConfidence switch { "high" => "cao", "low" => "thấp", _ => "trung bình" };
 
     protected override void OnInitialized() { State.Changed += HandleChanged; }
-    protected override void OnParametersSet() => Snapshot = AnalyticsService.BuildSnapshot();
-    private void HandleChanged() => InvokeAsync(() => { Snapshot = AnalyticsService.BuildSnapshot(); StateHasChanged(); });
+    protected override void OnParametersSet() => Snapshot = AnalyticsService.BuildSnapshot(State.Ponds.Select(x => x.Id));
+    private void HandleChanged() => InvokeAsync(() => { Snapshot = AnalyticsService.BuildSnapshot(State.Ponds.Select(x => x.Id)); StateHasChanged(); });
     private string CategoryPercent(double value) { var max = Math.Max(1, Snapshot.StageDistribution.Max(x => x.Value)); return Percent(value / max * 100d); }
     private static string Percent(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
     private static string HealthClass(DashboardPondSummary pond) => pond.HealthStatus;

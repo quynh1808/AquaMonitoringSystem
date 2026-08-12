@@ -12,6 +12,23 @@ public sealed class MongoDbOptions
     public int ServerSelectionTimeoutSeconds { get; set; } = 10;
 }
 
+/// <summary>Selects the safety profile independently from ASP.NET hosting environment.</summary>
+public sealed class OperationalModeOptions
+{
+    public const string SectionName = "OperationalMode";
+    public string Mode { get; set; } = "Simulation";
+    public bool IsProduction => Mode.Equals("Production", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>Generic outbound alert webhook configuration.</summary>
+public sealed class AlertNotificationOptions
+{
+    public const string SectionName = "AlertNotifications";
+    public bool Enabled { get; set; }
+    public string WebhookUrl { get; set; } = string.Empty;
+    public int TimeoutSeconds { get; set; } = 10;
+}
+
 public sealed class SensorConnectionOptions
 {
     public const string SectionName = "SensorConnections";
@@ -143,6 +160,8 @@ public sealed class SystemBehaviorOptions
     public int DefaultCalibrationIntervalDays { get; set; } = 30;
     public int CalibrationReminderDaysBefore { get; set; } = 7;
     public int MaintenanceCheckIntervalMinutes { get; set; } = 15;
+    public int MaxFutureClockSkewSeconds { get; set; } = 60;
+    public int MaxTelemetryAgeMinutes { get; set; } = 30;
     public HealthScoreOptions HealthScore { get; set; } = new();
     public List<AutomationPolicyOptions> AutomationPolicies { get; set; } = [];
     public List<DefaultDeviceTemplateOptions> DefaultDevices { get; set; } = [];

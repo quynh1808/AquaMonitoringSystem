@@ -1,0 +1,103 @@
+@page "/farm-operations"
+@attribute [Authorize]
+@inject FarmOperationsService Operations
+@inject FarmStateService State
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Vận hành trang trại · AquaOps</PageTitle>
+
+<section class="page-stack">
+    <header class="page-heading">
+        <div><span class="eyebrow">P2 · NGHIỆP VỤ TRANG TRẠI</span><h1>Vận hành và truy xuất</h1><p>Kho vật tư, sức khỏe thủy sản, an toàn sinh học, công việc, chi phí và lô thu hoạch.</p></div>
+        <button class="button ghost" @onclick="LoadAsync">↻ Làm mới</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(message)) { <div class="solution-box"><strong>@message</strong></div> }
+
+    <div class="cycle-summary-grid">
+        <div class="summary-tile"><small>VẬT TƯ</small><strong>@snapshot.Inventory.Count</strong><span>@snapshot.Inventory.Count(x => x.QuantityOnHand <= x.ReorderLevel) dưới định mức</span></div>
+        <div class="summary-tile"><small>SỨC KHỎE</small><strong>@snapshot.HealthEvents.Count</strong><span>sự kiện đã ghi nhận</span></div>
+        <div class="summary-tile"><small>CÔNG VIỆC MỞ</small><strong>@snapshot.WorkOrders.Count(x => x.Status != "completed")</strong><span>@snapshot.WorkOrders.Count(x => x.DueAtUtc < DateTime.UtcNow && x.Status != "completed") quá hạn</span></div>
+        <div class="summary-tile"><small>LÔ THU HOẠCH</small><strong>@snapshot.HarvestLots.Count</strong><span>@snapshot.HarvestLots.Sum(x => x.QuantityKg).ToString("N0", Vi) kg</span></div>
+    </div>
+
+    <div class="cycle-detail-grid">
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Kho vật tư có truy xuất lô</h2><p>Thức ăn, thuốc, hóa chất và phụ tùng.</p></div></div>
+            <div class="record-list">
+                @foreach (var x in snapshot.Inventory) { <div class="record-row"><span><strong>@x.Name · @x.LotNumber</strong><small>@x.Category · hạn @(x.ExpiryDate?.ToString("dd/MM/yyyy") ?? "—")</small></span><b>@x.QuantityOnHand.ToString("N2", Vi) @x.Unit</b></div> }
+            </div>
+            <AuthorizeView Roles="Administrator,FarmManager">
+                <div class="auth-form"><h3>Thêm vật tư</h3><label>Tên<input @bind="inventory.Name" /></label><label>Số lô<input @bind="inventory.LotNumber" /></label><label>Danh mục<input @bind="inventory.Category" /></label><label>Số lượng<input type="number" step="0.01" @bind="inventory.QuantityOnHand" /></label><label>Đơn vị<input @bind="inventory.Unit" /></label><button class="button primary" @onclick="AddInventoryAsync">Lưu vật tư</button></div>
+            </AuthorizeView>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Sức khỏe thủy sản</h2><p>Dấu hiệu, chẩn đoán, điều trị và thời gian ngưng thuốc.</p></div></div>
+            <div class="record-list">@foreach (var x in snapshot.HealthEvents) { <div class="record-row"><time>@x.OccurredAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</time><span><strong>@PondName(x.PondId) · @x.EventType</strong><small>@x.SignsOrDiagnosis · @x.Treatment</small></span></div> }</div>
+            <AuthorizeView Roles="Administrator,FarmManager,Technician">
+                <div class="auth-form"><h3>Ghi nhận sức khỏe</h3><label>Ao<select @bind="health.PondId">@PondOptions()</select></label><label>Dấu hiệu/chẩn đoán<input @bind="health.SignsOrDiagnosis" /></label><label>Điều trị<input @bind="health.Treatment" /></label><label>Lô thuốc<input @bind="health.MedicineLot" /></label><button class="button primary" @onclick="AddHealthAsync">Lưu sự kiện</button></div>
+            </AuthorizeView>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading"><div><h2>An toàn sinh học</h2><p>Khử trùng, kiểm soát người/xe và bằng chứng.</p></div></div>
+            <div class="record-list">@foreach (var x in snapshot.BiosecurityEvents) { <div class="record-row"><time>@x.OccurredAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</time><span><strong>@(string.IsNullOrWhiteSpace(x.PondId) ? "Toàn trại" : PondName(x.PondId)) · @x.EventType</strong><small>@x.Description</small></span></div> }</div>
+            <AuthorizeView Roles="Administrator,FarmManager,Technician">
+                <div class="auth-form"><h3>Ghi nhận an toàn sinh học</h3><label>Ao (để trống nếu toàn trại)<select @bind="bio.PondId"><option value="">Toàn trại</option>@PondOptions()</select></label><label>Mô tả<input @bind="bio.Description" /></label><label>Bằng chứng<input @bind="bio.EvidenceReference" /></label><button class="button primary" @onclick="AddBioAsync">Lưu sự kiện</button></div>
+            </AuthorizeView>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Công việc và SOP</h2><p>Phân công, hạn hoàn thành và bằng chứng.</p></div></div>
+            <div class="record-list">@foreach (var x in snapshot.WorkOrders) { <div class="record-row"><time>@x.DueAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</time><span><strong>@x.Title · @x.Priority</strong><small>@x.AssignedTo · SOP @x.SopReference</small></span><b>@x.Status</b></div> }</div>
+            <AuthorizeView Roles="Administrator,FarmManager">
+                <div class="auth-form"><h3>Tạo công việc</h3><label>Ao<select @bind="work.PondId"><option value="">Toàn trại</option>@PondOptions()</select></label><label>Tiêu đề<input @bind="work.Title" /></label><label>Người phụ trách<input @bind="work.AssignedTo" /></label><label>Tham chiếu SOP<input @bind="work.SopReference" /></label><button class="button primary" @onclick="AddWorkAsync">Tạo công việc</button></div>
+            </AuthorizeView>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Chi phí theo ao/vụ</h2><p>Đối soát thức ăn, năng lượng, thuốc và dịch vụ.</p></div></div>
+            <div class="record-list">@foreach (var x in snapshot.Expenses) { <div class="record-row"><time>@x.IncurredAtUtc.ToLocalTime().ToString("dd/MM")</time><span><strong>@x.Category · @PondName(x.PondId)</strong><small>@x.Supplier · @x.InvoiceReference</small></span><b>@x.Amount.ToString("N0", Vi) @x.Currency</b></div> }</div>
+            <AuthorizeView Roles="Administrator,FarmManager">
+                <div class="auth-form"><h3>Ghi nhận chi phí</h3><label>Ao<select @bind="expense.PondId">@PondOptions()</select></label><label>Vụ nuôi<select @bind="expense.CycleId">@CycleOptions(expense.PondId)</select></label><label>Danh mục<input @bind="expense.Category" /></label><label>Số tiền<input type="number" step="1000" @bind="expense.Amount" /></label><label>Hóa đơn<input @bind="expense.InvoiceReference" /></label><button class="button primary" @onclick="AddExpenseAsync">Lưu chi phí</button></div>
+            </AuthorizeView>
+        </article>
+
+        <article class="panel">
+            <div class="panel-heading"><div><h2>Truy xuất lô thu hoạch</h2><p>Liên kết lô bán với ao, vụ, khách hàng và vận chuyển.</p></div></div>
+            <div class="record-list">@foreach (var x in snapshot.HarvestLots) { <div class="record-row"><time>@x.HarvestedAtUtc.ToLocalTime().ToString("dd/MM HH:mm")</time><span><strong>@x.LotCode · @PondName(x.PondId)</strong><small>@x.Customer · @x.TransportReference</small></span><b>@x.QuantityKg.ToString("N1", Vi) kg</b></div> }</div>
+            <AuthorizeView Roles="Administrator,FarmManager,Technician">
+                <div class="auth-form"><h3>Tạo lô thu hoạch</h3><label>Mã lô<input @bind="harvest.LotCode" /></label><label>Ao<select @bind="harvest.PondId">@PondOptions()</select></label><label>Vụ nuôi<select @bind="harvest.CycleId">@CycleOptions(harvest.PondId)</select></label><label>Khối lượng kg<input type="number" step="0.1" @bind="harvest.QuantityKg" /></label><label>Khách hàng<input @bind="harvest.Customer" /></label><button class="button primary" @onclick="AddHarvestAsync">Lưu lô</button></div>
+            </AuthorizeView>
+        </article>
+    </div>
+</section>
+
+@code {
+    private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
+    private FarmOperationsSnapshot snapshot = new();
+    private InventoryItem inventory = new() { Unit = "kg" };
+    private AquaticHealthEvent health = new();
+    private BiosecurityEvent bio = new();
+    private FarmWorkOrder work = new();
+    private FarmExpense expense = new();
+    private HarvestLot harvest = new();
+    private string message = string.Empty;
+    private System.Security.Claims.ClaimsPrincipal user = new(new System.Security.Claims.ClaimsIdentity());
+
+    protected override async Task OnInitializedAsync() { user = (await AuthenticationStateProvider.GetAuthenticationStateAsync()).User; await LoadAsync(); ResetPondDefaults(); }
+    private async Task LoadAsync() => snapshot = await Operations.GetSnapshotAsync(user);
+    private void ResetPondDefaults() { var pond = State.Ponds.FirstOrDefault()?.Id ?? ""; health.PondId = pond; expense.PondId = pond; harvest.PondId = pond; }
+    private string PondName(string id) => State.Ponds.FirstOrDefault(x => x.Id == id)?.Name ?? (string.IsNullOrWhiteSpace(id) ? "Toàn trại" : id);
+    private RenderFragment PondOptions() => builder => { var i = 0; foreach (var p in State.Ponds) { builder.OpenElement(i++, "option"); builder.AddAttribute(i++, "value", p.Id); builder.AddContent(i++, p.Name); builder.CloseElement(); } };
+    private RenderFragment CycleOptions(string pondId) => builder => { var i = 0; foreach (var c in State.ProductionCycles.Where(x => x.PondId == pondId)) { builder.OpenElement(i++, "option"); builder.AddAttribute(i++, "value", c.Id); builder.AddContent(i++, c.Code); builder.CloseElement(); } };
+    private async Task RunAsync(Func<Task> action, string success) { try { await action(); message = success; await LoadAsync(); } catch (Exception ex) { message = ex.Message; } }
+    private Task AddInventoryAsync() => RunAsync(async () => { await Operations.AddInventoryAsync(inventory, user); inventory = new() { Unit = "kg" }; }, "Đã thêm vật tư.");
+    private Task AddHealthAsync() => RunAsync(async () => { health.CycleId = State.ProductionCycles.FirstOrDefault(x => x.PondId == health.PondId && x.IsOpen)?.Id ?? ""; await Operations.AddHealthEventAsync(health, user); health = new() { PondId = health.PondId }; }, "Đã ghi nhận sự kiện sức khỏe.");
+    private Task AddBioAsync() => RunAsync(async () => { await Operations.AddBiosecurityEventAsync(bio, user); bio = new(); }, "Đã ghi nhận sự kiện an toàn sinh học.");
+    private Task AddWorkAsync() => RunAsync(async () => { await Operations.AddWorkOrderAsync(work, user); work = new(); }, "Đã tạo công việc.");
+    private Task AddExpenseAsync() => RunAsync(async () => { expense.CycleId = ResolveCycle(expense.PondId, expense.CycleId); await Operations.AddExpenseAsync(expense, user); expense = new() { PondId = expense.PondId }; }, "Đã ghi nhận chi phí.");
+    private Task AddHarvestAsync() => RunAsync(async () => { harvest.CycleId = ResolveCycle(harvest.PondId, harvest.CycleId); await Operations.AddHarvestLotAsync(harvest, user); harvest = new() { PondId = harvest.PondId }; }, "Đã tạo lô thu hoạch.");
+    private string ResolveCycle(string pondId, string selected) => !string.IsNullOrWhiteSpace(selected) ? selected : State.ProductionCycles.FirstOrDefault(x => x.PondId == pondId && x.IsOpen)?.Id ?? string.Empty;
+}

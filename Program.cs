@@ -40,6 +40,10 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddOptions<MongoDbOptions>()
     .Bind(builder.Configuration.GetSection(MongoDbOptions.SectionName)).ValidateOnStart();
+builder.Services.AddOptions<OperationalModeOptions>()
+    .Bind(builder.Configuration.GetSection(OperationalModeOptions.SectionName)).ValidateOnStart();
+builder.Services.AddOptions<AlertNotificationOptions>()
+    .Bind(builder.Configuration.GetSection(AlertNotificationOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SensorThresholdCatalog>()
     .Bind(builder.Configuration.GetSection(SensorThresholdCatalog.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SimulationProfileOptions>()
@@ -58,6 +62,8 @@ builder.Services.AddOptions<DeviceControlOptions>()
     .Bind(builder.Configuration.GetSection(DeviceControlOptions.SectionName)).ValidateOnStart();
 
 builder.Services.AddSingleton<IValidateOptions<MongoDbOptions>, MongoDbOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<OperationalModeOptions>, OperationalModeOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<AlertNotificationOptions>, AlertNotificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorThresholdCatalog>, SensorThresholdCatalogValidator>();
 builder.Services.AddSingleton<IValidateOptions<SimulationProfileOptions>, SimulationProfileValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorConnectionOptions>, SensorConnectionOptionsValidator>();
@@ -74,14 +80,18 @@ builder.Services.AddSingleton<FarmRuntimeState>();
 builder.Services.AddSingleton<SensorMessageBus>();
 builder.Services.AddSingleton<DataSourceHealthService>();
 builder.Services.AddSingleton<AlertEngineService>();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<AlertNotificationService>();
 builder.Services.AddSingleton<AutomationEngineService>();
 builder.Services.AddScoped<DashboardAnalyticsService>();
 builder.Services.AddSingleton<PasswordHasher>();
 builder.Services.AddSingleton<UserAccountService>();
 builder.Services.AddSingleton<ProductionCycleService>();
+builder.Services.AddSingleton<FarmOperationsService>();
 builder.Services.AddSingleton<FarmAccessService>();
 builder.Services.AddSingleton<IDeviceCommandTransport, SimulatedDeviceCommandTransport>();
 builder.Services.AddSingleton<DeviceCommandService>();
+builder.Services.AddSingleton<OperationalModeGuard>();
 
 // Persist cookie encryption keys outside the container's writable layer so deployments and
 // container recreation do not invalidate every active session. Production overrides this path.
@@ -104,6 +114,20 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.ExpireTimeSpan = TimeSpan.FromHours(Math.Max(1, authOptions.CookieHours));
         options.SlidingExpiration = true;
+        options.Events.OnValidatePrincipal = async context =>
+        {
+            var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var versionClaim = context.Principal?.FindFirstValue("session_version");
+            var invalid = !int.TryParse(versionClaim, out var version) || string.IsNullOrWhiteSpace(id);
+            if (!invalid)
+                invalid = !await context.HttpContext.RequestServices.GetRequiredService<UserAccountService>()
+                    .IsSessionValidAsync(id!, version, context.HttpContext.RequestAborted);
+            if (invalid)
+            {
+                context.RejectPrincipal();
+                await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
     });
 builder.Services.AddAuthorization(options =>
 {
@@ -152,6 +176,7 @@ builder.Services.AddHostedService<AssetMaintenanceMonitor>();
 builder.Services.AddHostedService<ProductionCycleSimulationHostedService>();
 
 var app = builder.Build();
+app.Services.GetRequiredService<OperationalModeGuard>().Validate();
 
 // Local recovery mode for an operator who has lost every administrator password. The secret is
 // supplied through a short-lived environment variable and is never accepted as a command-line
@@ -195,10 +220,19 @@ app.MapPost("/auth/login", async (HttpContext http, IAntiforgery antiforgery, Us
     var result = await accounts.ValidateCredentialsAsync(username, password, ct);
     if (!result.Success || result.User is null)
     {
+        var actor = string.IsNullOrWhiteSpace(username) ? "anonymous" : username.Trim()[..Math.Min(username.Trim().Length, 100)];
+        await http.RequestServices.GetRequiredService<FarmRepository>().InsertAuditLogAsync(new AuditLog
+        {
+            Actor = actor, Action = "authentication.login", EntityType = "session", EntityId = "login", Result = "failed"
+        }, ct);
         var error = result.Error.Contains("tạm khóa", StringComparison.OrdinalIgnoreCase) ? "locked" : "invalid";
         return Results.Redirect($"/login?error={error}&returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(returnUrl)?"/dashboard":returnUrl)}");
     }
     await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, accounts.CreatePrincipal(result.User));
+    await http.RequestServices.GetRequiredService<FarmRepository>().InsertAuditLogAsync(new AuditLog
+    {
+        Actor = result.User.Username, Action = "authentication.login", EntityType = "session", EntityId = result.User.Id, Result = "success"
+    }, ct);
     var safeReturnUrl = !string.IsNullOrWhiteSpace(returnUrl) &&
                         returnUrl.StartsWith('/') &&
                         !returnUrl.StartsWith("//", StringComparison.Ordinal) &&
@@ -210,6 +244,12 @@ app.MapPost("/auth/login", async (HttpContext http, IAntiforgery antiforgery, Us
 app.MapPost("/auth/logout", async (HttpContext http, IAntiforgery antiforgery) =>
 {
     await antiforgery.ValidateRequestAsync(http);
+    var actor = http.User.Identity?.Name ?? "unknown";
+    await http.RequestServices.GetRequiredService<FarmRepository>().InsertAuditLogAsync(new AuditLog
+    {
+        Actor = actor, Action = "authentication.logout", EntityType = "session",
+        EntityId = http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? actor, Result = "success"
+    }, http.RequestAborted);
     await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     return Results.Redirect("/login");
 }).RequireAuthorization();

@@ -16,6 +16,9 @@ public sealed class SensorEnvelope
     public int? SignalStrength { get; set; }
     public string? FirmwareVersion { get; set; }
     public string? RawPayload { get; set; }
+    public string EventId { get; set; } = string.Empty;
+    public long? SequenceNumber { get; set; }
+    public bool IsBackfill { get; set; }
 }
 
 public interface ISensorDataSource

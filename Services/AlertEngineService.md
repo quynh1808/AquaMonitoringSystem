@@ -1,5 +1,7 @@
 # AlertEngineService
 
+Engine duy trì occurrence count và vòng đời new/acknowledged/resolved. Cảnh báo mới hoặc mức critical được chuyển cho `AlertNotificationService`; lỗi webhook được lưu delivery log nhưng không làm dừng sensor ingestion.
+
 Engine đánh giá cảnh báo theo `Config/sensor-thresholds.json`.
 
 Cơ chế chống cảnh báo giả:

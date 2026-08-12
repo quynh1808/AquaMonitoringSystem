@@ -19,6 +19,7 @@ public sealed class DashboardSnapshot
 
     public double EstimatedBiomassKg { get; set; }
     public double BiomassChangeKg { get; set; }
+    public bool HasBiomassGrowthData { get; set; }
     public DateTime? LatestBiomassSampleAtLocal { get; set; }
     public string BiomassConfidence { get; set; } = "medium";
 

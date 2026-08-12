@@ -1,9 +1,11 @@
+using System.Collections.Concurrent;
 using AquacultureMonitoring.Configuration;
 using AquacultureMonitoring.Data;
 using AquacultureMonitoring.Models;
 using AquacultureMonitoring.Runtime;
 using AquacultureMonitoring.Services;
 using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 
 namespace AquacultureMonitoring.Sensors;
 
@@ -19,6 +21,7 @@ public sealed class SensorIngestionWorker : BackgroundService
     private readonly IOptionsMonitor<SimulationProfileOptions> _simulation;
     private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
     private readonly ILogger<SensorIngestionWorker> _logger;
+    private readonly ConcurrentDictionary<string, long> _lastSequences = new(StringComparer.OrdinalIgnoreCase);
 
     public SensorIngestionWorker(
         SensorMessageBus bus,
@@ -75,10 +78,20 @@ public sealed class SensorIngestionWorker : BackgroundService
         if (_runtime.GetPond(envelope.PondId) is null)
             throw new InvalidDataException($"PondId '{envelope.PondId}' chưa được đăng ký trong MongoDB.");
 
+        var now = DateTime.UtcNow;
+        var timestamp = envelope.TimestampUtc == default ? now : envelope.TimestampUtc;
+        if (timestamp > now.AddSeconds(_behavior.CurrentValue.MaxFutureClockSkewSeconds))
+            throw new InvalidDataException("Timestamp sensor nằm quá xa trong tương lai.");
+        if (timestamp < now.AddMinutes(-_behavior.CurrentValue.MaxTelemetryAgeMinutes) && !envelope.IsBackfill)
+            throw new InvalidDataException("Bản tin sensor quá cũ; gateway phải gửi theo luồng backfill riêng.");
+        if (envelope.IsBackfill && string.IsNullOrWhiteSpace(envelope.EventId))
+            throw new InvalidDataException("Bản tin backfill bắt buộc có EventId để chống ghi trùng.");
+
         envelope.SensorId = string.IsNullOrWhiteSpace(envelope.SensorId)
             ? $"sensor_{envelope.PondId}_{envelope.Metric}"
             : envelope.SensorId;
-        var currentSensor = _runtime.GetSensor(envelope.SensorId);
+        // Work on a copy; durable insertion must succeed before live state is mutated.
+        var currentSensor = CloneSensor(_runtime.GetSensor(envelope.SensorId));
         if (currentSensor is not null &&
             (!currentSensor.PondId.Equals(envelope.PondId, StringComparison.OrdinalIgnoreCase) ||
              !currentSensor.Metric.Equals(envelope.Metric, StringComparison.OrdinalIgnoreCase)))
@@ -108,7 +121,17 @@ public sealed class SensorIngestionWorker : BackgroundService
         var wasOffline = sensor.Status == "offline";
         var isFinite = !double.IsNaN(envelope.Value) && !double.IsInfinity(envelope.Value);
         var isValid = isFinite && envelope.Value >= threshold.ValidMin && envelope.Value <= threshold.ValidMax;
-        var quality = isValid ? (string.IsNullOrWhiteSpace(envelope.Quality) ? "good" : envelope.Quality) : "invalid";
+        var hasSequenceGap = false;
+        if (!envelope.IsBackfill && envelope.SequenceNumber.HasValue && _lastSequences.TryGetValue(envelope.SensorId, out var lastSequence))
+        {
+            if (envelope.SequenceNumber.Value <= lastSequence)
+            {
+                _logger.LogDebug("Bỏ qua sequence cũ/trùng {Sequence} của {SensorId}.", envelope.SequenceNumber, envelope.SensorId);
+                return;
+            }
+            hasSequenceGap = envelope.SequenceNumber.Value > lastSequence + 1;
+        }
+        var quality = !isValid ? "invalid" : hasSequenceGap ? "suspect" : string.IsNullOrWhiteSpace(envelope.Quality) ? "good" : envelope.Quality;
         var sourceChanged = !sensor.SourceType.Equals(envelope.SourceType, StringComparison.OrdinalIgnoreCase);
         sensor.SourceType = envelope.SourceType;
         sensor.Unit = string.IsNullOrWhiteSpace(envelope.Unit) ? threshold.Unit : envelope.Unit;
@@ -139,17 +162,31 @@ public sealed class SensorIngestionWorker : BackgroundService
             Value = envelope.Value,
             Unit = sensor.Unit,
             Quality = quality,
-            Timestamp = envelope.TimestampUtc == default ? DateTime.UtcNow : envelope.TimestampUtc,
+            Timestamp = timestamp,
             ReceivedAtUtc = DateTime.UtcNow,
             BatteryLevel = envelope.BatteryLevel,
             SignalStrength = envelope.SignalStrength,
             FirmwareVersion = envelope.FirmwareVersion,
-            RawPayload = envelope.RawPayload
+            RawPayload = envelope.RawPayload,
+            EventId = envelope.EventId.Trim(),
+            SequenceNumber = envelope.SequenceNumber
         };
+
+        try
+        {
+            await _repository.InsertReadingAsync(reading, ct);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey && !string.IsNullOrWhiteSpace(reading.EventId))
+        {
+            _logger.LogDebug("Bỏ qua bản tin trùng EventId {EventId} của {SensorId}.", reading.EventId, envelope.SensorId);
+            return;
+        }
+        // Historical backfill is persisted but must not rewind the live dashboard or automation.
+        if (envelope.IsBackfill) return;
+        if (envelope.SequenceNumber.HasValue) _lastSequences[envelope.SensorId] = envelope.SequenceNumber.Value;
 
         var applied = _runtime.ApplyReading(reading, sensor);
         await Task.WhenAll(
-            _repository.InsertReadingAsync(reading, ct),
             _repository.UpsertSensorAsync(applied.Sensor, ct),
             _repository.UpsertTelemetryAsync(applied.Telemetry, ct),
             _sourceHealth.RecordMessageAsync(
@@ -161,7 +198,7 @@ public sealed class SensorIngestionWorker : BackgroundService
             if (connectivity is not null) await _repository.UpsertAlertAsync(connectivity, ct);
         }
 
-        if (!isValid)
+        if (!isValid || hasSequenceGap)
         {
             await _alerts.ReportQualityIssueAsync(sensor, reading, ct);
             return;
@@ -175,4 +212,16 @@ public sealed class SensorIngestionWorker : BackgroundService
     private static bool IsSimulationSource(string sourceType) =>
         sourceType.Equals("simulation", StringComparison.OrdinalIgnoreCase) ||
         sourceType.Equals("manual-simulation", StringComparison.OrdinalIgnoreCase);
+
+    private static SensorDefinition? CloneSensor(SensorDefinition? source) => source is null ? null : new SensorDefinition
+    {
+        Id = source.Id, PondId = source.PondId, Name = source.Name, Metric = source.Metric,
+        Unit = source.Unit, SourceType = source.SourceType, ExternalAddress = source.ExternalAddress,
+        IsEnabled = source.IsEnabled, Status = source.Status, LastSeenAtUtc = source.LastSeenAtUtc,
+        BatteryLevel = source.BatteryLevel, SignalStrength = source.SignalStrength,
+        FirmwareVersion = source.FirmwareVersion, CalibrationDateUtc = source.CalibrationDateUtc,
+        CalibrationDueDateUtc = source.CalibrationDueDateUtc, MinValidValue = source.MinValidValue,
+        MaxValidValue = source.MaxValidValue, LastQuality = source.LastQuality,
+        LastError = source.LastError, UpdatedAtUtc = source.UpdatedAtUtc
+    };
 }

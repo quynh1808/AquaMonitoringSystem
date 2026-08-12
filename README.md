@@ -17,13 +17,15 @@ Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` c�
 
 ## Trạng thái chức năng
 
-- Cookie authentication, PBKDF2, lockout, tự đổi/reset/recovery mật khẩu, role Administrator/FarmManager/Technician/Viewer và phạm vi theo ao.
-- Server-side authorization tại service; Viewer chỉ đọc.
-- Sensor pipeline có bounded backpressure, validation, MongoDB history/latest state và theo dõi adapter.
+- Cookie authentication, PBKDF2, lockout, tự đổi/reset/recovery mật khẩu, thu hồi phiên khi khóa user/đổi mật khẩu/đổi quyền, audit đăng nhập–đăng xuất và phân quyền theo ao.
+- Server-side authorization tại service; mọi dashboard/query nghiệp vụ đều lọc theo ao được cấp, Viewer chỉ đọc.
+- Sensor pipeline có bounded backpressure, kiểm tra timestamp/miền giá trị, EventId chống trùng, sequence gap, backfill không làm lùi live state và MongoDB history/latest state.
 - Simulation, MQTT, Modbus TCP và Modbus RTU cho telemetry.
-- Cảnh báo có delay/cooldown/hysteresis, automation và audit.
+- Cảnh báo có new/acknowledged/resolved, số lần lặp, người tiếp nhận, delay/cooldown/hysteresis, webhook LAN, automation và audit.
 - Device command đi qua `IDeviceCommandTransport`, safety switch, durable intent, timeout và ACK/read-back trước khi cập nhật trạng thái.
-- Vụ nuôi, tăng trưởng, hao hụt, thu hoạch, FCR, feeding, calibration và maintenance.
+- Vụ nuôi có ràng buộc một vụ mở/ao, chuyển trạng thái hợp lệ, tăng trưởng, hao hụt, số con/khối lượng thu hoạch, biomass và FCR theo tăng biomass ròng; feeding gắn đúng CycleId.
+- Nghiệp vụ P2 tại /farm-operations: kho theo lô/hạn dùng, sức khỏe và điều trị, an toàn sinh học, work order/SOP, chi phí theo ao/vụ và truy xuất lô thu hoạch.
+- Dashboard dùng dữ liệu vụ nuôi thật khi tắt simulation; startup guard không cho Production chạy nếu còn simulator, thiếu nguồn telemetry thật hoặc thiếu kênh cảnh báo.
 - Readiness/liveness health check, persistent Data Protection keys và container filesystem read-only.
 - AquaOps chạy non-root UID 1654; init container chuẩn hóa quyền volume key trước khi ứng dụng khởi động.
 - CI build/test và publish image bất biến `sha-<commit>` hoặc tag `v*` lên GHCR.
@@ -86,6 +88,7 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 - Backup/restore: xem `scripts/MongoBackup.md` và kiểm thử restore định kỳ.
 - Security checklist: `Docs/SECURITY-HARDENING.md`.
 - Chỉ mục module: `Docs/COMPONENT-INDEX.md`.
+- Phạm vi và tiêu chí nghiệm thu P0–P2: `Docs/P0-P2-IMPLEMENTATION.md`.
 
 ## Các bước còn lại trước khi điều khiển production
 

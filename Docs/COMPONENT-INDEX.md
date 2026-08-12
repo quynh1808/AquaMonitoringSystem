@@ -7,12 +7,14 @@
 - `Configuration/ConfigurationValidation.md`
 - `Configuration/DashboardSimulationOptions.md`
 - `Configuration/DeviceControlOptions.md`
+- `Configuration/OperationalModeGuard.md`
 - `Config/README.md`
 - `Config/dashboard-simulation.md`
 
 ## MongoDB và runtime
 
 - `Models/AquacultureModels.md`
+- `Models/FarmOperationsModels.md`
 - `Data/MongoContext.md`
 - `Data/FarmRepository.md`
 - `Data/MongoDatabaseInitializer.md`
@@ -45,6 +47,9 @@
 - `Services/FarmAccessService.md`
 - `Services/DeviceCommandService.md`
 - `Services/ProductionCycleService.md`
+- `Services/ProductionMetricsCalculator.md`
+- `Services/AlertNotificationService.md`
+- `Services/FarmOperationsService.md`
 - `Devices/README.md`
 - `Models/DashboardModels.md`
 
@@ -63,6 +68,7 @@ Mỗi file `.razor` trong `Components/` có file `.md` cùng tên. Các trang qu
 - `Components/Pages/Telemetry.md`
 - `Components/Pages/Alerts.md`
 - `Components/Pages/ChangePassword.md`
+- `Components/Pages/FarmOperations.md`
 - `Components/Shared/SensorMetricCard.md`
 - `Components/Shared/CalibrationModal.md`
 
@@ -83,6 +89,7 @@ Mỗi file `.razor` trong `Components/` có file `.md` cùng tên. Các trang qu
 - `Docs/BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`
 - `Docs/VALIDATION-REPORT.md`
 - `Docs/TROUBLESHOOTING.md`
+- `Docs/P0-P2-IMPLEMENTATION.md`
 - `Examples/README.md`
 
 ## Vận hành MongoDB

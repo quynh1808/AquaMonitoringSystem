@@ -3,6 +3,28 @@ using AquacultureMonitoring.Sensors;
 
 namespace AquacultureMonitoring.Configuration;
 
+public sealed class OperationalModeOptionsValidator : IValidateOptions<OperationalModeOptions>
+{
+    private static readonly string[] Modes = ["Simulation", "Shadow", "Monitoring", "Production"];
+    public ValidateOptionsResult Validate(string? name, OperationalModeOptions options) =>
+        Modes.Contains(options.Mode, StringComparer.OrdinalIgnoreCase)
+            ? ValidateOptionsResult.Success
+            : ValidateOptionsResult.Fail($"OperationalMode:Mode phải là một trong: {string.Join(", ", Modes)}.");
+}
+
+public sealed class AlertNotificationOptionsValidator : IValidateOptions<AlertNotificationOptions>
+{
+    public ValidateOptionsResult Validate(string? name, AlertNotificationOptions options)
+    {
+        if (!options.Enabled) return ValidateOptionsResult.Success;
+        if (!Uri.TryCreate(options.WebhookUrl, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+            return ValidateOptionsResult.Fail("AlertNotifications:WebhookUrl phải là HTTP/HTTPS URL hợp lệ.");
+        return options.TimeoutSeconds is >= 1 and <= 60
+            ? ValidateOptionsResult.Success
+            : ValidateOptionsResult.Fail("AlertNotifications:TimeoutSeconds phải trong khoảng 1–60.");
+    }
+}
+
 public sealed class MongoDbOptionsValidator : IValidateOptions<MongoDbOptions>
 {
     public ValidateOptionsResult Validate(string? name, MongoDbOptions options)
@@ -155,6 +177,8 @@ public sealed class SystemBehaviorOptionsValidator : IValidateOptions<SystemBeha
         if (options.DefaultCalibrationIntervalDays <= 0) errors.Add("DefaultCalibrationIntervalDays phải lớn hơn 0.");
         if (options.CalibrationReminderDaysBefore < 0) errors.Add("CalibrationReminderDaysBefore không được âm.");
         if (options.MaintenanceCheckIntervalMinutes <= 0) errors.Add("MaintenanceCheckIntervalMinutes phải lớn hơn 0.");
+        if (options.MaxFutureClockSkewSeconds < 0 || options.MaxTelemetryAgeMinutes <= 0)
+            errors.Add("Giới hạn timestamp telemetry không hợp lệ.");
         if (options.HealthScore.MonitorMinimum >= options.HealthScore.StableMinimum)
             errors.Add("HealthScore: MonitorMinimum phải nhỏ hơn StableMinimum.");
         foreach (var policy in options.AutomationPolicies)
@@ -222,9 +246,10 @@ public sealed class AuthenticationOptionsValidator : IValidateOptions<Authentica
     public ValidateOptionsResult Validate(string? name, AuthenticationOptions options)
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(options.BootstrapAdminUsername)) errors.Add("Authentication:BootstrapAdminUsername không được trống.");
-        if (string.IsNullOrWhiteSpace(options.BootstrapAdminPassword) || options.BootstrapAdminPassword.Length < 12)
-            errors.Add("Authentication:BootstrapAdminPassword phải có ít nhất 12 ký tự.");
+        if (string.IsNullOrWhiteSpace(options.BootstrapAdminUsername) || options.BootstrapAdminUsername.Length > 100)
+            errors.Add("Authentication:BootstrapAdminUsername phải có từ 1 đến 100 ký tự.");
+        if (string.IsNullOrWhiteSpace(options.BootstrapAdminPassword) || options.BootstrapAdminPassword.Length is < 12 or > 256)
+            errors.Add("Authentication:BootstrapAdminPassword phải có từ 12 đến 256 ký tự.");
         if (options.PasswordIterations < 100_000) errors.Add("Authentication:PasswordIterations tối thiểu là 100000.");
         if (options.MaxFailedLoginAttempts <= 0 || options.LockoutMinutes <= 0 || options.CookieHours <= 0)
             errors.Add("Authentication: các giá trị lockout/cookie phải lớn hơn 0.");

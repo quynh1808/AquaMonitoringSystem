@@ -78,6 +78,8 @@ public sealed class SensorReading
     public int? SignalStrength { get; set; }
     public string? FirmwareVersion { get; set; }
     public string? RawPayload { get; set; }
+    public string EventId { get; set; } = string.Empty;
+    public long? SequenceNumber { get; set; }
 }
 
 public sealed class Device
@@ -140,6 +142,24 @@ public sealed class AlertItem
     public string? ResolvedBy { get; set; }
     public string ProposedSolution { get; set; } = string.Empty;
     public string Source { get; set; } = "threshold-engine";
+    public int OccurrenceCount { get; set; } = 1;
+    public string? AssignedTo { get; set; }
+    public string? ResolutionNotes { get; set; }
+    public DateTime? ClosedAtUtc { get; set; }
+}
+
+public sealed class AlertNotification
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string AlertId { get; set; } = string.Empty;
+    public string PondId { get; set; } = string.Empty;
+    public string Channel { get; set; } = "webhook";
+    public string Recipient { get; set; } = string.Empty;
+    public string Status { get; set; } = "pending";
+    public int AttemptCount { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? SentAtUtc { get; set; }
+    public string? Error { get; set; }
 }
 
 public sealed class AlarmRule
@@ -163,6 +183,8 @@ public sealed class FeedLog
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string PondId { get; set; } = string.Empty;
     public string PondName { get; set; } = string.Empty;
+    public string CycleId { get; set; } = string.Empty;
+    public string FeedLotId { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public string FeedType { get; set; } = string.Empty;
     public double AmountKg { get; set; }
@@ -260,6 +282,8 @@ public sealed class AppUser
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAtUtc { get; set; }
     public DateTime? PasswordChangedAtUtc { get; set; }
+    /// <summary>Incrementing this invalidates cookies issued before an access change.</summary>
+    public int SessionVersion { get; set; } = 1;
 }
 
 public sealed class ProductionCycle
@@ -281,10 +305,16 @@ public sealed class ProductionCycle
     public double EstimatedSurvivalRatePercent { get; set; } = 100;
     public double LatestAverageWeightGrams { get; set; }
     public double EstimatedBiomassKg { get; set; }
+    public DateTime? LatestSampleAtUtc { get; set; }
+    public int GrowthSampleCount { get; set; }
+    public double EstimatedDailyBiomassGrowthKg { get; set; }
     public double TotalFeedKg { get; set; }
     public double MortalityQuantity { get; set; }
     public double HarvestQuantityKg { get; set; }
+    public long HarvestedAnimalQuantity { get; set; }
     public double FeedConversionRatio { get; set; }
+    /// <summary>Backed by a partial unique index: at most one open cycle per pond.</summary>
+    public bool IsOpen { get; set; } = true;
     public string Notes { get; set; } = string.Empty;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
@@ -324,6 +354,7 @@ public sealed class HarvestRecord
     public string PondId { get; set; } = string.Empty;
     public DateTime HarvestedAtUtc { get; set; } = DateTime.UtcNow;
     public double QuantityKg { get; set; }
+    public long AnimalQuantity { get; set; }
     public double AverageWeightGrams { get; set; }
     public string HarvestType { get; set; } = "partial";
     public string RecordedBy { get; set; } = string.Empty;
@@ -400,6 +431,10 @@ public sealed class AddFeedRequest
 {
     public string PondId { get; set; } = string.Empty;
 
+    public string CycleId { get; set; } = string.Empty;
+
+    public string FeedLotId { get; set; } = string.Empty;
+
     [Required(ErrorMessage = "Vui lòng nhập loại thức ăn.")]
     public string FeedType { get; set; } = "Thức ăn tăng trọng cỡ 1,5 mm";
 
@@ -451,4 +486,5 @@ public sealed class FarmSnapshot
     public List<CalibrationRecord> CalibrationRecords { get; set; } = [];
     public List<MaintenanceTask> MaintenanceTasks { get; set; } = [];
     public List<DataSourceHealth> DataSources { get; set; } = [];
+    public List<ProductionCycle> ProductionCycles { get; set; } = [];
 }

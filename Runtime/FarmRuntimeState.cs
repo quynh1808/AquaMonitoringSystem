@@ -21,6 +21,7 @@ public sealed class FarmRuntimeState
     private readonly List<CalibrationRecord> _calibrationRecords = [];
     private readonly List<MaintenanceTask> _maintenanceTasks = [];
     private readonly List<DataSourceHealth> _dataSources = [];
+    private readonly List<ProductionCycle> _productionCycles = [];
 
     public FarmRuntimeState(IOptions<SystemBehaviorOptions> behavior) => _readingLimit = behavior.Value.RuntimeReadingLimit;
 
@@ -39,6 +40,7 @@ public sealed class FarmRuntimeState
     public List<CalibrationRecord> CalibrationRecords { get { lock (_sync) return [.. _calibrationRecords]; } }
     public List<MaintenanceTask> MaintenanceTasks { get { lock (_sync) return [.. _maintenanceTasks]; } }
     public List<DataSourceHealth> DataSources { get { lock (_sync) return [.. _dataSources]; } }
+    public List<ProductionCycle> ProductionCycles { get { lock (_sync) return [.. _productionCycles]; } }
 
     public void Initialize(FarmSnapshot snapshot)
     {
@@ -57,6 +59,7 @@ public sealed class FarmRuntimeState
             _calibrationRecords.Clear(); _calibrationRecords.AddRange(snapshot.CalibrationRecords);
             _maintenanceTasks.Clear(); _maintenanceTasks.AddRange(snapshot.MaintenanceTasks);
             _dataSources.Clear(); _dataSources.AddRange(snapshot.DataSources);
+            _productionCycles.Clear(); _productionCycles.AddRange(snapshot.ProductionCycles);
             IsInitialized = true;
         }
         NotifyChanged();
@@ -184,6 +187,33 @@ public sealed class FarmRuntimeState
         }
         NotifyChanged();
         return alert;
+    }
+
+    public AlertItem? AcknowledgeAlert(string alertId, string actor, string? assignedTo)
+    {
+        AlertItem? alert;
+        lock (_sync)
+        {
+            alert = _alerts.FirstOrDefault(x => x.Id == alertId && !x.IsResolved);
+            if (alert is null) return null;
+            alert.Status = "acknowledged";
+            alert.AcknowledgedAtUtc ??= DateTime.UtcNow;
+            alert.AcknowledgedBy ??= actor;
+            alert.AssignedTo = string.IsNullOrWhiteSpace(assignedTo) ? alert.AssignedTo : assignedTo;
+            alert.LastUpdatedAtUtc = DateTime.UtcNow;
+        }
+        NotifyChanged();
+        return alert;
+    }
+
+    public void UpsertProductionCycle(ProductionCycle cycle)
+    {
+        lock (_sync)
+        {
+            var index = _productionCycles.FindIndex(x => x.Id == cycle.Id);
+            if (index >= 0) _productionCycles[index] = cycle; else _productionCycles.Add(cycle);
+        }
+        NotifyChanged();
     }
 
     public AlertItem? ResolveMetricAlert(string pondId, string metric, string actor)

@@ -38,6 +38,7 @@ public sealed class MongoDatabaseInitializer
     public async Task InitializeAsync(CancellationToken cancellationToken)
     {
         await _db.Database.RunCommandAsync<BsonDocument>(new BsonDocument("ping", 1), cancellationToken: cancellationToken);
+        await NormalizeCycleOpenStateAsync(cancellationToken);
         await CreateIndexesAsync(cancellationToken);
         await SynchronizeAlarmRulesAsync(cancellationToken);
 
@@ -46,6 +47,41 @@ public sealed class MongoDatabaseInitializer
             await SeedAsync(cancellationToken);
         }
         await EnsureProductionCycleSeedAsync(cancellationToken);
+        await BackfillFeedCycleIdsAsync(cancellationToken);
+    }
+
+    private async Task NormalizeCycleOpenStateAsync(CancellationToken ct)
+    {
+        // Legacy releases inferred "open" from Status and could contain more than one active
+        // row per pond. Close every row first, then reopen only the newest compatible cycle so
+        // the unique partial index can be created without deleting historical documents.
+        await _db.ProductionCycles.UpdateManyAsync(
+            FilterDefinition<ProductionCycle>.Empty,
+            Builders<ProductionCycle>.Update.Set(x => x.IsOpen, false), cancellationToken: ct);
+        var candidates = await _db.ProductionCycles.Find(
+                Builders<ProductionCycle>.Filter.Nin(x => x.Status, new[] { "completed", "cancelled" }))
+            .SortByDescending(x => x.StockingDate).ToListAsync(ct);
+        foreach (var cycle in candidates.GroupBy(x => x.PondId, StringComparer.OrdinalIgnoreCase).Select(x => x.First()))
+            await _db.ProductionCycles.UpdateOneAsync(x => x.Id == cycle.Id,
+                Builders<ProductionCycle>.Update.Set(x => x.IsOpen, true), cancellationToken: ct);
+    }
+
+    /// <summary>Links legacy feed rows to the most recent compatible cycle on the same pond.</summary>
+    private async Task BackfillFeedCycleIdsAsync(CancellationToken ct)
+    {
+        var legacy = await _db.FeedLogs.Find(x => x.CycleId == string.Empty).ToListAsync(ct);
+        if (legacy.Count == 0) return;
+        var cycles = await _db.ProductionCycles.Find(FilterDefinition<ProductionCycle>.Empty).ToListAsync(ct);
+        foreach (var feed in legacy)
+        {
+            var feedDate = DateOnly.FromDateTime(feed.Timestamp.ToUniversalTime());
+            var cycle = cycles.Where(x => x.PondId == feed.PondId && x.StockingDate <= feedDate &&
+                                          (!x.ActualHarvestDate.HasValue || x.ActualHarvestDate.Value >= feedDate))
+                .OrderByDescending(x => x.StockingDate).FirstOrDefault();
+            if (cycle is not null)
+                await _db.FeedLogs.UpdateOneAsync(x => x.Id == feed.Id,
+                    Builders<FeedLog>.Update.Set(x => x.CycleId, cycle.Id), cancellationToken: ct);
+        }
     }
 
     private async Task CreateIndexesAsync(CancellationToken ct)
@@ -64,12 +100,18 @@ public sealed class MongoDatabaseInitializer
                 .Ascending(x => x.Metadata.PondId).Ascending(x => x.Metadata.Metric).Descending(x => x.Timestamp),
                 new CreateIndexOptions { Name = "ix_sensor_readings_pond_metric_timestamp" }),
             cancellationToken: ct);
+        await _db.SensorReadings.Indexes.CreateOneAsync(new CreateIndexModel<SensorReading>(
+            Builders<SensorReading>.IndexKeys.Ascending(x => x.EventId),
+            new CreateIndexOptions<SensorReading> { Unique = true, Name = "ux_sensor_readings_event_id",
+                PartialFilterExpression = Builders<SensorReading>.Filter.Gt(x => x.EventId, string.Empty) }), cancellationToken: ct);
         await EnsureReadingTtlIndexAsync(ct);
 
         await _db.Alerts.Indexes.CreateOneAsync(
             new CreateIndexModel<AlertItem>(Builders<AlertItem>.IndexKeys
                 .Ascending(x => x.PondId).Ascending(x => x.Metric).Ascending(x => x.IsResolved).Descending(x => x.Timestamp)),
             cancellationToken: ct);
+        await _db.AlertNotifications.Indexes.CreateOneAsync(new CreateIndexModel<AlertNotification>(
+            Builders<AlertNotification>.IndexKeys.Ascending(x => x.AlertId).Ascending(x => x.Channel).Descending(x => x.CreatedAtUtc)), cancellationToken: ct);
 
         await _db.DeviceCommands.Indexes.CreateOneAsync(
             new CreateIndexModel<DeviceCommand>(Builders<DeviceCommand>.IndexKeys
@@ -95,11 +137,26 @@ public sealed class MongoDatabaseInitializer
                 new CreateIndexOptions { Unique = true, Name = "ux_users_normalized_username" }), cancellationToken: ct);
         await _db.ProductionCycles.Indexes.CreateManyAsync([
             new CreateIndexModel<ProductionCycle>(Builders<ProductionCycle>.IndexKeys.Ascending(x => x.PondId).Descending(x => x.StockingDate)),
-            new CreateIndexModel<ProductionCycle>(Builders<ProductionCycle>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.ExpectedHarvestDate))
+            new CreateIndexModel<ProductionCycle>(Builders<ProductionCycle>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.ExpectedHarvestDate)),
+            new CreateIndexModel<ProductionCycle>(Builders<ProductionCycle>.IndexKeys.Ascending(x => x.PondId),
+                new CreateIndexOptions<ProductionCycle> { Unique = true, Name = "ux_production_cycles_open_pond",
+                    PartialFilterExpression = Builders<ProductionCycle>.Filter.Eq(x => x.IsOpen, true) })
         ], cancellationToken: ct);
+        await _db.FeedLogs.Indexes.CreateOneAsync(new CreateIndexModel<FeedLog>(Builders<FeedLog>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.Timestamp)), cancellationToken: ct);
         await _db.GrowthSamples.Indexes.CreateOneAsync(new CreateIndexModel<GrowthSample>(Builders<GrowthSample>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.SampledAtUtc)), cancellationToken: ct);
         await _db.MortalityRecords.Indexes.CreateOneAsync(new CreateIndexModel<MortalityRecord>(Builders<MortalityRecord>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.RecordedAtUtc)), cancellationToken: ct);
         await _db.HarvestRecords.Indexes.CreateOneAsync(new CreateIndexModel<HarvestRecord>(Builders<HarvestRecord>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.HarvestedAtUtc)), cancellationToken: ct);
+        await _db.InventoryItems.Indexes.CreateManyAsync([
+            new CreateIndexModel<InventoryItem>(Builders<InventoryItem>.IndexKeys.Ascending(x => x.Category).Ascending(x => x.Name)),
+            new CreateIndexModel<InventoryItem>(Builders<InventoryItem>.IndexKeys.Ascending(x => x.LotNumber), new CreateIndexOptions { Unique = true })], cancellationToken: ct);
+        await _db.InventoryTransactions.Indexes.CreateManyAsync([
+            new CreateIndexModel<InventoryTransaction>(Builders<InventoryTransaction>.IndexKeys.Ascending(x => x.InventoryItemId).Descending(x => x.TimestampUtc)),
+            new CreateIndexModel<InventoryTransaction>(Builders<InventoryTransaction>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.TimestampUtc))], cancellationToken: ct);
+        await _db.HealthEvents.Indexes.CreateOneAsync(new CreateIndexModel<AquaticHealthEvent>(Builders<AquaticHealthEvent>.IndexKeys.Ascending(x => x.PondId).Descending(x => x.OccurredAtUtc)), cancellationToken: ct);
+        await _db.BiosecurityEvents.Indexes.CreateOneAsync(new CreateIndexModel<BiosecurityEvent>(Builders<BiosecurityEvent>.IndexKeys.Descending(x => x.OccurredAtUtc).Ascending(x => x.EventType)), cancellationToken: ct);
+        await _db.WorkOrders.Indexes.CreateOneAsync(new CreateIndexModel<FarmWorkOrder>(Builders<FarmWorkOrder>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.DueAtUtc)), cancellationToken: ct);
+        await _db.Expenses.Indexes.CreateOneAsync(new CreateIndexModel<FarmExpense>(Builders<FarmExpense>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.IncurredAtUtc)), cancellationToken: ct);
+        await _db.HarvestLots.Indexes.CreateOneAsync(new CreateIndexModel<HarvestLot>(Builders<HarvestLot>.IndexKeys.Ascending(x => x.LotCode), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
     }
 
 

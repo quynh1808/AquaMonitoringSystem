@@ -183,19 +183,19 @@
 
     protected override void OnInitialized()
     {
-        Snapshot = Analytics.BuildSnapshot();
+        Snapshot = Analytics.BuildSnapshot(State.Ponds.Select(x => x.Id));
         State.Changed += Changed;
     }
 
     private void Refresh()
     {
         State.Tick();
-        Snapshot = Analytics.BuildSnapshot();
+        Snapshot = Analytics.BuildSnapshot(State.Ponds.Select(x => x.Id));
     }
 
     private void Changed() => InvokeAsync(() =>
     {
-        Snapshot = Analytics.BuildSnapshot();
+        Snapshot = Analytics.BuildSnapshot(State.Ponds.Select(x => x.Id));
         StateHasChanged();
     });
 

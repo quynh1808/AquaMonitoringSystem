@@ -1,0 +1,15 @@
+# Production overlay: removes every built-in data/control simulator and requires real MQTT.
+# Run with COMPOSE_FILE=compose.yaml:compose.production.yaml after commissioning.
+services:
+  aquaops:
+    environment:
+      OperationalMode__Mode: Production
+      SimulationProfile__Enabled: "false"
+      DashboardSimulation__Enabled: "false"
+      ProductionCycleSimulation__Enabled: "false"
+      DeviceControl__SimulationEnabled: "false"
+      DeviceControl__HardwareControlEnabled: "true"
+      SensorConnections__ActiveSources__0: mqtt
+      SensorConnections__Mqtt__Enabled: "true"
+      AlertNotifications__Enabled: "true"
+      AlertNotifications__WebhookUrl: ${ALERT_WEBHOOK_URL:?set a LAN alert webhook URL}

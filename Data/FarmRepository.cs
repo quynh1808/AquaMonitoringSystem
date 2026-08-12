@@ -32,9 +32,10 @@ public sealed class FarmRepository
         var maintenanceTask = _db.MaintenanceTasks.Find(FilterDefinition<MaintenanceTask>.Empty)
             .SortBy(x => x.DueAtUtc).Limit(1000).ToListAsync(cancellationToken);
         var sourceHealthTask = _db.DataSourceHealth.Find(FilterDefinition<DataSourceHealth>.Empty).ToListAsync(cancellationToken);
+        var cyclesTask = _db.ProductionCycles.Find(FilterDefinition<ProductionCycle>.Empty).ToListAsync(cancellationToken);
 
         await Task.WhenAll(pondsTask, telemetryTask, sensorsTask, readingsTask, devicesTask, commandsTask,
-            alertsTask, feedsTask, automationsTask, calibrationsTask, maintenanceTask, sourceHealthTask);
+            alertsTask, feedsTask, automationsTask, calibrationsTask, maintenanceTask, sourceHealthTask, cyclesTask);
 
         return new FarmSnapshot
         {
@@ -49,7 +50,8 @@ public sealed class FarmRepository
             AutomationLogs = await automationsTask,
             CalibrationRecords = await calibrationsTask,
             MaintenanceTasks = await maintenanceTask,
-            DataSources = await sourceHealthTask
+            DataSources = await sourceHealthTask,
+            ProductionCycles = await cyclesTask
         };
     }
 
@@ -81,6 +83,9 @@ public sealed class FarmRepository
 
     public Task UpsertAlertAsync(AlertItem item, CancellationToken ct) =>
         _db.Alerts.ReplaceOneAsync(x => x.Id == item.Id, item, new ReplaceOptions { IsUpsert = true }, ct);
+
+    public Task InsertAlertNotificationAsync(AlertNotification item, CancellationToken ct) =>
+        _db.AlertNotifications.InsertOneAsync(item, cancellationToken: ct);
 
     public Task UpsertAlarmRuleAsync(AlarmRule item, CancellationToken ct) =>
         _db.AlarmRules.ReplaceOneAsync(x => x.Id == item.Id, item, new ReplaceOptions { IsUpsert = true }, ct);

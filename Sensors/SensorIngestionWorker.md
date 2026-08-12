@@ -1,5 +1,7 @@
 # SensorIngestionWorker
 
+Worker kiểm tra pond/metric/timestamp, miền hợp lệ, idempotency và sequence trước khi cập nhật runtime. Reading được lưu bền vững trước; bản tin backfill dừng sau bước lưu để không làm lùi dashboard hoặc kích automation. Sequence gap tạo quality `suspect` và cần operator/gateway đối soát.
+
 Pipeline trung tâm xử lý mọi bản tin cảm biến.
 
 ## Các bước

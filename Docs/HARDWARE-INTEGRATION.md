@@ -37,6 +37,8 @@ Nếu Modbus RTU adapter gắn trực tiếp vào Ubuntu, bật `compose.hardwar
 6. **Cửa sổ bảo trì có giám sát:** bật `HARDWARE_CONTROL_ENABLED=true`, chạy manual on/off pilot, đối chiếu output feedback và audit; tắt switch ngay sau test nếu chưa nghiệm thu.
 7. **Mở rộng từng thiết bị:** chuyển mapping theo nhóm nhỏ, theo dõi production; chỉ khi ổn định mới `DEVICE_SIMULATION_ENABLED=false` và bỏ simulation còn lại.
 
+Giai đoạn 1–6 vẫn chạy `OperationalMode=Simulation` dù đã có một phần telemetry thật. Sau khi toàn bộ simulator cần thiết đã được bỏ, đặt `COMPOSE_FILE=compose.yaml:compose.production.yaml`. Startup guard cố ý không cho chạy chế độ Production kiểu nửa thật/nửa giả; nhờ vậy operator không thể nhầm dữ liệu mô phỏng là số liệu chính thức.
+
 ## Safety bắt buộc tại PLC/relay
 
 - emergency stop vật lý và manual override;

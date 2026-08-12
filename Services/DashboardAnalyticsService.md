@@ -1,5 +1,7 @@
 # DashboardAnalyticsService
 
+Snapshot bắt buộc nhận danh sách PondId mà principal được phép xem. Khi DashboardSimulation tắt, KPI biomass/tăng trưởng lấy từ ProductionCycle đã được tính lại; weather, history, task và infrastructure giả không được tạo.
+
 ## Vai trò
 
 Tổng hợp một `DashboardSnapshot` từ hai nhóm nguồn:
