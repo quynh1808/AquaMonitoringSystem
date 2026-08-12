@@ -1,6 +1,6 @@
 # Script vận hành
 
-- `bootstrap-ubuntu.sh`: chạy một lần sau khi tạo `.env`; kiểm tra cấu hình HTTP LAN, sinh file mật khẩu Mosquitto với đúng owner/mode và kiểm tra Compose.
+- `bootstrap-ubuntu.sh`: chạy một lần sau khi tạo `.env`; kiểm tra cấu hình HTTP LAN, sinh file mật khẩu Mosquitto với đúng owner và mode `600`, rồi kiểm tra Compose.
 - `deploy-ubuntu.sh [image-tag]`: fast-forward source, kéo image GHCR, cập nhật stack và kiểm tra readiness qua HTTP trên IP/cổng LAN. Nếu image mới không ready, script trả `.env` về tag trước và khởi động lại ứng dụng.
 - `reset-admin-password.sh`: recovery admin trên Ubuntu bằng container chạy một lần; password nhập ẩn và không lưu vào `.env`.
 - `reset-admin-password.ps1`: recovery trên Windows; mặc định dùng `dotnet run`, thêm `-Docker` nếu stack Compose đang chạy.

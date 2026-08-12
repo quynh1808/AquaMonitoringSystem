@@ -1,0 +1,794 @@
+# Runbook build trên Windows và deploy HTTP LAN trên Ubuntu
+
+Tài liệu này là quy trình tổng hợp từ đầu đến cuối cho AquaOps. Đây là tài liệu ưu tiên khi build, phát hành, triển khai, cập nhật và xử lý các lỗi vận hành thường gặp.
+
+## 1. Mô hình triển khai
+
+```text
+Windows                    GitHub                         Ubuntu 24.04 trong LAN
+────────                   ──────                         ──────────────────────
+Sửa source   ──git push──> Repository
+Build/test                  GitHub Actions
+                            └─ PublishContainer ──> GHCR
+                                                        git pull source vận hành
+                                                        docker pull image GHCR
+Máy trạm LAN ─────────HTTP:8080────────────────────────> AquaOps
+                                                             ├─ MongoDB nội bộ
+                                                             └─ Mosquitto nội bộ/LAN
+```
+
+Phân công trách nhiệm:
+
+| Thành phần | Trách nhiệm |
+|---|---|
+| Windows | Phát triển, restore, build, test, commit và push source |
+| GitHub Actions | Build/test lại trên Ubuntu runner và publish image Linux lên GHCR |
+| Ubuntu Server | Pull source vận hành, pull image và chạy Docker Compose |
+| Docker named volumes | Giữ MongoDB, Mosquitto và Data Protection keys qua các lần cập nhật |
+
+Các nguyên tắc cố định:
+
+- Source không có Dockerfile; image được tạo bằng `.NET SDK PublishContainer`.
+- Ubuntu không build source và không cần cài .NET SDK.
+- Không commit output `publish`, `bin`, `obj`, `.env`, password file, backup hoặc key.
+- Ứng dụng chỉ chạy HTTP trong LAN; không dùng Caddy, domain, ACME hoặc HTTPS.
+- Không port-forward cổng AquaOps/MQTT trên router ra Internet.
+- MongoDB không publish port ra host.
+- Điều khiển phần cứng thật giữ tắt cho đến khi commissioning hoàn tất.
+
+## 2. Chuẩn bị một lần trên Windows
+
+### 2.1 Công cụ
+
+Cài:
+
+- Git for Windows.
+- .NET SDK theo `global.json` của repository.
+- PowerShell.
+- MongoDB cục bộ nếu cần chạy thử đầy đủ trên Windows.
+
+Kiểm tra:
+
+```powershell
+git --version
+dotnet --version
+```
+
+`dotnet --version` phải tương thích với phiên bản trong `global.json`. Không cần Docker Desktop để build/test source theo quy trình chuẩn.
+
+### 2.2 Clone source
+
+```powershell
+New-Item -ItemType Directory -Force C:\Source | Out-Null
+Set-Location C:\Source
+git clone https://github.com/quynh1808/AquaMonitoringSystem.git
+Set-Location .\AquaMonitoringSystem
+git branch --show-current
+git remote -v
+```
+
+Branch làm việc chuẩn là `main`.
+
+Nếu đang dùng source hiện có:
+
+```powershell
+Set-Location C:\Users\ranca\Documents\WebSites\AquacultureMonitoring20260812
+git status
+git pull --ff-only origin main
+```
+
+Không pull khi đang có thay đổi chưa commit mà chưa review.
+
+## 3. Restore, build và test trên Windows
+
+Tại root có `AquacultureMonitoring.sln`:
+
+```powershell
+dotnet restore AquacultureMonitoring.sln --locked-mode
+dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet test Tests\AquacultureMonitoring.Tests.csproj `
+  -c Release `
+  --no-build `
+  --no-restore `
+  --logger "console;verbosity=normal"
+
+dotnet restore AquacultureMonitoring.csproj `
+  --locked-mode `
+  --runtime linux-x64
+```
+
+Điều kiện đạt:
+
+- Restore không có `NU1004` hoặc lỗi lock file.
+- Release build có `0 Error`.
+- Toàn bộ unit test đạt.
+- Locked restore `linux-x64` đạt.
+
+Chỉ khi chủ động đổi dependency mới cập nhật lock file:
+
+```powershell
+dotnet restore AquacultureMonitoring.sln --use-lock-file
+dotnet restore AquacultureMonitoring.csproj --use-lock-file --runtime linux-x64
+git diff -- packages.lock.json Tests\packages.lock.json
+```
+
+Review và commit lock file cùng thay đổi package. Không xóa section `net10.0/linux-x64` khỏi `packages.lock.json`.
+
+### 3.1 Chạy thử trên Windows
+
+MongoDB phải lắng nghe theo `appsettings.json`, mặc định `localhost:27017`:
+
+```powershell
+dotnet run --project AquacultureMonitoring.csproj --launch-profile http
+```
+
+Mở:
+
+```text
+http://localhost:5080
+```
+
+Tài khoản trong `Config/authentication.json` chỉ bootstrap khi collection `users` còn rỗng. Sửa password trong file không thay password của user đã tồn tại trong MongoDB.
+
+Khôi phục Administrator khi chạy trực tiếp trên Windows:
+
+```powershell
+.\scripts\reset-admin-password.ps1
+```
+
+## 4. Review và push source từ Windows
+
+### 4.1 Kiểm tra secret và artifact
+
+```powershell
+git status --short
+git diff --check
+git diff --stat
+```
+
+Không được stage:
+
+- `.env`
+- `secrets/`
+- `backups/`
+- `.data-protection-keys/`
+- `bin/`, `obj/`, `TestResults/`
+- token GitHub/GHCR hoặc mật khẩu thật
+
+Mọi token từng được dán vào chat, terminal command hoặc Git phải được xem là đã lộ và thu hồi.
+
+### 4.2 Commit và push
+
+```powershell
+git add -A
+git status
+git diff --cached --stat
+git commit -m "Mô tả ngắn gọn thay đổi"
+git push origin main
+git rev-parse HEAD
+```
+
+Lưu full commit SHA được in ra.
+
+## 5. GitHub Actions và GHCR
+
+Workflow `.github/workflows/publish-container.yml` chạy khi push `main` hoặc tag `v*`:
+
+1. Restore locked dependencies.
+2. Release build.
+3. Chạy unit test.
+4. Restore `linux-x64`.
+5. Dùng `.NET SDK PublishContainer` tạo và push image.
+
+Tag image:
+
+```text
+Push main: ghcr.io/quynh1808/aquaops:sha-FULL_COMMIT_SHA
+Push tag v*: ghcr.io/quynh1808/aquaops:v1.0.0
+```
+
+Mở GitHub Actions và chỉ deploy khi cả hai job đều xanh:
+
+```text
+verify   success
+publish  success
+```
+
+Nếu `verify` thất bại thì `publish` bị skip, image tag không tồn tại và `docker pull` có thể trả `denied`.
+
+## 6. Chuẩn bị một lần trên Ubuntu Server 24.04 LTS
+
+### 6.1 Kiểm tra hệ điều hành và kiến trúc
+
+```bash
+cat /etc/os-release
+dpkg --print-architecture
+```
+
+Quy trình image hiện tại target `linux-x64`; Ubuntu server cần kiến trúc `amd64`.
+
+### 6.2 Cài Docker Engine và Compose plugin
+
+Dùng official Docker apt repository:
+
+```bash
+sudo apt update
+sudo apt install -y ca-certificates curl git
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+```
+
+Tạo Docker apt source:
+
+```bash
+. /etc/os-release
+DOCKER_SUITE="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+DOCKER_ARCH="$(dpkg --print-architecture)"
+
+printf '%s\n' \
+  'Types: deb' \
+  'URIs: https://download.docker.com/linux/ubuntu' \
+  "Suites: ${DOCKER_SUITE}" \
+  'Components: stable' \
+  "Architectures: ${DOCKER_ARCH}" \
+  'Signed-By: /etc/apt/keyrings/docker.asc' \
+  | sudo tee /etc/apt/sources.list.d/docker.sources >/dev/null
+```
+
+Cài Docker:
+
+```bash
+sudo apt update
+sudo apt install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
+
+sudo systemctl enable --now docker
+sudo docker run --rm hello-world
+```
+
+### 6.3 Cho user vận hành dùng Docker không cần sudo
+
+```bash
+sudo usermod -aG docker "$USER"
+getent group docker
+```
+
+Thoát hoàn toàn SSH rồi đăng nhập lại:
+
+```bash
+exit
+```
+
+Sau khi SSH lại:
+
+```bash
+id -nG
+docker ps
+docker compose version
+```
+
+`id -nG` phải có `docker`. Nếu cần kích hoạt ngay trong phiên hiện tại:
+
+```bash
+newgrp docker
+```
+
+Group `docker` có quyền gần tương đương root; chỉ cấp cho tài khoản quản trị tin cậy. Không sửa socket bằng `chmod 666 /var/run/docker.sock`.
+
+### 6.4 Xác định IP LAN
+
+```bash
+ip -br -4 address
+ip route
+```
+
+Chọn IPv4 của card mạng vật lý có trạng thái `UP`, ví dụ:
+
+```text
+enp3s0   UP   192.168.100.66/24
+```
+
+Không dùng IP của `docker0`, `br-*`, `veth*` hoặc interface `DOWN`. Khuyến nghị đặt DHCP reservation hoặc IPv4 tĩnh cho Ubuntu.
+
+## 7. Clone source vận hành trên Ubuntu
+
+```bash
+sudo mkdir -p /opt/aquaops
+sudo chown "$USER":"$USER" /opt/aquaops
+git clone https://github.com/quynh1808/AquaMonitoringSystem.git /opt/aquaops
+cd /opt/aquaops
+git branch --show-current
+git log -1 --oneline
+chmod +x scripts/*.sh
+```
+
+Nếu thư mục đã tồn tại:
+
+```bash
+cd /opt/aquaops
+git status --short
+git pull --ff-only origin main
+```
+
+Nếu pull báo local changes:
+
+```bash
+git diff
+git stash push -m "ubuntu-local-before-update"
+git pull --ff-only origin main
+```
+
+Chỉ `git stash pop` khi đã review và thực sự cần thay đổi cục bộ đó. `.env` được Git ignore nên không bị pull ghi đè.
+
+## 8. Đăng nhập GHCR trên Ubuntu
+
+Package public có thể pull không cần đăng nhập. Với package private, tạo Personal access token **classic** chỉ có `read:packages`.
+
+Không đặt token trực tiếp trong command. Dùng prompt ẩn:
+
+```bash
+docker logout ghcr.io 2>/dev/null || true
+read -rsp "GHCR PAT: " CR_PAT
+echo
+printf '%s' "$CR_PAT" | docker login ghcr.io \
+  --username quynh1808 \
+  --password-stdin
+unset CR_PAT
+```
+
+Phải nhận `Login Succeeded`. Không lưu PAT trong `.env` của ứng dụng.
+
+## 9. Tạo cấu hình production LAN
+
+```bash
+cd /opt/aquaops
+cp .env.example .env
+chmod 600 .env
+nano .env
+```
+
+Cấu hình mẫu; thay tất cả giá trị `replace-*`:
+
+```env
+TZ=Asia/Ho_Chi_Minh
+
+AQUAOPS_IMAGE=ghcr.io/quynh1808/aquaops
+AQUAOPS_VERSION=sha-replace-with-successful-full-commit-sha
+AQUAOPS_BIND_ADDRESS=192.168.100.66
+AQUAOPS_HTTP_PORT=8080
+
+MONGO_IMAGE=mongo:8.0
+MOSQUITTO_IMAGE=eclipse-mosquitto:2
+BUSYBOX_IMAGE=busybox:1.37
+
+AQUAOPS_CONTAINER_UID=1654
+AQUAOPS_CONTAINER_GID=1654
+
+MQTT_BIND_ADDRESS=127.0.0.1
+
+MONGO_ROOT_USERNAME=aquaops
+MONGO_ROOT_PASSWORD='replace-with-long-random-root-password'
+MONGO_APP_DATABASE=aquaculture_monitoring
+MONGO_APP_USERNAME=aquaops_app
+MONGO_APP_PASSWORD='replace-with-different-long-random-app-password'
+
+MQTT_USERNAME=aquaops_gateway
+MQTT_PASSWORD='replace-with-long-random-mqtt-password'
+
+AQUAOPS_ADMIN_USERNAME=admin
+AQUAOPS_ADMIN_PASSWORD='replace-with-long-random-admin-password'
+AQUAOPS_ADMIN_DISPLAY_NAME='Quản trị hệ thống'
+
+HARDWARE_CONTROL_ENABLED=false
+DEVICE_SIMULATION_ENABLED=true
+```
+
+Quy tắc `.env`:
+
+- Không có khoảng trắng quanh `=`.
+- Chuỗi có khoảng trắng hoặc ký tự shell nên đặt trong dấu nháy đơn.
+- Không dùng dấu nháy đơn bên trong password đã quote bằng dấu nháy đơn.
+- Không gửi toàn bộ `.env` lên chat/log.
+- `AQUAOPS_BIND_ADDRESS` phải là IP thuộc interface `UP`.
+- Có thể dùng `0.0.0.0`, nhưng khi curl phải dùng `127.0.0.1` hoặc IP LAN thật.
+- `MQTT_BIND_ADDRESS=127.0.0.1` giữ MQTT chỉ trên server. Chỉ đổi sang IP LAN khi gateway thật cần kết nối.
+- Không đổi UID/GID 1654 ở một phía; chúng phải khớp `ContainerUser` trong project và init service trong Compose.
+- Chọn credential chính thức trước lần tạo volume MongoDB đầu tiên. Đổi password Mongo trong `.env` sau đó không tự đổi user/password đã lưu trong database.
+- `AQUAOPS_ADMIN_PASSWORD` chỉ tạo admin khi collection `users` rỗng; nó không reset password admin đã tồn tại.
+
+Kiểm tra các biến không bí mật:
+
+```bash
+grep -E '^(AQUAOPS_IMAGE|AQUAOPS_VERSION|AQUAOPS_BIND_ADDRESS|AQUAOPS_HTTP_PORT|MQTT_BIND_ADDRESS)=' .env
+```
+
+Không dùng `docker compose config` để gửi hỗ trợ vì output đã interpolate password.
+
+## 10. Bootstrap lần đầu
+
+```bash
+cd /opt/aquaops
+./scripts/bootstrap-ubuntu.sh
+```
+
+Bootstrap thực hiện:
+
+- Nạp và kiểm tra `.env`.
+- Từ chối MQTT username rỗng hoặc chứa `:`.
+- Tạo lại `secrets/mosquitto_passwords` với owner Mosquitto và mode `600`.
+- Validate Docker Compose.
+
+Kết quả đúng:
+
+```text
+Adding password for user aquaops_gateway
+LAN HTTP deployment prerequisites are ready
+```
+
+Không commit `secrets/mosquitto_passwords`.
+
+## 11. Deploy lần đầu
+
+Trước tiên xác nhận commit hiện tại đã có workflow `verify` và `publish` thành công.
+
+```bash
+cd /opt/aquaops
+DEPLOY_SHA="$(git rev-parse HEAD)"
+IMAGE_TAG="sha-${DEPLOY_SHA}"
+
+printf 'Deploying %s\n' "$IMAGE_TAG"
+docker pull "ghcr.io/quynh1808/aquaops:${IMAGE_TAG}"
+./scripts/deploy-ubuntu.sh "$IMAGE_TAG"
+```
+
+Không nhập placeholder có dấu `<` và `>` vào Bash; dấu `<` được hiểu là redirect.
+
+Deploy script:
+
+1. Validate image tag.
+2. Cập nhật `AQUAOPS_VERSION` trong `.env`.
+3. `git pull --ff-only`.
+4. Pull images.
+5. Chạy Compose và xóa orphan container.
+6. Kiểm tra `/health/ready` qua HTTP LAN.
+7. Quay lại AquaOps image cũ nếu readiness thất bại.
+
+Compose có init container `data-protection-init`. Trạng thái `Exited (0)` của service này là bình thường: nó đặt volume key về UID/GID 1654, mode `700`, rồi kết thúc trước khi AquaOps chạy non-root.
+
+## 12. Xác nhận sau deploy
+
+```bash
+cd /opt/aquaops
+docker compose ps -a
+docker compose port aquaops 8080
+sudo ss -lntp | grep ':8080'
+```
+
+Trạng thái mong đợi:
+
+```text
+data-protection-init   Exited (0)
+mongodb               Up (healthy)
+mosquitto              Up (healthy)
+aquaops                Up
+```
+
+Nạp biến nếu muốn dùng chúng trong Bash hiện tại:
+
+```bash
+set -a
+. ./.env
+set +a
+```
+
+Nếu bind IP cụ thể:
+
+```bash
+curl -fsS "http://${AQUAOPS_BIND_ADDRESS}:${AQUAOPS_HTTP_PORT}/health/live"
+curl -fsS "http://${AQUAOPS_BIND_ADDRESS}:${AQUAOPS_HTTP_PORT}/health/ready"
+```
+
+Nếu `AQUAOPS_BIND_ADDRESS=0.0.0.0`:
+
+```bash
+curl -fsS http://127.0.0.1:8080/health/live
+curl -fsS http://127.0.0.1:8080/health/ready
+```
+
+Từ Windows trong cùng LAN:
+
+```powershell
+Test-NetConnection 192.168.100.66 -Port 8080
+```
+
+Mở trình duyệt:
+
+```text
+http://192.168.100.66:8080
+```
+
+## 13. Firewall và giới hạn LAN
+
+Không mở port trên router. Có thể giới hạn subnet LAN bằng firewall, ví dụ:
+
+```bash
+sudo ufw allow from 192.168.100.0/24 to any port 8080 proto tcp
+sudo ufw status
+```
+
+Lưu ý Docker-published ports có thể tương tác với UFW khác mong đợi. Với yêu cầu kiểm soát cao, áp dụng rule ở `DOCKER-USER` hoặc firewall/router biên và kiểm tra thực tế từ máy ngoài subnet.
+
+HTTP không mã hóa password/cookie trên đường truyền. Chỉ dùng trên LAN/VLAN tin cậy. Nếu LAN có guest Wi-Fi hoặc thiết bị không quản lý, tách VLAN hoặc bổ sung TLS/VPN nội bộ.
+
+## 14. Quy trình cập nhật định kỳ
+
+### 14.1 Trên Windows
+
+```powershell
+git pull --ff-only origin main
+dotnet restore AquacultureMonitoring.sln --locked-mode
+dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet test Tests\AquacultureMonitoring.Tests.csproj -c Release --no-build --no-restore
+
+git add -A
+git status
+git diff --cached --stat
+git commit -m "Mô tả phiên bản"
+git push origin main
+git rev-parse HEAD
+```
+
+Chờ GitHub Actions `verify` và `publish` thành công.
+
+### 14.2 Trên Ubuntu
+
+Backup trước thay đổi quan trọng:
+
+```bash
+cd /opt/aquaops
+./scripts/backup-mongodb.sh
+```
+
+Deploy SHA mới:
+
+```bash
+cd /opt/aquaops
+git status --short
+git pull --ff-only origin main
+
+DEPLOY_SHA="$(git rev-parse HEAD)"
+./scripts/deploy-ubuntu.sh "sha-${DEPLOY_SHA}"
+```
+
+Không chạy deploy đồng thời từ nhiều SSH session.
+
+## 15. Rollback
+
+Giữ full SHA của ít nhất một image đã hoạt động tốt:
+
+```bash
+cd /opt/aquaops
+KNOWN_GOOD_SHA='replace-with-known-good-full-sha'
+./scripts/deploy-ubuntu.sh "sha-${KNOWN_GOOD_SHA}"
+```
+
+Rollback image không tự rollback database schema hoặc dữ liệu. Backup trước release có migration.
+
+## 16. Backup, restore và recovery admin
+
+Backup MongoDB:
+
+```bash
+cd /opt/aquaops
+./scripts/backup-mongodb.sh
+```
+
+Restore là thao tác ghi đè dữ liệu; chỉ thực hiện sau khi xác nhận đúng archive và đã có backup hiện tại:
+
+```bash
+cd /opt/aquaops
+RESTORE_ARCHIVE='./backups/YYYYMMDD-HHMMSS/aquaculture_monitoring.archive.gz'
+./scripts/restore-mongodb.sh "$RESTORE_ARCHIVE"
+```
+
+Recovery Administrator:
+
+```bash
+cd /opt/aquaops
+./scripts/reset-admin-password.sh
+```
+
+Không xóa collection `users` để sửa password. `.env` và `authentication.json` chỉ bootstrap tài khoản khi collection còn rỗng.
+
+## 17. Dọn Docker an toàn
+
+Xem dung lượng:
+
+```bash
+docker system df
+docker image ls
+```
+
+Xóa image không được container nào sử dụng và cũ hơn 7 ngày:
+
+```bash
+docker image prune -a --filter "until=168h"
+```
+
+Không dùng:
+
+```text
+docker compose down -v
+docker system prune -a --volumes
+```
+
+Hai lệnh này có thể xóa dữ liệu bền vững. Image rollback bị prune có thể pull lại từ GHCR, nhưng volume MongoDB/key bị xóa không thể khôi phục nếu không có backup.
+
+## 18. Xử lý lỗi thường gặp
+
+### `./bootstrap-ubuntu.sh: No such file or directory`
+
+Script nằm trong `scripts/`:
+
+```bash
+cd /opt/aquaops
+./scripts/bootstrap-ubuntu.sh
+```
+
+### `.env: line ...: trị: command not found`
+
+Chuỗi tiếng Việt có khoảng trắng chưa được quote:
+
+```env
+AQUAOPS_ADMIN_DISPLAY_NAME='Quản trị hệ thống'
+```
+
+### `syntax error near unexpected token newline`
+
+Không nhập dấu `< >` trong placeholder. Dùng:
+
+```bash
+DEPLOY_SHA="$(git rev-parse HEAD)"
+./scripts/deploy-ubuntu.sh "sha-${DEPLOY_SHA}"
+```
+
+### `permission denied /var/run/docker.sock`
+
+```bash
+sudo usermod -aG docker "$USER"
+exit
+```
+
+SSH lại, rồi:
+
+```bash
+id -nG
+docker ps
+```
+
+### GHCR trả `denied`
+
+Kiểm tra:
+
+- Workflow `publish` của đúng commit đã thành công.
+- Tag `sha-FULL_COMMIT_SHA` tồn tại trong package `aquaops`.
+- PAT là token mới loại classic có `read:packages`.
+- `docker login ghcr.io` trả `Login Succeeded`.
+- Token từng bị lộ đã được revoke.
+
+### Mosquitto: password file có dòng `:$7$...`
+
+MQTT username đã rỗng khi tạo hash. Sửa `.env`, đổi MQTT password rồi chạy lại:
+
+```bash
+cd /opt/aquaops
+./scripts/bootstrap-ubuntu.sh
+docker compose up -d --force-recreate mosquitto
+```
+
+### Mosquitto cảnh báo world readable
+
+Source mới đặt file về mode `600`. Kiểm tra:
+
+```bash
+stat -c '%a %U:%G %n' secrets/mosquitto_passwords
+```
+
+### Data Protection báo `Permission denied`
+
+```bash
+docker compose up -d --remove-orphans
+docker compose ps -a
+docker compose logs data-protection-init aquaops
+```
+
+`data-protection-init` phải `Exited (0)`. Không xóa volume `data_protection_keys`.
+
+### `curl: URL rejected: No host part`
+
+Biến `.env` chưa được nạp vào shell:
+
+```bash
+set -a
+. ./.env
+set +a
+```
+
+Hoặc curl địa chỉ rõ ràng:
+
+```bash
+curl -v http://127.0.0.1:8080/health/live
+```
+
+### `curl: Failed to connect ... port 8080`
+
+Kiểm tra container và port trước firewall:
+
+```bash
+docker compose ps -a
+docker compose port aquaops 8080
+sudo ss -lntp | grep ':8080' || true
+docker compose logs --tail=200 aquaops
+```
+
+Nếu AquaOps `Exited` hoặc `Restarting`, log container là nguyên nhân thật. Nếu AquaOps `Up` và Ubuntu curl được nhưng Windows không kết nối, kiểm tra firewall/VLAN.
+
+### `git pull` bị chặn bởi local changes
+
+```bash
+git diff
+git stash push -m "ubuntu-local-before-pull"
+git pull --ff-only origin main
+```
+
+Không dùng `git reset --hard` khi chưa chắc các thay đổi cục bộ có thể bỏ.
+
+## 19. Checklist hoàn tất
+
+### Windows/GitHub
+
+- [ ] Locked restore đạt.
+- [ ] Release build không có error.
+- [ ] Unit test đạt.
+- [ ] Không stage secret/artifact.
+- [ ] Source đã push `main`.
+- [ ] GitHub Actions `verify` thành công.
+- [ ] GitHub Actions `publish` thành công.
+
+### Ubuntu
+
+- [ ] User vận hành có group `docker`.
+- [ ] IP LAN nằm trên interface `UP`.
+- [ ] `.env` mode `600` và đã đổi toàn bộ password mẫu.
+- [ ] GHCR login thành công nếu package private.
+- [ ] Bootstrap thành công.
+- [ ] `data-protection-init` là `Exited (0)`.
+- [ ] MongoDB và Mosquitto `healthy`.
+- [ ] AquaOps `Up`, port `8080` được publish đúng IP LAN.
+- [ ] `/health/live` và `/health/ready` đạt.
+- [ ] Máy Windows trong LAN mở được ứng dụng.
+- [ ] Không có port-forward ra Internet.
+- [ ] `HARDWARE_CONTROL_ENABLED=false` cho đến khi commissioning hoàn tất.
+- [ ] Backup và restore đã được diễn tập.
+
+## 20. Tài liệu liên quan
+
+- `README.md`: kiến trúc và tổng quan project.
+- `Docs/BUILD-AND-VERIFY.md`: lệnh build ngắn gọn.
+- `Docs/DEPLOYMENT-GHCR-UBUNTU.md`: chi tiết deployment LAN.
+- `Docs/SECURITY-HARDENING.md`: checklist bảo mật.
+- `Docs/TROUBLESHOOTING.md`: lỗi vận hành.
+- `Docs/HARDWARE-INTEGRATION.md`: commissioning PLC/relay.
+- `scripts/README.md`: script vận hành.
+
+Tài liệu chính thức cần đối chiếu khi phiên bản công cụ thay đổi:
+
+- Docker Engine Ubuntu: https://docs.docker.com/engine/install/ubuntu/
+- Docker post-install: https://docs.docker.com/engine/install/linux-postinstall/
+- GitHub Container Registry: https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry

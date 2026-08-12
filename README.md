@@ -45,6 +45,8 @@ Mặc định chỉ bật simulation. Mật khẩu trong `Config/authentication.
 
 ## Phát hành production
 
+Runbook đầy đủ từ Windows đến Ubuntu LAN: `Docs/BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`.
+
 Quy trình chuẩn:
 
 1. Commit source ở repository root này và push `main` hoặc tag `v*`.

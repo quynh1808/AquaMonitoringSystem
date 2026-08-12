@@ -30,6 +30,7 @@ fi
 mkdir -p secrets
 rm -f secrets/mosquitto_passwords
 touch secrets/mosquitto_passwords
+chmod 600 secrets/mosquitto_passwords
 
 # Generate the broker password file without committing clear-text credentials or hashes to Git.
 # Values are passed explicitly so the command also works when Docker was installed with sudo.
@@ -40,9 +41,10 @@ docker run --rm \
   -v "$PWD/secrets:/work" \
   --entrypoint sh "${MOSQUITTO_IMAGE:-eclipse-mosquitto:2}" \
   -c 'test -n "$MQTT_USERNAME" &&
-      mosquitto_passwd -b /work/mosquitto_passwords "$MQTT_USERNAME" "$MQTT_PASSWORD" &&
       chown "$(id -u mosquitto):$(id -g mosquitto)" /work/mosquitto_passwords &&
-      chmod 640 /work/mosquitto_passwords'
+      chmod 600 /work/mosquitto_passwords &&
+      mosquitto_passwd -b /work/mosquitto_passwords "$MQTT_USERNAME" "$MQTT_PASSWORD" &&
+      chmod 600 /work/mosquitto_passwords'
 
 docker compose config --quiet
 echo "LAN HTTP deployment prerequisites are ready. Run: ./scripts/deploy-ubuntu.sh $AQUAOPS_VERSION"

@@ -80,6 +80,7 @@ Mỗi file `.razor` trong `Components/` có file `.md` cùng tên. Các trang qu
 - `Docs/SECURITY-HARDENING.md`
 - `Docs/GIT-PUBLISH.md`
 - `Docs/BUILD-AND-VERIFY.md`
+- `Docs/BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`
 - `Docs/VALIDATION-REPORT.md`
 - `Docs/TROUBLESHOOTING.md`
 - `Examples/README.md`
