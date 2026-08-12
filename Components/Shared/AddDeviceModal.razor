@@ -1,4 +1,4 @@
-@inject FarmStateService State
+@inject SystemConfigurationService Configuration
 
 @if (IsOpen)
 {
@@ -8,7 +8,7 @@
             <button class="modal-close" @onclick="Close">×</button>
             <div class="modal-heading">
                 <span class="eyebrow">KHAI BÁO RƠ-LE</span>
-                <h2>Thêm thiết bị mới</h2>
+                <h2>@(Existing is null ? "Thêm thiết bị mới" : "Chỉnh sửa thiết bị")</h2>
                 <p>@PondName</p>
             </div>
 
@@ -32,13 +32,15 @@
                         <InputNumber @bind-Value="model.PowerKw" step="0.1" />
                         <ValidationMessage For="() => model.PowerKw" />
                     </label>
-                    <label>Transport điều khiển
-                        <InputText @bind-Value="model.ControlTransport" placeholder="fx5u-modbus-tcp" />
-                        <ValidationMessage For="() => model.ControlTransport" />
-                    </label>
-                    <label>Địa chỉ ngoài
-                        <InputText @bind-Value="model.ExternalAddress" placeholder="Ví dụ: plc-a/coil/aerator-01" />
-                    </label>
+                    <label>PLC socket<InputSelect @bind-Value="model.SocketId"><option value="">-- Chọn Modbus socket --</option>@foreach(var socket in sockets.Where(x=>x.PondId==PondId&&x.Transport=="modbus-tcp")){<option value="@socket.Id">@socket.Name · @socket.NodeId</option>}</InputSelect><ValidationMessage For="() => model.SocketId" /></label>
+                    <label>START request (pulse)<InputText @bind-Value="model.ManualStartRequestVariable" placeholder="M100" /><ValidationMessage For="() => model.ManualStartRequestVariable" /></label>
+                    <label>STOP request (pulse)<InputText @bind-Value="model.ManualStopRequestVariable" placeholder="M101" /><ValidationMessage For="() => model.ManualStopRequestVariable" /></label>
+                    <label>Physical override<InputText @bind-Value="model.LocalOverrideVariable" placeholder="M200" /><ValidationMessage For="() => model.LocalOverrideVariable" /></label>
+                    <label>Remote allowed<InputText @bind-Value="model.RemoteAllowedVariable" placeholder="M201" /><ValidationMessage For="() => model.RemoteAllowedVariable" /></label>
+                    <label>Run feedback<InputText @bind-Value="model.RunFeedbackVariable" placeholder="M300" /><ValidationMessage For="() => model.RunFeedbackVariable" /></label>
+                    <label>Fault<InputText @bind-Value="model.FaultVariable" placeholder="M400" /><ValidationMessage For="() => model.FaultVariable" /></label>
+                    <label>AUTO request<InputText @bind-Value="model.AutoRequestVariable" placeholder="M210" /><ValidationMessage For="() => model.AutoRequestVariable" /></label>
+                    <label>AUTO feedback<InputText @bind-Value="model.AutoFeedbackVariable" placeholder="M211" /><ValidationMessage For="() => model.AutoFeedbackVariable" /></label>
                     <label>Trạng thái fail-safe
                         <InputSelect @bind-Value="model.FailSafeState">
                             <option value="off">Tắt khi mất liên lạc</option>
@@ -48,10 +50,12 @@
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="button ghost" @onclick="Close">Hủy</button>
-                    <button type="submit" class="button primary">Thêm thiết bị</button>
+                    <button type="submit" class="button primary">@(Existing is null ? "Thêm thiết bị" : "Lưu thay đổi")</button>
                 </div>
             </EditForm>
+            @if (!string.IsNullOrWhiteSpace(error)) { <p class="auth-error">@error</p> }
         </section>
+        <ConfirmActionDialog @ref="confirmation" />
     </div>
 }
 
@@ -60,23 +64,49 @@
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
     [Parameter] public string PondId { get; set; } = string.Empty;
     [Parameter] public string PondName { get; set; } = string.Empty;
+    [Parameter] public Device? Existing { get; set; }
 
     private AddDeviceRequest model = new();
+    private List<NodeSocket> sockets = [];
+    private ConfirmActionDialog? confirmation;
+    private string loadedKey = string.Empty;
+    private string error = string.Empty;
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if (model.PondId != PondId)
+        var key = $"{IsOpen}:{PondId}:{Existing?.Id}";
+        if (IsOpen && loadedKey != key)
         {
-            model = NewModel();
+            loadedKey = key;
+            model = Existing is null ? NewModel() : new AddDeviceRequest
+            {
+                PondId = Existing.PondId, Name = Existing.Name, Type = Existing.Type, PowerKw = Existing.PowerKw,
+                SocketId = Existing.SocketId, ControlTransport = Existing.ControlTransport, FailSafeState = Existing.FailSafeState,
+                ManualStartRequestVariable = Existing.ManualStartRequestVariable, ManualStopRequestVariable = Existing.ManualStopRequestVariable,
+                AutoRequestVariable = Existing.AutoRequestVariable, AutoFeedbackVariable = Existing.AutoFeedbackVariable,
+                LocalOverrideVariable = Existing.LocalOverrideVariable, RemoteAllowedVariable = Existing.RemoteAllowedVariable,
+                RunFeedbackVariable = Existing.RunFeedbackVariable, FaultVariable = Existing.FaultVariable
+            };
         }
+        if (IsOpen) sockets = await Configuration.GetSocketsAsync();
     }
 
     private async Task Submit()
     {
+        error = string.Empty;
+        var confirm = await confirmation!.ShowAsync(Existing is null ? "Thêm thiết bị PLC?" : "Lưu thay đổi thiết bị?",
+            $"{model.Name} sẽ nhận lệnh START/STOP qua socket {model.SocketId}.",
+            $"START {model.ManualStartRequestVariable} · STOP {model.ManualStopRequestVariable}\nAUTO {model.AutoRequestVariable}/{model.AutoFeedbackVariable}\nLocal override {model.LocalOverrideVariable}\nFeedback {model.RunFeedbackVariable} · Fault {model.FaultVariable}",
+            "warning", true, Existing is null ? "Thêm thiết bị" : "Lưu thay đổi");
+        if (!confirm.Confirmed) return;
         model.PondId = PondId;
-        await State.AddDeviceAsync(model);
-        model = NewModel();
-        await IsOpenChanged.InvokeAsync(false);
+        try
+        {
+            await Configuration.SaveDeviceAsync(model, Existing?.Id);
+            model = NewModel();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        catch (Exception ex) { error = ex.Message; }
     }
 
     private Task Close() => IsOpenChanged.InvokeAsync(false);

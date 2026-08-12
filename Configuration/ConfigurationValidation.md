@@ -7,7 +7,7 @@ Kiểm tra các file cấu hình ngay khi ứng dụng khởi động. Ứng d�
 ## Các nhóm kiểm tra
 
 - Kết nối MongoDB và timeout.
-- Đủ sáu metric bắt buộc và quan hệ giữa `Valid`, `Warning`, `Critical`.
+- Catalog có đủ metric hiển thị và alarm defaults hợp lệ. Giới hạn vật lý runtime do edge capabilities cung cấp.
 - Miền giá trị, bước thay đổi và xác suất bất thường của mô phỏng.
 - Tên nguồn dữ liệu, MQTT host/port và mapping Modbus.
 - Thời gian offline, retention, giới hạn runtime và dải điểm sức khỏe.

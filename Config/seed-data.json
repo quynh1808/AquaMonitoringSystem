@@ -12,40 +12,6 @@
       "Status": "active"
     }
   ],
-  "Devices": [
-    {
-      "Id": "dev_01",
-      "PondId": "pond_01",
-      "Name": "Giàn quạt nước Q1",
-      "Type": "paddle_wheel",
-      "Status": "off",
-      "Mode": "manual",
-      "PowerKw": 3.5,
-      "ControlTransport": "fx5u-modbus-tcp",
-      "ExternalAddress": "M100"
-    },
-    {
-      "Id": "dev_02",
-      "PondId": "pond_01",
-      "Name": "Máy cho ăn F1",
-      "Type": "auto_feeder",
-      "Status": "off",
-      "Mode": "manual",
-      "PowerKw": 0.8,
-      "ControlTransport": "fx5u-modbus-tcp",
-      "ExternalAddress": "M200"
-    },
-    {
-      "Id": "dev_03",
-      "PondId": "pond_01",
-      "Name": "Bơm cấp nước B1",
-      "Type": "water_pump",
-      "Status": "off",
-      "Mode": "manual",
-      "PowerKw": 2.2,
-      "ControlTransport": "fx5u-modbus-tcp",
-      "ExternalAddress": "M300"
-    }
-  ],
+  "Devices": [],
   "FeedLogs": []
 }

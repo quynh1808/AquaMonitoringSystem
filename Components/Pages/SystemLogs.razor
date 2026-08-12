@@ -1,0 +1,7 @@
+@page "/admin/settings/logs"
+@attribute [Authorize(Roles = "Administrator")]
+@inject SystemConfigurationService Configuration
+
+<PageTitle>Nhật ký hệ thống · AquaOps</PageTitle>
+<AuthGate><section class="page-stack settings-page"><header class="page-heading"><div><span class="eyebrow">THIẾT LẬP HỆ THỐNG</span><h1>Nhật ký kết nối và cấu hình</h1><p>Chỉ ghi state transition, lỗi, Apply và ACK; không ghi mỗi vòng polling.</p></div><button class="button ghost" @onclick="Load">Làm mới</button></header><section class="panel"><div class="log-list">@foreach(var l in logs){<article class="log-row"><time>@l.TimestampUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</time><span class="status-pill @l.Level">@l.EventType</span><p><strong>@l.SocketId</strong> · @l.Message @if(!string.IsNullOrWhiteSpace(l.CorrelationId)){<small>Command @l.CorrelationId</small>}</p></article>}</div>@if(logs.Count==0){<div class="empty-state"><h2>Chưa có log kết nối</h2></div>}</section></section></AuthGate>
+@code{private List<ConnectionLogEntry>logs=[];protected override Task OnInitializedAsync()=>Load();private async Task Load(){logs=await Configuration.GetLogsAsync();}}

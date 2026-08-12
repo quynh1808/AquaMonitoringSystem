@@ -4,7 +4,7 @@
 
 ```bash
 dotnet restore AquacultureMonitoring.sln --locked-mode
-dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet build AquacultureMonitoring.sln -c Release --no-restore -m:1
 dotnet test Tests/AquacultureMonitoring.Tests.csproj -c Release --no-build
 ```
 

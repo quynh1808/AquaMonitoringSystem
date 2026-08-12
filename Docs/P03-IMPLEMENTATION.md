@@ -1,12 +1,12 @@
 # P03 — MQTT sensor edge và PLC FX5U-compatible
 
-P03 loại bỏ toàn bộ generator sensor, dashboard data và device ACK simulation khỏi server. Dữ liệu thử nghiệm được chuyển ra edge để kiểm thử đúng đường truyền sẽ dùng ngoài thực tế.
+P03 loại bỏ toàn bộ generator sensor, dashboard data và device ACK simulation khỏi server. Giai đoạn sau P03 đã thay endpoint JSON bằng commissioning động; xem `Docs/DYNAMIC-COMMISSIONING.md`.
 
 ## Thành phần đã triển khai
 
-- Một ao seed `pond_01`, sáu sensor MQTT ở trạng thái `no-data/offline` cho tới bản tin đầu tiên.
-- ESP32 sensor node publish sáu metric QoS 1 mỗi 30 giây, có UTC, EventId và sequence qua reboot.
-- ESP32 PLC simulator qua Wi-Fi, Modbus TCP port 1502, FC01/FC03/FC05, heartbeat D100 và watchdog.
+- Một ao seed `pond_01`, không có sensor mặc định; admin chọn capability channel cần dùng.
+- ESP32 sensor node nhận interval riêng từng sensor; interval 0 không đọc/gửi.
+- ESP32 PLC simulator qua Wi-Fi, Modbus TCP FC01/FC03/FC05/FC06, config ACK và watchdog.
 - Adapter `fx5u-modbus-tcp` ghi command coil rồi đọc feedback/fault trước khi hoàn tất command.
 - PLC monitor đọc heartbeat và toàn bộ feedback mỗi 5 giây; ba lần lỗi liên tiếp đánh dấu thiết bị offline.
 - Safety switch `HardwareControlEnabled=false` mặc định.
@@ -19,7 +19,7 @@ P03 loại bỏ toàn bộ generator sensor, dashboard data và device ACK simul
 ## Thay phần edge bằng thiết bị thật
 
 - Sensor: thay duy nhất hàm đọc giá trị trong firmware, giữ MQTT contract.
-- PLC: giữ tên M-device và đổi `FX5U_HOST`, `FX5U_PORT`; cấu hình logic/feedback/interlock trong GX Works3.
+- PLC: tạo/chỉnh socket trên web, nhập M/D variables tương ứng logic/feedback/interlock trong GX Works3.
 - Server, UI, audit, alert và automation không cần thay đổi.
 
 Xem `Docs/OPERATING-MODES.md` để chuyển chế độ và checklist nghiệm thu.

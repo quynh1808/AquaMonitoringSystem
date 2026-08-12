@@ -42,6 +42,20 @@ public sealed class SensorDefinition
     public string Unit { get; set; } = string.Empty;
     public string SourceType { get; set; } = "mqtt";
     public string ExternalAddress { get; set; } = string.Empty;
+    /// <summary>Logical connection and physical channel selected by an administrator.</summary>
+    public string SocketId { get; set; } = string.Empty;
+    public string NodeId { get; set; } = string.Empty;
+    public string ChannelId { get; set; } = string.Empty;
+    public string InstallationId { get; set; } = string.Empty;
+    public int PublishIntervalSeconds { get; set; }
+    public int OfflineTimeoutSeconds { get; set; } = 90;
+    public string SchedulingMode { get; set; } = "node-managed";
+    public string ConfigurationStatus { get; set; } = "draft";
+    public long DesiredConfigurationVersion { get; set; }
+    public long ReportedConfigurationVersion { get; set; }
+    public bool IsPrimary { get; set; } = true;
+    public bool IsArchived { get; set; }
+    public string Notes { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
     public string Status { get; set; } = "offline";
     public DateTime? LastSeenAtUtc { get; set; }
@@ -63,6 +77,9 @@ public sealed class SensorReadingMetadata
     public string SensorId { get; set; } = string.Empty;
     public string Metric { get; set; } = string.Empty;
     public string SourceType { get; set; } = string.Empty;
+    public string SocketId { get; set; } = string.Empty;
+    public string NodeId { get; set; } = string.Empty;
+    public string InstallationId { get; set; } = string.Empty;
 }
 
 public sealed class SensorReading
@@ -80,6 +97,8 @@ public sealed class SensorReading
     public string? RawPayload { get; set; }
     public string EventId { get; set; } = string.Empty;
     public long? SequenceNumber { get; set; }
+    public bool IsBackfill { get; set; }
+    public string TimeQuality { get; set; } = "synchronized";
 }
 
 public sealed class Device
@@ -98,6 +117,23 @@ public sealed class Device
     public string ControlTransport { get; set; } = "fx5u-modbus-tcp";
     /// <summary>Transport-specific address such as an MQTT topic or PLC coil mapping ID.</summary>
     public string ExternalAddress { get; set; } = string.Empty;
+    public string SocketId { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; } = true;
+    public bool IsArchived { get; set; }
+    /// <summary>Reported PLC mode: auto, remote-manual or local-manual.</summary>
+    public string ReportedMode { get; set; } = "unknown";
+    public string AutoRequestVariable { get; set; } = string.Empty;
+    public string AutoFeedbackVariable { get; set; } = string.Empty;
+    public string ManualStartRequestVariable { get; set; } = string.Empty;
+    public string ManualStopRequestVariable { get; set; } = string.Empty;
+    public string LocalOverrideVariable { get; set; } = string.Empty;
+    public string RemoteAllowedVariable { get; set; } = string.Empty;
+    public string RunFeedbackVariable { get; set; } = string.Empty;
+    public string FaultVariable { get; set; } = string.Empty;
+
+    public bool IsLocalOverrideActive { get; set; }
+    public bool IsRemoteControlAllowed { get; set; }
+    public string? LastCommandError { get; set; }
     /// <summary>State the local controller must prefer after communication or power failure.</summary>
     public string FailSafeState { get; set; } = "off";
     public string ConnectionStatus { get; set; } = "offline";
@@ -111,6 +147,7 @@ public sealed class DeviceCommand
     public string PondId { get; set; } = string.Empty;
     public string DeviceId { get; set; } = string.Empty;
     public string RequestedState { get; set; } = string.Empty;
+    public string PreviousState { get; set; } = string.Empty;
     public string Status { get; set; } = "pending";
     public string Transport { get; set; } = "fx5u-modbus-tcp";
     public string RequestedBy { get; set; } = "system";
@@ -422,6 +459,33 @@ public sealed class AddDeviceRequest
 
     /// <summary>Stable mapping id/topic/coil alias understood by the selected transport.</summary>
     public string ExternalAddress { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vui lòng chọn socket PLC.")]
+    public string SocketId { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến START phải có dạng M100.")]
+    public string ManualStartRequestVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến STOP phải có dạng M101.")]
+    public string ManualStopRequestVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến Local Override phải có dạng M200.")]
+    public string LocalOverrideVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến Remote Allowed phải có dạng M201.")]
+    public string RemoteAllowedVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến feedback phải có dạng M300.")]
+    public string RunFeedbackVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến fault phải có dạng M400.")]
+    public string FaultVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến Auto request phải có dạng M210.")]
+    public string AutoRequestVariable { get; set; } = string.Empty;
+
+    [RegularExpression("^M[0-9]{1,5}$", ErrorMessage = "Biến Auto feedback phải có dạng M211.")]
+    public string AutoFeedbackVariable { get; set; } = string.Empty;
 
     [RegularExpression("^(on|off)$")]
     public string FailSafeState { get; set; } = "off";

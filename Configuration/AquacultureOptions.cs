@@ -33,69 +33,6 @@ public sealed class AlertNotificationOptions
     public int TimeoutSeconds { get; set; } = 10;
 }
 
-public sealed class SensorConnectionOptions
-{
-    public const string SectionName = "SensorConnections";
-    public List<string> ActiveSources { get; set; } = ["mqtt"];
-    public MqttConnectionOptions Mqtt { get; set; } = new();
-    public List<ModbusTcpConnectionOptions> ModbusTcp { get; set; } = [];
-    public List<ModbusRtuConnectionOptions> ModbusRtu { get; set; } = [];
-}
-
-public sealed class MqttConnectionOptions
-{
-    public bool Enabled { get; set; }
-    public string Host { get; set; } = "localhost";
-    public int Port { get; set; } = 1883;
-    public string ClientId { get; set; } = "aquaops-server";
-    public string TopicFilter { get; set; } = "aquaculture/+/+/sensors/+/telemetry";
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public bool UseTls { get; set; }
-    public bool AllowUntrustedCertificates { get; set; }
-    public int ReconnectDelaySeconds { get; set; } = 5;
-}
-
-public sealed class ModbusTcpConnectionOptions
-{
-    public string Id { get; set; } = string.Empty;
-    public bool Enabled { get; set; }
-    public string Host { get; set; } = "127.0.0.1";
-    public int Port { get; set; } = 502;
-    public int PollIntervalMilliseconds { get; set; } = 2000;
-    public int TimeoutMilliseconds { get; set; } = 3000;
-    public List<ModbusRegisterMapping> Mappings { get; set; } = [];
-}
-
-public sealed class ModbusRtuConnectionOptions
-{
-    public string Id { get; set; } = string.Empty;
-    public bool Enabled { get; set; }
-    public string PortName { get; set; } = "/dev/ttyUSB0";
-    public int BaudRate { get; set; } = 9600;
-    public int DataBits { get; set; } = 8;
-    public string Parity { get; set; } = "None";
-    public string StopBits { get; set; } = "One";
-    public int PollIntervalMilliseconds { get; set; } = 2000;
-    public int TimeoutMilliseconds { get; set; } = 3000;
-    public List<ModbusRegisterMapping> Mappings { get; set; } = [];
-}
-
-public sealed class ModbusRegisterMapping
-{
-    public string SensorId { get; set; } = string.Empty;
-    public string PondId { get; set; } = string.Empty;
-    public string Metric { get; set; } = string.Empty;
-    public string Unit { get; set; } = string.Empty;
-    public byte UnitId { get; set; } = 1;
-    public ushort RegisterAddress { get; set; }
-    public ushort RegisterCount { get; set; } = 2;
-    public string DataType { get; set; } = "Float32";
-    public string ByteOrder { get; set; } = "ABCD";
-    public double Scale { get; set; } = 1;
-    public double Offset { get; set; }
-}
-
 public sealed class SensorThresholdCatalog
 {
     public const string SectionName = "SensorThresholds";
@@ -137,7 +74,6 @@ public sealed class SystemBehaviorOptions
     public int MaxFutureClockSkewSeconds { get; set; } = 60;
     public int MaxTelemetryAgeMinutes { get; set; } = 30;
     public HealthScoreOptions HealthScore { get; set; } = new();
-    public List<AutomationPolicyOptions> AutomationPolicies { get; set; } = [];
 }
 
 
@@ -150,17 +86,6 @@ public sealed class HealthScoreOptions
     public int StableMinimum { get; set; } = 85;
     public int MonitorMinimum { get; set; } = 65;
     public int DashboardHealthyMinimum { get; set; } = 80;
-}
-
-public sealed class AutomationPolicyOptions
-{
-    public string Metric { get; set; } = string.Empty;
-    public string TriggerDirection { get; set; } = "low";
-    public double StartAt { get; set; }
-    public double StopAt { get; set; }
-    public List<string> DeviceTypes { get; set; } = [];
-    public string StartMessage { get; set; } = string.Empty;
-    public string StopMessage { get; set; } = string.Empty;
 }
 
 public sealed class FarmSeedOptions

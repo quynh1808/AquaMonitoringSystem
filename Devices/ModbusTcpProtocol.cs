@@ -49,6 +49,18 @@ public sealed class ModbusTcpProtocol
         return BinaryPrimitives.ReadUInt16BigEndian(response.AsSpan(2, 2));
     }
 
+    public async Task WriteHoldingRegisterAsync(
+        string host, int port, byte unitId, ushort address, ushort value, CancellationToken ct)
+    {
+        var payload = new byte[5];
+        payload[0] = 0x06;
+        BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(1, 2), address);
+        BinaryPrimitives.WriteUInt16BigEndian(payload.AsSpan(3, 2), value);
+        var response = await ExchangeAsync(host, port, unitId, payload, ct);
+        if (!response.AsSpan().SequenceEqual(payload))
+            throw new IOException("PLC trả về ACK ghi holding register không khớp yêu cầu.");
+    }
+
     private async Task<byte[]> ExchangeAsync(
         string host, int port, byte unitId, byte[] pdu, CancellationToken ct)
     {

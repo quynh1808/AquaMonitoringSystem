@@ -54,6 +54,7 @@ public sealed class SensorIngestionWorker : BackgroundService
             try
             {
                 await ProcessAsync(envelope, stoppingToken);
+                envelope.Completion?.TrySetResult(new(true));
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -62,6 +63,7 @@ public sealed class SensorIngestionWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Không xử lý được dữ liệu từ sensor {SensorId}.", envelope.SensorId);
+                envelope.Completion?.TrySetResult(new(false, ex.Message));
             }
         }
     }
@@ -84,9 +86,8 @@ public sealed class SensorIngestionWorker : BackgroundService
         if (envelope.IsBackfill && string.IsNullOrWhiteSpace(envelope.EventId))
             throw new InvalidDataException("Bản tin backfill bắt buộc có EventId để chống ghi trùng.");
 
-        envelope.SensorId = string.IsNullOrWhiteSpace(envelope.SensorId)
-            ? $"sensor_{envelope.PondId}_{envelope.Metric}"
-            : envelope.SensorId;
+        if (string.IsNullOrWhiteSpace(envelope.SensorId))
+            throw new InvalidDataException("SensorId là bắt buộc; AquaOps không tự đăng ký cảm biến từ telemetry.");
         // Work on a copy; durable insertion must succeed before live state is mutated.
         var currentSensor = CloneSensor(_runtime.GetSensor(envelope.SensorId));
         if (currentSensor is not null &&
@@ -94,22 +95,21 @@ public sealed class SensorIngestionWorker : BackgroundService
              !currentSensor.Metric.Equals(envelope.Metric, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidDataException($"SensorId '{envelope.SensorId}' không khớp PondId/Metric đã đăng ký.");
 
-        var sensor = currentSensor ?? new SensorDefinition
-        {
-            Id = envelope.SensorId,
-            PondId = envelope.PondId,
-            Name = $"{threshold.DisplayName} · {envelope.PondId}",
-            Metric = envelope.Metric,
-            Unit = string.IsNullOrWhiteSpace(envelope.Unit) ? threshold.Unit : envelope.Unit,
-            MinValidValue = threshold.ValidMin,
-            MaxValidValue = threshold.ValidMax,
-            CalibrationDateUtc = DateTime.UtcNow,
-            CalibrationDueDateUtc = DateTime.UtcNow.AddDays(_behavior.CurrentValue.DefaultCalibrationIntervalDays)
-        };
+        var sensor = currentSensor ?? throw new InvalidDataException(
+            $"SensorId '{envelope.SensorId}' chưa được admin đăng ký; bản tin phải đưa vào quarantine.");
+        if (!sensor.IsEnabled || sensor.IsArchived || sensor.PublishIntervalSeconds <= 0)
+            throw new InvalidDataException($"SensorId '{envelope.SensorId}' đang disable hoặc chưa được cấu hình chu kỳ gửi.");
+        if (!string.IsNullOrWhiteSpace(sensor.SocketId) && !sensor.SocketId.Equals(envelope.SocketId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"SensorId '{envelope.SensorId}' không khớp SocketId đã đăng ký.");
+        if (!string.IsNullOrWhiteSpace(sensor.NodeId) && !sensor.NodeId.Equals(envelope.NodeId, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException($"SensorId '{envelope.SensorId}' không khớp NodeId đã đăng ký.");
 
         var wasOffline = sensor.Status == "offline";
         var isFinite = !double.IsNaN(envelope.Value) && !double.IsInfinity(envelope.Value);
-        var isValid = isFinite && envelope.Value >= threshold.ValidMin && envelope.Value <= threshold.ValidMax;
+        // Physical limits are reported by the edge driver. The metric catalog remains a safe
+        // fallback for sensors migrated before their first capabilities handshake.
+        var hasPhysicalLimits = sensor.MinValidValue < sensor.MaxValidValue;
+        var isValid = isFinite && hasPhysicalLimits && envelope.Value >= sensor.MinValidValue && envelope.Value <= sensor.MaxValidValue;
         var hasSequenceGap = false;
         if (!envelope.IsBackfill && envelope.SequenceNumber.HasValue && _lastSequences.TryGetValue(envelope.SensorId, out var lastSequence))
         {
@@ -124,8 +124,6 @@ public sealed class SensorIngestionWorker : BackgroundService
         var sourceChanged = !sensor.SourceType.Equals(envelope.SourceType, StringComparison.OrdinalIgnoreCase);
         sensor.SourceType = envelope.SourceType;
         sensor.Unit = string.IsNullOrWhiteSpace(envelope.Unit) ? threshold.Unit : envelope.Unit;
-        sensor.MinValidValue = threshold.ValidMin;
-        sensor.MaxValidValue = threshold.ValidMax;
         if (sourceChanged || string.IsNullOrWhiteSpace(sensor.ExternalAddress))
             sensor.ExternalAddress = string.IsNullOrWhiteSpace(envelope.SourceAddress)
                 ? $"{envelope.SourceType}://{envelope.SensorId}"
@@ -147,6 +145,9 @@ public sealed class SensorIngestionWorker : BackgroundService
                 SensorId = envelope.SensorId,
                 Metric = envelope.Metric,
                 SourceType = envelope.SourceType
+                ,SocketId = envelope.SocketId
+                ,NodeId = envelope.NodeId
+                ,InstallationId = string.IsNullOrWhiteSpace(envelope.InstallationId) ? sensor.InstallationId : envelope.InstallationId
             },
             Value = envelope.Value,
             Unit = sensor.Unit,
@@ -159,6 +160,8 @@ public sealed class SensorIngestionWorker : BackgroundService
             RawPayload = envelope.RawPayload,
             EventId = envelope.EventId.Trim(),
             SequenceNumber = envelope.SequenceNumber
+            ,IsBackfill = envelope.IsBackfill
+            ,TimeQuality = envelope.TimeQuality
         };
 
         try
@@ -190,18 +193,26 @@ public sealed class SensorIngestionWorker : BackgroundService
         if (!isValid || hasSequenceGap)
         {
             await _alerts.ReportQualityIssueAsync(sensor, reading, ct);
+            await _automation.HandleInputFailureAsync(sensor, quality, ct);
             return;
         }
 
         await _alerts.ResolveQualityIssueAsync(sensor, ct);
         await _alerts.EvaluateAsync(sensor, reading, ct);
-        await _automation.ProcessAsync(sensor.PondId, sensor.Metric, reading.Value, ct);
+        await _automation.ProcessAsync(sensor, reading, ct);
     }
 
     private static SensorDefinition? CloneSensor(SensorDefinition? source) => source is null ? null : new SensorDefinition
     {
         Id = source.Id, PondId = source.PondId, Name = source.Name, Metric = source.Metric,
         Unit = source.Unit, SourceType = source.SourceType, ExternalAddress = source.ExternalAddress,
+        SocketId = source.SocketId, NodeId = source.NodeId, ChannelId = source.ChannelId,
+        InstallationId = source.InstallationId, PublishIntervalSeconds = source.PublishIntervalSeconds,
+        OfflineTimeoutSeconds = source.OfflineTimeoutSeconds,
+        SchedulingMode = source.SchedulingMode, ConfigurationStatus = source.ConfigurationStatus,
+        DesiredConfigurationVersion = source.DesiredConfigurationVersion,
+        ReportedConfigurationVersion = source.ReportedConfigurationVersion,
+        IsPrimary = source.IsPrimary, IsArchived = source.IsArchived, Notes = source.Notes,
         IsEnabled = source.IsEnabled, Status = source.Status, LastSeenAtUtc = source.LastSeenAtUtc,
         BatteryLevel = source.BatteryLevel, SignalStrength = source.SignalStrength,
         FirmwareVersion = source.FirmwareVersion, CalibrationDateUtc = source.CalibrationDateUtc,

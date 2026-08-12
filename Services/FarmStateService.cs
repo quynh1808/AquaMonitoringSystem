@@ -23,6 +23,7 @@ public sealed class FarmStateService : IDisposable
     private readonly FarmAccessService _access;
     private readonly DeviceCommandService _deviceCommands;
     private readonly ProductionCycleService _productionCycles;
+    private readonly SystemConfigurationRepository _systemConfiguration;
     private ClaimsPrincipal _principal = new(new ClaimsIdentity());
 
     public FarmStateService(
@@ -34,7 +35,8 @@ public sealed class FarmStateService : IDisposable
         AuthenticationStateProvider authenticationStateProvider,
         FarmAccessService access,
         DeviceCommandService deviceCommands,
-        ProductionCycleService productionCycles)
+        ProductionCycleService productionCycles,
+        SystemConfigurationRepository systemConfiguration)
     {
         _runtime = runtime;
         _repository = repository;
@@ -45,6 +47,7 @@ public sealed class FarmStateService : IDisposable
         _access = access;
         _deviceCommands = deviceCommands;
         _productionCycles = productionCycles;
+        _systemConfiguration = systemConfiguration;
         _runtime.Changed += ForwardChanged;
         SelectedPondId = string.Empty;
     }
@@ -144,25 +147,9 @@ public sealed class FarmStateService : IDisposable
             Quality = "no-data",
             SourceType = "mqtt"
         };
+        // A pond starts with no sensors. Field assets are explicitly mapped to a socket and
+        // channel by an administrator, avoiding six fictitious probes on every pond.
         var sensors = new List<SensorDefinition>();
-        foreach (var pair in _thresholds.CurrentValue.Metrics)
-        {
-            sensors.Add(new SensorDefinition
-            {
-                Id = $"sensor_{id}_{pair.Key}",
-                PondId = id,
-                Name = $"{pair.Value.DisplayName} · {pond.Name}",
-                Metric = pair.Key,
-                Unit = pair.Value.Unit,
-                SourceType = "mqtt",
-                ExternalAddress = $"mqtt://aquaculture/farm_main/{id}/sensors/{pair.Key}/telemetry",
-                Status = "offline",
-                FirmwareVersion = string.Empty,
-                MinValidValue = pair.Value.ValidMin,
-                MaxValidValue = pair.Value.ValidMax,
-                LastQuality = "no-data"
-            });
-        }
 
         // Device addresses are intentionally not generated. Every new actuator must receive an
         // explicit, reviewed PLC mapping before it can be controlled.
@@ -195,6 +182,21 @@ public sealed class FarmStateService : IDisposable
     {
         _access.EnsureCanManageFarm(_principal);
         _access.EnsureCanViewPond(_principal, request.PondId);
+        var socket = await _systemConfiguration.GetSocketAsync(request.SocketId, ct);
+        if (socket is null || socket.Transport != "modbus-tcp" || socket.PondId != request.PondId || !socket.IsEnabled)
+            throw new InvalidOperationException("Thiết bị phải dùng một Modbus TCP socket đang Enable và cùng ao.");
+        var mappings = new[] { request.ManualStartRequestVariable, request.ManualStopRequestVariable,
+            request.AutoRequestVariable, request.AutoFeedbackVariable, request.LocalOverrideVariable,
+            request.RemoteAllowedVariable, request.RunFeedbackVariable, request.FaultVariable }
+            .Select(x => x.Trim().ToUpperInvariant()).ToArray();
+        if (mappings.Any(string.IsNullOrWhiteSpace) || mappings.Distinct(StringComparer.OrdinalIgnoreCase).Count() != mappings.Length)
+            throw new InvalidOperationException("Phải nhập đủ các M variables và không được trùng trong cùng thiết bị.");
+        var used = Devices.Where(x => x.SocketId == request.SocketId).SelectMany(x => new[]
+        { x.ManualStartRequestVariable, x.ManualStopRequestVariable, x.AutoRequestVariable, x.AutoFeedbackVariable,
+          x.LocalOverrideVariable, x.RemoteAllowedVariable, x.RunFeedbackVariable, x.FaultVariable })
+          .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var conflict = mappings.FirstOrDefault(used.Contains);
+        if (conflict is not null) throw new InvalidOperationException($"PLC variable {conflict} đã được thiết bị khác sử dụng trên socket.");
         var device = new Device
         {
             PondId = request.PondId,
@@ -202,26 +204,41 @@ public sealed class FarmStateService : IDisposable
             Type = request.Type,
             PowerKw = request.PowerKw,
             Status = "off",
-            Mode = "manual",
+            Mode = "remote-manual",
+            ReportedMode = "unknown",
             ControlTransport = request.ControlTransport.Trim(),
             ExternalAddress = request.ExternalAddress.Trim(),
+            SocketId = request.SocketId,
+            ManualStartRequestVariable = request.ManualStartRequestVariable.ToUpperInvariant(),
+            ManualStopRequestVariable = request.ManualStopRequestVariable.ToUpperInvariant(),
+            LocalOverrideVariable = request.LocalOverrideVariable.ToUpperInvariant(),
+            RemoteAllowedVariable = request.RemoteAllowedVariable.ToUpperInvariant(),
+            RunFeedbackVariable = request.RunFeedbackVariable.ToUpperInvariant(),
+            FaultVariable = request.FaultVariable.ToUpperInvariant(),
+            AutoRequestVariable = request.AutoRequestVariable.ToUpperInvariant(),
+            AutoFeedbackVariable = request.AutoFeedbackVariable.ToUpperInvariant(),
             FailSafeState = request.FailSafeState,
             ConnectionStatus = "offline"
         };
         _runtime.AddDevice(device);
         await AddAutomationLogAsync(request.PondId, $"Đã khai báo thiết bị mới: {device.Name} ({GetDeviceTypeLabel(device.Type)}).", string.Empty, null, ct);
         await _writeQueue.EnqueueAsync(writeCt => _repository.UpsertDeviceAsync(device, writeCt), ct);
+        await _repository.InsertAuditLogAsync(new AuditLog
+        {
+            Actor = FarmAccessService.ActorName(_principal), Action = "device.create", EntityType = "device",
+            EntityId = device.Id, PondId = device.PondId, NewValue = $"{device.Name} · socket {device.SocketId}", Result = "success"
+        }, ct);
         return device;
     }
 
-    public async Task<DeviceCommand?> ToggleDeviceAsync(string deviceId, CancellationToken ct = default)
+    public async Task<DeviceCommand?> ToggleDeviceAsync(string deviceId, string reason = "manual-ui", CancellationToken ct = default)
     {
         var device = Devices.FirstOrDefault(x => x.Id == deviceId);
         if (device is null) return null;
         _access.EnsureCanOperatePond(_principal, device.PondId);
         var desired = device.Status == "on" ? "off" : "on";
         var actor = FarmAccessService.ActorName(_principal);
-        var command = await _deviceCommands.ExecuteAsync(device.Id, desired, actor, "manual-ui", ct);
+        var command = await _deviceCommands.ExecuteAsync(device.Id, desired, actor, reason, ct);
         var message = command.Status == "completed"
             ? $"Điều khiển thủ công: {device.Name} chuyển sang {(desired == "on" ? "BẬT" : "TẮT")}."
             : $"Lệnh {device.Name} thất bại ({command.Status}): {command.Error}";
@@ -229,15 +246,18 @@ public sealed class FarmStateService : IDisposable
         return command;
     }
 
-    public async Task ToggleDeviceModeAsync(string deviceId, CancellationToken ct = default)
+    public async Task ToggleDeviceModeAsync(string deviceId, string reason = "mode-change-ui", CancellationToken ct = default)
     {
         var device = Devices.FirstOrDefault(x => x.Id == deviceId);
         if (device is null) return;
         _access.EnsureCanOperatePond(_principal, device.PondId);
-        var updated = _runtime.UpdateDevice(deviceId, x => x.Mode = x.Mode == "auto" ? "manual" : "auto");
-        if (updated is null) return;
-        await AddAutomationLogAsync(updated.PondId, $"{updated.Name} chuyển sang chế độ {(updated.Mode == "auto" ? "TỰ ĐỘNG" : "THỦ CÔNG")}.", string.Empty, null, ct);
-        await _writeQueue.EnqueueAsync(writeCt => _repository.UpsertDeviceAsync(updated, writeCt), ct);
+        if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
+            throw new InvalidOperationException("Thiết bị đang ở Physical/Local Manual; không thể đổi mode từ web.");
+        var targetMode = device.Mode == "auto" ? "remote-manual" : "auto";
+        var command = await _deviceCommands.SetModeAsync(device.Id, targetMode, FarmAccessService.ActorName(_principal), reason, ct);
+        await AddAutomationLogAsync(device.PondId,
+            command.Status == "completed" ? $"{device.Name} chuyển sang {(targetMode == "auto" ? "TỰ ĐỘNG" : "REMOTE MANUAL")}." :
+            $"Không đổi được mode {device.Name}: {command.Status} · {command.Error}", string.Empty, command.Id, ct);
     }
 
     public async Task<FeedLog> AddFeedLogAsync(AddFeedRequest request, CancellationToken ct = default)

@@ -3,6 +3,9 @@ namespace AquacultureMonitoring.Sensors;
 public sealed class SensorEnvelope
 {
     public string SensorId { get; set; } = string.Empty;
+    public string SocketId { get; set; } = string.Empty;
+    public string NodeId { get; set; } = string.Empty;
+    public string InstallationId { get; set; } = string.Empty;
     public string PondId { get; set; } = string.Empty;
     public string Metric { get; set; } = string.Empty;
     public double Value { get; set; }
@@ -19,7 +22,12 @@ public sealed class SensorEnvelope
     public string EventId { get; set; } = string.Empty;
     public long? SequenceNumber { get; set; }
     public bool IsBackfill { get; set; }
+    public string TimeQuality { get; set; } = "synchronized";
+    [System.Text.Json.Serialization.JsonIgnore]
+    internal TaskCompletionSource<SensorIngestionResult>? Completion { get; set; }
 }
+
+public sealed record SensorIngestionResult(bool Persisted, string? Error = null);
 
 public interface ISensorDataSource
 {

@@ -86,6 +86,17 @@ public sealed class FarmRuntimeState
         lock (_sync) return _sensors.FirstOrDefault(x => x.Id == sensorId);
     }
 
+    /// <summary>Adds or replaces an administrator-defined sensor in the live projection.</summary>
+    public void UpsertSensor(SensorDefinition sensor)
+    {
+        lock (_sync)
+        {
+            var index = _sensors.FindIndex(x => x.Id == sensor.Id);
+            if (index >= 0) _sensors[index] = sensor; else _sensors.Add(sensor);
+        }
+        NotifyChanged();
+    }
+
     public void AddPond(Pond pond, TelemetryData telemetry, IEnumerable<SensorDefinition> sensors, IEnumerable<Device> devices)
     {
         lock (_sync)
@@ -123,6 +134,16 @@ public sealed class FarmRuntimeState
     public void AddDevice(Device device)
     {
         lock (_sync) _devices.Add(device);
+        NotifyChanged();
+    }
+
+    public void UpsertDevice(Device device)
+    {
+        lock (_sync)
+        {
+            var index = _devices.FindIndex(x => x.Id == device.Id);
+            if (index >= 0) _devices[index] = device; else _devices.Add(device);
+        }
         NotifyChanged();
     }
 

@@ -55,11 +55,36 @@ public sealed class DeviceCommandService
             PondId = device.PondId,
             DeviceId = device.Id,
             RequestedState = requestedState,
+            PreviousState = device.Status,
             Status = "pending",
             Transport = transportName,
             RequestedBy = requestedBy,
             CreatedAtUtc = DateTime.UtcNow
         };
+
+        var isAutomation = requestedBy.Equals("automation-engine", StringComparison.OrdinalIgnoreCase);
+        if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
+        {
+            command.Status = "blocked-by-local-override";
+            command.Error = "Thiết bị đang ở Physical/Local Manual; AquaOps chỉ được giám sát.";
+            await CompleteAsync(command, device, reason, null, ct);
+            return command;
+        }
+        if (isAutomation && device.Mode != "auto")
+        {
+            command.Status = "suppressed"; command.Error = "Automation bị chặn vì thiết bị không ở AUTO.";
+            await CompleteAsync(command, device, reason, null, ct); return command;
+        }
+        if (!isAutomation && device.Mode is not ("manual" or "remote-manual"))
+        {
+            command.Status = "blocked"; command.Error = "START/STOP từ web chỉ khả dụng ở Remote Manual.";
+            await CompleteAsync(command, device, reason, null, ct); return command;
+        }
+        if (!device.IsRemoteControlAllowed && device.LastSeenAtUtc.HasValue)
+        {
+            command.Status = "blocked"; command.Error = "PLC đang chặn quyền điều khiển từ xa.";
+            await CompleteAsync(command, device, reason, null, ct); return command;
+        }
 
         if (!_transports.TryGetValue(transportName, out var transport))
         {
@@ -141,6 +166,46 @@ public sealed class DeviceCommandService
         return command;
     }
 
+    /// <summary>Changes AUTO/Remote Manual only after PLC feedback confirms the requested mode.</summary>
+    public async Task<DeviceCommand> SetModeAsync(string deviceId, string requestedMode, string requestedBy,
+        string reason, CancellationToken ct = default)
+    {
+        if (requestedMode is not ("auto" or "remote-manual")) throw new ArgumentOutOfRangeException(nameof(requestedMode));
+        var device = _runtime.Devices.FirstOrDefault(x => x.Id == deviceId)
+            ?? throw new InvalidOperationException("Không tìm thấy thiết bị cần đổi mode.");
+        var transportName = string.IsNullOrWhiteSpace(device.ControlTransport) ? _options.CurrentValue.DefaultTransport : device.ControlTransport;
+        var command = new DeviceCommand
+        {
+            PondId = device.PondId, DeviceId = device.Id, RequestedState = $"mode:{requestedMode}",
+            PreviousState = device.Mode,
+            Status = "pending", Transport = transportName, RequestedBy = requestedBy, CreatedAtUtc = DateTime.UtcNow
+        };
+        if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
+        { command.Status = "blocked-by-local-override"; command.Error = "Physical/Local Manual đang hoạt động."; await CompleteAsync(command, device, reason, null, ct); return command; }
+        if (!_options.CurrentValue.HardwareControlEnabled)
+        { command.Status = "blocked"; command.Error = "HardwareControlEnabled=false."; await CompleteAsync(command, device, reason, null, ct); return command; }
+        if (!_transports.TryGetValue(transportName, out var raw) || raw is not IDeviceModeTransport transport)
+        { command.Status = "failed"; command.Error = $"Transport '{transportName}' không hỗ trợ mode ACK."; await CompleteAsync(command, device, reason, null, ct); return command; }
+        try { await _repository.UpsertDeviceCommandAsync(command, ct); }
+        catch (Exception ex) { _logger.LogError(ex, "Không lưu được mode intent {CommandId}.", command.Id); command.Status = "blocked"; command.Error = "Không lưu được intent; không gửi PLC."; _runtime.AddDeviceCommand(command); return command; }
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _options.CurrentValue.CommandTimeoutSeconds)));
+            var result = await transport.SetModeAsync(new DeviceTransportRequest(device, requestedMode, requestedBy, reason,
+                TimeSpan.FromSeconds(_options.CurrentValue.CommandTimeoutSeconds)), timeout.Token);
+            command.Status = result.Success ? "completed" : result.Status; command.SentAtUtc = result.SentAtUtc;
+            command.AcknowledgedAtUtc = result.AcknowledgedAtUtc; command.CompletedAtUtc = result.Success ? result.AcknowledgedAtUtc : null; command.Error = result.Error;
+            Device? updated = null;
+            if (result.Success) updated = _runtime.UpdateDevice(device.Id, x => { x.Mode = requestedMode; x.ReportedMode = requestedMode; x.LastSeenAtUtc = DateTime.UtcNow; });
+            await CompleteAsync(command, device, reason, updated, ct); return command;
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        { command.Status = "timeout"; command.Error = "PLC không ACK mode trong thời gian cấu hình."; await CompleteAsync(command, device, reason, null, ct); return command; }
+        catch (Exception ex)
+        { command.Status = "failed"; command.Error = ex.Message; await CompleteAsync(command, device, reason, null, ct); return command; }
+    }
+
     private async Task CompleteAsync(DeviceCommand command, Device device, string reason, Device? updated, CancellationToken ct)
     {
         _runtime.AddDeviceCommand(command);
@@ -172,7 +237,7 @@ public sealed class DeviceCommandService
         EntityType = "device",
         EntityId = device.Id,
         PondId = device.PondId,
-        PreviousValue = device.Status,
+        PreviousValue = command.PreviousState,
         // Keep the command intent in the audit entry without coupling AuditLog to a transport schema.
         NewValue = string.IsNullOrWhiteSpace(reason) ? command.RequestedState : $"{command.RequestedState} · {reason}",
         Result = command.Status

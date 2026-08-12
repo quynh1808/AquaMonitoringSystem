@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @inject FarmStateService State
 @inject NavigationManager Navigation
+@inject SystemConfigurationService Configuration
 @implements IDisposable
 
 <PageTitle>@(Pond?.Name ?? "Ao nuôi") · AquaOps</PageTitle>
@@ -29,14 +30,8 @@ else
 
     @if (CurrentSection == "overview")
     {
-        <div class="metric-grid six">
-            <SensorMetricCard Metric="dissolvedOxygen" Label="Oxy hòa tan" Icon="O₂" Value="Telemetry.DissolvedOxygen" />
-            <SensorMetricCard Metric="ph" Label="Độ pH" Icon="pH" Value="Telemetry.Ph" />
-            <SensorMetricCard Metric="temperature" Label="Nhiệt độ" Icon="°C" Value="Telemetry.Temperature" />
-            <SensorMetricCard Metric="salinity" Label="Độ mặn" Icon="S" Value="Telemetry.Salinity" />
-            <SensorMetricCard Metric="ammonia" Label="Amoniac NH₃" Icon="N" Value="Telemetry.Ammonia" />
-            <SensorMetricCard Metric="waterLevel" Label="Mực nước" Icon="↕" Value="Telemetry.WaterLevel" />
-        </div>
+        <div class="metric-grid six">@foreach(var sensor in PondSensors.Where(x=>x.IsEnabled&&!x.IsArchived)){<SensorMetricCard Metric="@sensor.Metric" Label="@sensor.Name" Icon="@MetricIcon(sensor.Metric)" Value="@MetricValue(sensor.Metric)" />}</div>
+        @if(PondSensors.Count==0){<section class="empty-state panel"><div class="empty-icon">⌁</div><h3>Ao chưa có cảm biến</h3><p>Administrator khai báo sensor, socket và channel trước khi node gửi dữ liệu.</p></section>}
         <div class="pond-overview-grid">
             <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">24H TREND</span><h2>Xu hướng oxy hòa tan</h2></div><a href="@($"/pond/{Id}/sensors")">Mở cảm biến →</a></div><TrendChart Points="OverviewTrend" Unit="@OverviewMetricUnit" Digits="@OverviewMetricDigits" /></section>
             <section class="panel device-quick-panel"><div class="panel-heading"><div><span class="eyebrow">DEVICE STATUS</span><h2>Thiết bị chính</h2></div><a href="@($"/pond/{Id}/devices")">Quản lý →</a></div>@foreach(var d in PondDevices.Take(4)){<article><span class="device-symbol">@DeviceSymbol(d.Type)</span><div><strong>@d.Name</strong><small>@FarmStateService.GetDeviceTypeLabel(d.Type) · @d.Mode.ToUpperInvariant()</small></div><b class="@(d.Status=="on"?"success-text":"")">@(d.Status=="on"?"ĐANG BẬT":"ĐANG TẮT")</b></article>}</section>
@@ -45,23 +40,23 @@ else
     }
     else if (CurrentSection == "sensors")
     {
-        <header class="section-page-heading"><div><span class="eyebrow">SENSOR MONITORING</span><h2>Giám sát cảm biến · @Pond.Name</h2><p>Theo dõi dữ liệu đã ingest, lịch sử MongoDB và mô phỏng thủ công của riêng ao này.</p></div></header>
-        <div class="metric-grid six">
-            <SensorMetricCard Metric="dissolvedOxygen" Label="Oxy hòa tan" Icon="O₂" Value="Telemetry.DissolvedOxygen" />
-            <SensorMetricCard Metric="ph" Label="Độ pH" Icon="pH" Value="Telemetry.Ph" />
-            <SensorMetricCard Metric="temperature" Label="Nhiệt độ" Icon="°C" Value="Telemetry.Temperature" />
-            <SensorMetricCard Metric="salinity" Label="Độ mặn" Icon="S" Value="Telemetry.Salinity" />
-            <SensorMetricCard Metric="ammonia" Label="Amoniac" Icon="N" Value="Telemetry.Ammonia" />
-            <SensorMetricCard Metric="waterLevel" Label="Mực nước" Icon="↕" Value="Telemetry.WaterLevel" />
+        <header class="section-page-heading"><div><span class="eyebrow">SENSOR MONITORING</span><h2>Giám sát cảm biến · @Pond.Name</h2><p>Chỉ hiển thị cảm biến đã được admin ánh xạ tới socket và ChannelId thực tế.</p></div><AuthorizeView Roles="Administrator"><div class="heading-actions"><button class="button ghost" @onclick="()=>showAlarmPolicy=true">Ngưỡng cảnh báo ao</button><button class="button primary" @onclick="OpenAddSensor">＋ Thêm cảm biến</button></div></AuthorizeView></header>
+        <div class="sensor-admin-grid">
+        @foreach(var sensor in PondSensors.Where(x=>!x.IsArchived))
+        {
+            var health=SensorHealth(sensor.Id);
+            <article class="panel sensor-admin-card"><div class="sensor-card-heading"><SensorMetricCard Metric="@sensor.Metric" Label="@sensor.Name" Icon="@MetricIcon(sensor.Metric)" Value="@MetricValue(sensor.Metric)" /><span class="status-pill @SensorStatusClass(sensor)">@sensor.Status.ToUpperInvariant()</span></div><dl class="device-specs"><div><dt>Sensor ID</dt><dd>@sensor.Id</dd></div><div><dt>Node / Channel</dt><dd>@sensor.NodeId / @sensor.ChannelId</dd></div><div><dt>Socket</dt><dd>@sensor.SocketId</dd></div><div><dt>Chu kỳ</dt><dd>@(sensor.PublishIntervalSeconds==0?"Chưa cấu hình":$"{sensor.PublishIntervalSeconds} giây")</dd></div><div><dt>Desired / Reported</dt><dd>v@sensor.DesiredConfigurationVersion / v@sensor.ReportedConfigurationVersion</dd></div><div><dt>Last good</dt><dd>@(health?.LastGoodSampleAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss")??sensor.LastSeenAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss")??"Chưa có")</dd></div><div><dt>Driver / Bus</dt><dd>@(health is null?"Chưa báo":$"{health.DriverStatus} / {health.BusStatus}")</dd></div><div><dt>Physical limits</dt><dd>@sensor.MinValidValue – @sensor.MaxValidValue @sensor.Unit</dd></div></dl>@if(!string.IsNullOrWhiteSpace(health?.ErrorMessage)){<p class="connection-error">@health.ErrorCode · @health.ErrorMessage</p>}<AuthorizeView Roles="Administrator"><div class="device-actions"><button class="button ghost small" @onclick="()=>OpenEditSensor(sensor)">Chỉnh sửa</button><button class="button ghost small" @onclick="()=>BeginMaintenance(sensor)">Thay cảm biến</button></div></AuthorizeView></article>
+        }
         </div>
+        @if(PondSensors.Count==0){<section class="empty-state panel"><div class="empty-icon">⌁</div><h2>Chưa có cảm biến</h2><p>Nhấn “Thêm cảm biến”; chu kỳ 0 nghĩa là ESP32 chưa đọc hoặc gửi channel đó.</p></section>}
         <div class="two-column-layout">
-            <section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">HISTORICAL DATA</span><h2>@MetricLabel trong 24 giờ</h2></div><div class="segmented-control">@foreach(var metric in Metrics){<button class="@(chartMetric==metric.Id?"active":"")" @onclick="()=>chartMetric=metric.Id">@metric.Short</button>}</div></div><TrendChart Points="Trend" Unit="@MetricUnit" Digits="@MetricDigits" /></section>
+            @if(PondSensors.Count>0){<section class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow">HISTORICAL DATA</span><h2>@MetricLabel trong 24 giờ</h2></div><div class="segmented-control">@foreach(var metric in PondMetrics){<button class="@(chartMetric==metric.Id?"active":"")" @onclick="()=>chartMetric=metric.Id">@metric.Short</button>}</div></div><TrendChart Points="Trend" Unit="@MetricUnit" Digits="@MetricDigits" /></section>}
         </div>
     }
     else if (CurrentSection == "devices")
     {
-        <header class="section-page-heading"><div><span class="eyebrow">DEVICE CONTROL</span><h2>Điều khiển thiết bị · @Pond.Name</h2><p>Mỗi thao tác chỉ tác động đến thiết bị được gán cho ao này.</p></div><AuthorizeView Roles="Administrator,FarmManager"><button class="button primary" @onclick="()=>showAddDevice=true">＋ Thêm thiết bị</button></AuthorizeView></header>
-        <div class="device-grid">@foreach(var d in PondDevices){<article class="device-card @(d.Status=="on"?"is-on":"")"><div class="device-card-top"><span class="device-symbol">@DeviceSymbol(d.Type)</span><div><span class="status-pill @(d.Status=="on"?"success":"")">@(d.Status=="on"?"ĐANG CHẠY":"DỪNG")</span><h3>@d.Name</h3><p>@FarmStateService.GetDeviceTypeLabel(d.Type) · @d.PowerKw.ToString("N1",Vi) kW</p></div></div><AuthorizeView Roles="Administrator,FarmManager,Technician"><div class="device-control-row"><button class="mode-button" @onclick="async ()=>await State.ToggleDeviceModeAsync(d.Id)">Chế độ: <b>@d.Mode.ToUpperInvariant()</b></button><button class="power-button @(d.Status=="on"?"on":"")" @onclick="async ()=>await State.ToggleDeviceAsync(d.Id)">@(d.Status=="on"?"TẮT":"BẬT")</button></div></AuthorizeView></article>}</div>
+        <header class="section-page-heading"><div><span class="eyebrow">DEVICE CONTROL</span><h2>Điều khiển thiết bị · @Pond.Name</h2><p>Mỗi thao tác chỉ tác động đến thiết bị được gán cho ao này.</p></div><AuthorizeView Roles="Administrator"><button class="button primary" @onclick="()=>showAddDevice=true">＋ Thêm thiết bị</button></AuthorizeView></header>
+        <div class="device-grid">@foreach(var d in PondDevices){<article class="device-card @(d.Status=="on"?"is-on":"")"><div class="device-card-top"><span class="device-symbol">@DeviceSymbol(d.Type)</span><div><span class="status-pill @(d.Status=="on"?"success":"")">@(d.Status=="on"?"ĐANG CHẠY":"DỪNG")</span><h3>@d.Name</h3><p>@FarmStateService.GetDeviceTypeLabel(d.Type) · @d.PowerKw.ToString("N1",Vi) kW</p></div></div><dl class="device-specs"><div><dt>Mode reported</dt><dd>@d.ReportedMode</dd></div><div><dt>PLC</dt><dd>@d.ConnectionStatus</dd></div></dl>@if(d.IsLocalOverrideActive){<p class="physical-lock">Physical Override — chỉ giám sát.</p>}<AuthorizeView Roles="Administrator,FarmManager,Technician"><div class="device-control-row"><a class="button primary" href="/devices">Mở bảng điều khiển an toàn</a></div></AuthorizeView></article>}</div>
         <section class="panel automation-panel"><div class="panel-heading"><div><span class="eyebrow">AUTOMATION LOG</span><h2>Nhật ký tự động hóa của ao</h2></div></div>@foreach(var log in State.AutomationLogs.Where(x=>x.PondId==Id).Take(10)){<article class="log-row"><time>@log.Timestamp.ToLocalTime().ToString("dd/MM HH:mm:ss")</time><p>@log.Message</p></article>}</section>
     }
     else if (CurrentSection == "feeding")
@@ -76,6 +71,9 @@ else
     }
 </section>
 <AddDeviceModal @bind-IsOpen="showAddDevice" PondId="@Id" PondName="@Pond.Name" />
+<AddSensorModal @bind-IsOpen="showAddSensor" PondId="@Id" PondName="@Pond.Name" Existing="@editingSensor" />
+<SensorReplacementModal @bind-IsOpen="showReplacement" Sensor="@replacementSensor" />
+<PondAlarmPolicyModal @bind-IsOpen="showAlarmPolicy" PondId="@Id" PondName="@Pond.Name" Sensors="@PondSensors" />
 }
 </AuthGate>
 
@@ -85,7 +83,7 @@ else
     private readonly CultureInfo Vi=CultureInfo.GetCultureInfo("vi-VN");
     private string CurrentSection => (Section ?? "overview").ToLowerInvariant() is "overview" or "sensors" or "devices" or "feeding" or "alerts" ? (Section ?? "overview").ToLowerInvariant() : "overview";
     private Pond? Pond=>State.Ponds.FirstOrDefault(p=>p.Id==Id); private TelemetryData Telemetry=>State.GetTelemetry(Id);
-    private List<Device> PondDevices=>State.Devices.Where(d=>d.PondId==Id).ToList(); private List<AlertItem> PondAlerts=>State.Alerts.Where(a=>a.PondId==Id&&!a.IsResolved).OrderByDescending(a=>a.Timestamp).ToList(); private List<FeedLog> PondFeedLogs=>State.FeedLogs.Where(f=>f.PondId==Id).OrderByDescending(f=>f.Timestamp).ToList();
+    private List<Device> PondDevices=>State.Devices.Where(d=>d.PondId==Id).ToList(); private List<SensorDefinition>PondSensors=>State.Sensors.Where(s=>s.PondId==Id&&!s.IsArchived).ToList(); private List<AlertItem> PondAlerts=>State.Alerts.Where(a=>a.PondId==Id&&!a.IsResolved).OrderByDescending(a=>a.Timestamp).ToList(); private List<FeedLog> PondFeedLogs=>State.FeedLogs.Where(f=>f.PondId==Id).OrderByDescending(f=>f.Timestamp).ToList();
     private int DaysOfCulture=>Pond is null?0:Math.Max(0,DateOnly.FromDateTime(DateTime.Today).DayNumber-Pond.StockingDate.DayNumber);
     private int HealthScore => State.CalculateHealthScore(Telemetry);
     private string HealthLabel
@@ -104,12 +102,18 @@ else
             return HealthScore >= options.StableMinimum ? "good" : HealthScore >= options.MonitorMinimum ? "medium" : "poor";
         }
     }
-    private bool showAddDevice; private string chartMetric="dissolvedOxygen"; private AddFeedRequest feedModel=new(); private string initializedId=""; private string feedMessage="";
+    private bool showAddDevice,showAddSensor,showReplacement,showAlarmPolicy; private SensorDefinition?editingSensor,replacementSensor; private List<SensorHealthSnapshot>sensorHealth=[]; private string chartMetric="dissolvedOxygen"; private AddFeedRequest feedModel=new(); private string initializedId=""; private string feedMessage="";
     private static readonly (string Id,string Short,string Label)[] Metrics=[("dissolvedOxygen","DO","Oxy hòa tan"),("ph","pH","Độ pH"),("temperature","Nhiệt","Nhiệt độ"),("salinity","Mặn","Độ mặn"),("ammonia","NH₃","Amoniac"),("waterLevel","Mực nước","Mực nước")];
-    private IReadOnlyList<TrendPoint> OverviewTrend=>State.GetTrend(Id,"dissolvedOxygen"); private string OverviewMetricUnit=>State.GetThreshold("dissolvedOxygen").Unit; private int OverviewMetricDigits=>State.GetThreshold("dissolvedOxygen").DecimalPlaces; private IReadOnlyList<TrendPoint> Trend=>State.GetTrend(Id,chartMetric); private string MetricLabel=>Metrics.First(x=>x.Id==chartMetric).Label; private string MetricUnit=>State.GetThreshold(chartMetric).Unit; private int MetricDigits=>State.GetThreshold(chartMetric).DecimalPlaces;
+    private IReadOnlyList<(string Id,string Short,string Label)> PondMetrics=>Metrics.Where(m=>PondSensors.Any(s=>s.Metric==m.Id)).ToList();
+    private IReadOnlyList<TrendPoint> OverviewTrend=>State.GetTrend(Id,PondMetrics.FirstOrDefault().Id??"dissolvedOxygen"); private string OverviewMetricUnit=>State.GetThreshold(PondMetrics.FirstOrDefault().Id??"dissolvedOxygen").Unit; private int OverviewMetricDigits=>State.GetThreshold(PondMetrics.FirstOrDefault().Id??"dissolvedOxygen").DecimalPlaces; private IReadOnlyList<TrendPoint> Trend=>State.GetTrend(Id,chartMetric); private string MetricLabel=>Metrics.FirstOrDefault(x=>x.Id==chartMetric).Label??chartMetric; private string MetricUnit=>State.GetThreshold(chartMetric).Unit; private int MetricDigits=>State.GetThreshold(chartMetric).DecimalPlaces;
     protected override void OnInitialized()=>State.Changed+=Changed;
-    protected override void OnParametersSet(){if(Pond is null)return;State.SelectPond(Id);if(initializedId!=Id){initializedId=Id;feedModel=new(){PondId=Id,FeedType="Thức ăn tăng trọng cỡ 1,5 mm",AmountKg=20};}}
+    protected override async Task OnParametersSetAsync(){if(Pond is null)return;State.SelectPond(Id);if(initializedId!=Id){initializedId=Id;feedModel=new(){PondId=Id,FeedType="Thức ăn tăng trọng cỡ 1,5 mm",AmountKg=20};chartMetric=PondSensors.FirstOrDefault()?.Metric??"dissolvedOxygen";}sensorHealth=await Configuration.GetSensorHealthAsync();}
     private async Task SubmitFeed(){feedModel.PondId=Id;await State.AddFeedLogAsync(feedModel);feedMessage=$"Đã lưu {feedModel.AmountKg:N1} kg lúc {DateTime.Now:HH:mm}.";feedModel=new(){PondId=Id,FeedType=feedModel.FeedType,AmountKg=feedModel.AmountKg};}
     private static string DeviceSymbol(string type)=>type switch{"aerator"=>"◌","auto_feeder"=>"◉","water_pump"=>"↥","light"=>"☼",_=>"≈"};
+    private static string MetricIcon(string metric)=>metric switch{"dissolvedOxygen"=>"O₂","ph"=>"pH","temperature"=>"°C","salinity"=>"S","ammonia"=>"N","waterLevel"=>"↕",_=>"⌁"};
+    private double MetricValue(string metric)=>metric switch{"dissolvedOxygen"=>Telemetry.DissolvedOxygen,"ph"=>Telemetry.Ph,"temperature"=>Telemetry.Temperature,"salinity"=>Telemetry.Salinity,"ammonia"=>Telemetry.Ammonia,"waterLevel"=>Telemetry.WaterLevel,_=>0};
+    private static string SensorStatusClass(SensorDefinition s)=>s.Status=="online"?"success":s.Status is "fault" or "disconnected"?"danger":s.Status=="maintenance"?"warning":"muted";
+    private SensorHealthSnapshot? SensorHealth(string sensorId)=>sensorHealth.FirstOrDefault(x=>x.SensorId==sensorId);
+    private void OpenAddSensor(){editingSensor=null;showAddSensor=true;}private void OpenEditSensor(SensorDefinition s){editingSensor=s;showAddSensor=true;}private void BeginMaintenance(SensorDefinition s){replacementSensor=s;showReplacement=true;}
     private void Changed()=>InvokeAsync(StateHasChanged); public void Dispose()=>State.Changed-=Changed;
 }

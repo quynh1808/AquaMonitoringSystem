@@ -27,3 +27,9 @@ public interface IDeviceCommandTransport
     string Name { get; }
     Task<DeviceTransportResult> SendAsync(DeviceTransportRequest request, CancellationToken cancellationToken);
 }
+
+/// <summary>Optional PLC capability for acknowledged AUTO/Remote Manual mode changes.</summary>
+public interface IDeviceModeTransport
+{
+    Task<DeviceTransportResult> SetModeAsync(DeviceTransportRequest request, CancellationToken cancellationToken);
+}

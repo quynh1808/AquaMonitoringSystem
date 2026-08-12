@@ -23,13 +23,15 @@ public sealed class SensorOfflineMonitor : BackgroundService
 	private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
 
 	private readonly AlertNotificationService _notifications;
+	private readonly AutomationEngineService _automation;
 
-	public SensorOfflineMonitor(FarmRuntimeState runtime, FarmRepository repository, IOptionsMonitor<SystemBehaviorOptions> behavior, AlertNotificationService notifications)
+	public SensorOfflineMonitor(FarmRuntimeState runtime, FarmRepository repository, IOptionsMonitor<SystemBehaviorOptions> behavior, AlertNotificationService notifications, AutomationEngineService automation)
 	{
 		_runtime = runtime;
 		_repository = repository;
 		_behavior = behavior;
 		_notifications = notifications;
+		_automation = automation;
 	}
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,9 +43,10 @@ public sealed class SensorOfflineMonitor : BackgroundService
 		while (!stoppingToken.IsCancellationRequested)
 		{
 			SystemBehaviorOptions options = _behavior.CurrentValue;
-			DateTime cutoff = DateTime.UtcNow.AddSeconds(-options.SensorOfflineAfterSeconds);
 			List<SensorDefinition> sensors = _runtime.Sensors;
-			foreach (SensorDefinition sensor in sensors.Where((SensorDefinition x) => x.IsEnabled && (!x.LastSeenAtUtc.HasValue || x.LastSeenAtUtc.Value < cutoff) && x.Status != "offline"))
+			foreach (SensorDefinition sensor in sensors.Where(x => x.IsEnabled && !x.IsArchived && x.PublishIntervalSeconds > 0 &&
+				x.Status is not ("maintenance" or "not-configured" or "unavailable-via-node") &&
+				(!x.LastSeenAtUtc.HasValue || x.LastSeenAtUtc.Value < DateTime.UtcNow.AddSeconds(-Math.Max(5, x.OfflineTimeoutSeconds))) && x.Status != "offline"))
 			{
 				SensorDefinition? sensorDefinition = _runtime.UpdateSensor(sensor.Id, delegate(SensorDefinition x)
 				{
@@ -80,6 +83,7 @@ public sealed class SensorOfflineMonitor : BackgroundService
 					{
 						await _notifications.SendAsync(alert, stoppingToken);
 					}
+					await _automation.HandleInputFailureAsync(sensor, "offline", stoppingToken);
 				}
 			}
 			List<SensorDefinition> refreshedSensors = _runtime.Sensors;
@@ -90,7 +94,7 @@ public sealed class SensorOfflineMonitor : BackgroundService
 				{
 					continue;
 				}
-				int num = list.Count((SensorDefinition x) => x.LastSeenAtUtc.HasValue && x.LastSeenAtUtc.Value >= cutoff && x.Status == "online");
+				int num = list.Count(x => x.LastSeenAtUtc.HasValue && x.LastSeenAtUtc.Value >= DateTime.UtcNow.AddSeconds(-Math.Max(5, x.OfflineTimeoutSeconds)) && x.Status == "online");
 				bool expectedOnline = num > 0;
 				TelemetryData telemetry = _runtime.GetTelemetry(pond2.Id);
 				int num2 = num;

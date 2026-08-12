@@ -17,6 +17,16 @@
             <NavLink href="/dashboard" Match="NavLinkMatch.All"><span>▦</span> Dashboard tổng</NavLink>
         </nav>
 
+        <AuthorizeView Roles="Administrator">
+            <div class="nav-caption">THIẾT LẬP HỆ THỐNG</div>
+            <nav class="main-nav" @onclick="CloseSidebar">
+                <NavLink href="/admin/settings/general"><span>⚙</span> Thiết lập chung</NavLink>
+                <NavLink href="/admin/settings/connections"><span>⌁</span> Network & Connections</NavLink>
+                <NavLink href="/admin/settings/nodes"><span>▣</span> Edge nodes</NavLink>
+                <NavLink href="/admin/settings/logs"><span>▤</span> Nhật ký hệ thống</NavLink>
+            </nav>
+        </AuthorizeView>
+
         <button class="sidebar-section-toggle @(analyticsOpen ? "expanded" : string.Empty)" @onclick="ToggleAnalytics">
             <span><i>⌗</i> Phân tích tổng thể</span><b>⌄</b>
         </button>

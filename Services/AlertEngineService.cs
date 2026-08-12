@@ -35,13 +35,15 @@ public sealed class AlertEngineService
 	private readonly ConcurrentDictionary<string, CandidateState> _states = new ConcurrentDictionary<string, CandidateState>(StringComparer.OrdinalIgnoreCase);
 
 	private readonly AlertNotificationService _notifications;
+	private readonly SystemConfigurationRepository _configuration;
 
-	public AlertEngineService(FarmRuntimeState runtime, FarmRepository repository, IOptionsMonitor<SensorThresholdCatalog> catalog, AlertNotificationService notifications)
+	public AlertEngineService(FarmRuntimeState runtime, FarmRepository repository, IOptionsMonitor<SensorThresholdCatalog> catalog, AlertNotificationService notifications, SystemConfigurationRepository configuration)
 	{
 		_runtime = runtime;
 		_repository = repository;
 		_catalog = catalog;
 		_notifications = notifications;
+		_configuration = configuration;
 	}
 
 	public async Task EvaluateAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
@@ -50,7 +52,21 @@ public sealed class AlertEngineService
 		{
 			return;
 		}
-		AlertCondition? condition = EvaluateCondition(reading.Value, value);
+		var configuredRule = await _configuration.GetAlarmRuleAsync(sensor.PondId, sensor.Metric, ct);
+		if (configuredRule is not null)
+		{
+			value = new MetricThresholdOptions
+			{
+				DisplayName = value.DisplayName, Unit = value.Unit, DecimalPlaces = value.DecimalPlaces,
+				ValidMin = value.ValidMin, ValidMax = value.ValidMax,
+				WarningLow = configuredRule.WarningLow, WarningHigh = configuredRule.WarningHigh,
+				CriticalLow = configuredRule.CriticalLow, CriticalHigh = configuredRule.CriticalHigh,
+				Hysteresis = configuredRule.Hysteresis, DelaySeconds = configuredRule.DelaySeconds,
+				CooldownSeconds = configuredRule.CooldownSeconds, WarningMessage = value.WarningMessage,
+				CriticalMessage = value.CriticalMessage, ProposedSolution = value.ProposedSolution
+			};
+		}
+		AlertCondition? condition = configuredRule?.IsEnabled == false ? null : EvaluateCondition(reading.Value, value);
 		string key = sensor.PondId + ":" + sensor.Metric;
 		AlertItem? active = _runtime.GetActiveAlert(sensor.PondId, sensor.Metric);
 		if (condition is null)

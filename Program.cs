@@ -24,10 +24,8 @@ var builder = WebApplication.CreateBuilder(hostArguments);
 
 builder.Configuration
     .AddJsonFile("Config/sensor-thresholds.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/sensor-connections.json", optional: false, reloadOnChange: true)
     .AddJsonFile("Config/system-behavior.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/authentication.json", optional: false, reloadOnChange: true)
-    .AddJsonFile("Config/device-control.json", optional: false, reloadOnChange: true);
+    .AddJsonFile("Config/authentication.json", optional: false, reloadOnChange: true);
 
 builder.Services
     .AddRazorComponents()
@@ -43,8 +41,6 @@ builder.Services.AddOptions<AlertNotificationOptions>()
     .Bind(builder.Configuration.GetSection(AlertNotificationOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SensorThresholdCatalog>()
     .Bind(builder.Configuration.GetSection(SensorThresholdCatalog.SectionName)).ValidateOnStart();
-builder.Services.AddOptions<SensorConnectionOptions>()
-    .Bind(builder.Configuration.GetSection(SensorConnectionOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<SystemBehaviorOptions>()
     .Bind(builder.Configuration.GetSection(SystemBehaviorOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<AquaAuthenticationOptions>()
@@ -56,13 +52,13 @@ builder.Services.AddSingleton<IValidateOptions<MongoDbOptions>, MongoDbOptionsVa
 builder.Services.AddSingleton<IValidateOptions<OperationalModeOptions>, OperationalModeOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<AlertNotificationOptions>, AlertNotificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorThresholdCatalog>, SensorThresholdCatalogValidator>();
-builder.Services.AddSingleton<IValidateOptions<SensorConnectionOptions>, SensorConnectionOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SystemBehaviorOptions>, SystemBehaviorOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<AquaAuthenticationOptions>, AuthenticationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<DeviceControlOptions>, DeviceControlOptionsValidator>();
 
 builder.Services.AddSingleton<MongoContext>();
 builder.Services.AddSingleton<FarmRepository>();
+builder.Services.AddSingleton<SystemConfigurationRepository>();
 builder.Services.AddSingleton<MongoDatabaseInitializer>();
 builder.Services.AddSingleton<FarmRuntimeState>();
 builder.Services.AddSingleton<SensorMessageBus>();
@@ -81,6 +77,8 @@ builder.Services.AddSingleton<ModbusTcpProtocol>();
 builder.Services.AddSingleton<IDeviceCommandTransport, Fx5uModbusTcpDeviceTransport>();
 builder.Services.AddSingleton<DeviceCommandService>();
 builder.Services.AddSingleton<OperationalModeGuard>();
+builder.Services.AddSingleton<SecretProtectionService>();
+builder.Services.AddScoped<SystemConfigurationService>();
 
 // Persist cookie encryption keys outside the container's writable layer so deployments and
 // container recreation do not invalidate every active session. Production overrides this path.
@@ -148,9 +146,8 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton<MongoWriteQueue>();
 builder.Services.AddSingleton<IMongoWriteQueue>(sp => sp.GetRequiredService<MongoWriteQueue>());
 
-builder.Services.AddSingleton<ISensorDataSource, MqttSensorSource>();
-builder.Services.AddSingleton<ISensorDataSource, ModbusTcpSensorSource>();
-builder.Services.AddSingleton<ISensorDataSource, ModbusRtuSensorSource>();
+// Node-specific connections are reconciled from MongoDB. Legacy JSON connection files are not
+// registered as active data sources and remain documentation/migration references only.
 
 builder.Services.AddScoped<FarmStateService>();
 builder.Services.AddHealthChecks().AddCheck<MongoDbHealthCheck>("mongodb", tags: ["ready"]);
@@ -158,10 +155,10 @@ builder.Services.AddHealthChecks().AddCheck<MongoDbHealthCheck>("mongodb", tags:
 builder.Services.AddHostedService<MongoBootstrapHostedService>();
 builder.Services.AddHostedService<MongoWriteQueue>(sp => sp.GetRequiredService<MongoWriteQueue>());
 builder.Services.AddHostedService<SensorIngestionWorker>();
-builder.Services.AddHostedService<SensorSourceCoordinator>();
 builder.Services.AddHostedService<SensorOfflineMonitor>();
 builder.Services.AddHostedService<AssetMaintenanceMonitor>();
-builder.Services.AddHostedService<Fx5uPlcMonitor>();
+builder.Services.AddHostedService<DynamicMqttConnectionSupervisor>();
+builder.Services.AddHostedService<DynamicModbusConnectionSupervisor>();
 
 var app = builder.Build();
 app.Services.GetRequiredService<OperationalModeGuard>().Validate();

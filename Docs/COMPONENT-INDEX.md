@@ -1,5 +1,17 @@
 # Chỉ mục tài liệu component và module
 
+## Commissioning động
+
+- `Components/Pages/SystemConnections.razor`: broker/socket CRUD, trạng thái, Apply và log.
+- `Components/Pages/SystemNodes.razor`: capability channels do edge báo cáo.
+- `Components/Shared/AddSensorModal.razor`: sensor động theo socket/node/channel/interval.
+- `Components/Shared/SensorReplacementModal.razor`: lifecycle thay probe và InstallationId.
+- `Components/Pages/DeviceAutomation.razor`: AUTO policy và anti-chattering.
+- `Sensors/DynamicMqttConnectionSupervisor.cs`: broker sessions, node identity, health/config/sync.
+- `Devices/DynamicModbusConnectionSupervisor.cs`: polling, state reconcile và PLC config handshake.
+- `Services/SystemConfigurationService.cs`: validation, mutation và audit.
+- `Docs/DYNAMIC-COMMISSIONING.md`: runbook vận hành.
+
 ## Khởi động và cấu hình
 
 - `Program.md`

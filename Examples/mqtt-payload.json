@@ -1,5 +1,8 @@
 {
   "sensorId": "sensor_pond_01_dissolvedOxygen",
+  "socketId": "socket-sensor-node-01",
+  "nodeId": "sensor-node-01",
+  "installationId": "replace-with-active-installation-id",
   "pondId": "pond_01",
   "metric": "dissolvedOxygen",
   "unit": "mg/L",

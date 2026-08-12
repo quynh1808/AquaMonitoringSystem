@@ -46,6 +46,18 @@ public sealed class MongoContext
     public IMongoCollection<GrowthSample> GrowthSamples => Database.GetCollection<GrowthSample>("growth_samples");
     public IMongoCollection<MortalityRecord> MortalityRecords => Database.GetCollection<MortalityRecord>("mortality_records");
     public IMongoCollection<HarvestRecord> HarvestRecords => Database.GetCollection<HarvestRecord>("harvest_records");
+    // Runtime connection configuration is stored separately from application configuration so
+    // an administrator can commission or replace field nodes without rebuilding the container.
+    public IMongoCollection<MqttBrokerProfile> MqttBrokerProfiles => Database.GetCollection<MqttBrokerProfile>("mqtt_broker_profiles");
+    public IMongoCollection<NodeSocket> NodeSockets => Database.GetCollection<NodeSocket>("node_sockets");
+    public IMongoCollection<NodeCapabilitySnapshot> NodeCapabilities => Database.GetCollection<NodeCapabilitySnapshot>("node_capabilities");
+    public IMongoCollection<ConfigurationDeployment> ConfigurationDeployments => Database.GetCollection<ConfigurationDeployment>("configuration_deployments");
+    public IMongoCollection<ConnectionLogEntry> ConnectionLogs => Database.GetCollection<ConnectionLogEntry>("connection_logs");
+    public IMongoCollection<SensorHealthSnapshot> SensorHealthSnapshots => Database.GetCollection<SensorHealthSnapshot>("sensor_health_snapshots");
+    public IMongoCollection<SensorHealthEvent> SensorHealthEvents => Database.GetCollection<SensorHealthEvent>("sensor_health_events");
+    public IMongoCollection<SensorInstallation> SensorInstallations => Database.GetCollection<SensorInstallation>("sensor_installations");
+    public IMongoCollection<QuarantinedNodeMessage> QuarantinedNodeMessages => Database.GetCollection<QuarantinedNodeMessage>("unassigned_node_messages");
+    public IMongoCollection<DeviceAutomationPolicy> AutomationPolicies => Database.GetCollection<DeviceAutomationPolicy>("automation_policies");
     public IMongoCollection<InventoryItem> InventoryItems => Database.GetCollection<InventoryItem>("inventory_items");
     public IMongoCollection<InventoryTransaction> InventoryTransactions => Database.GetCollection<InventoryTransaction>("inventory_transactions");
     public IMongoCollection<AquaticHealthEvent> HealthEvents => Database.GetCollection<AquaticHealthEvent>("health_events");

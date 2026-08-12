@@ -1,5 +1,10 @@
 # Runbook build trên Windows và deploy HTTP LAN trên Ubuntu
 
+> Từ phiên bản commissioning động, `Config/sensor-connections.json` và
+> `Config/device-control.json` đã được loại bỏ. Sau deploy, Administrator tạo broker/socket và PLC
+> mapping tại **Thiết lập hệ thống → Network & Connections**. Xem
+> `Docs/DYNAMIC-COMMISSIONING.md` trước khi kết nối ESP32 hoặc PLC.
+
 Tài liệu này là quy trình tổng hợp từ đầu đến cuối cho AquaOps. Đây là tài liệu ưu tiên khi build, phát hành, triển khai, cập nhật và xử lý các lỗi vận hành thường gặp.
 
 ## 1. Mô hình triển khai
@@ -85,7 +90,7 @@ Tại root có `AquacultureMonitoring.sln`:
 
 ```powershell
 dotnet restore AquacultureMonitoring.sln --locked-mode
-dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet build AquacultureMonitoring.sln -c Release --no-restore -m:1
 dotnet test Tests\AquacultureMonitoring.Tests.csproj `
   -c Release `
   --no-build `
@@ -390,9 +395,6 @@ AQUAOPS_ADMIN_PASSWORD='replace-with-long-random-admin-password'
 AQUAOPS_ADMIN_DISPLAY_NAME='Quản trị hệ thống'
 
 HARDWARE_CONTROL_ENABLED=false
-FX5U_HOST=192.168.100.81
-FX5U_PORT=1502
-FX5U_UNIT_ID=1
 ```
 
 Giữ cấu hình trên trong toàn bộ giai đoạn phát triển, chạy thử và shadow telemetry. Khi đã hoàn tất commissioning sensor/PLC thật, chuyển sang profile production bằng cách thêm vào `.env`:
@@ -550,7 +552,7 @@ HTTP không mã hóa password/cookie trên đường truyền. Chỉ dùng trên
 ```powershell
 git pull --ff-only origin main
 dotnet restore AquacultureMonitoring.sln --locked-mode
-dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet build AquacultureMonitoring.sln -c Release --no-restore -m:1
 dotnet test Tests\AquacultureMonitoring.Tests.csproj -c Release --no-build --no-restore
 
 git add -A

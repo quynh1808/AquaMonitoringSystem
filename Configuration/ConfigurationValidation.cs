@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Options;
-using AquacultureMonitoring.Sensors;
 
 namespace AquacultureMonitoring.Configuration;
 
@@ -72,73 +71,6 @@ public sealed class SensorThresholdCatalogValidator : IValidateOptions<SensorThr
     }
 }
 
-public sealed class SensorConnectionOptionsValidator : IValidateOptions<SensorConnectionOptions>
-{
-    private static readonly HashSet<string> SupportedSources = new(StringComparer.OrdinalIgnoreCase)
-        { "mqtt", "modbus-tcp", "modbus-rtu" };
-    private static readonly HashSet<string> SupportedDataTypes = new(StringComparer.OrdinalIgnoreCase)
-        { "UInt16", "Int16", "UInt32", "Int32", "Float32", "Float64" };
-    private static readonly HashSet<string> SupportedMetrics = new(StringComparer.OrdinalIgnoreCase)
-        { "temperature", "ph", "dissolvedOxygen", "salinity", "ammonia", "waterLevel" };
-    private static readonly Dictionary<string, ushort> RequiredRegisterCounts = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["UInt16"] = 1, ["Int16"] = 1, ["UInt32"] = 2, ["Int32"] = 2,
-        ["Float32"] = 2, ["Float64"] = 4
-    };
-
-    public ValidateOptionsResult Validate(string? name, SensorConnectionOptions options)
-    {
-        var errors = new List<string>();
-        foreach (var source in options.ActiveSources.Where(x => !SupportedSources.Contains(x)))
-            errors.Add($"SensorConnections: ActiveSources chứa nguồn không hỗ trợ '{source}'.");
-
-        if (options.Mqtt.Enabled && (string.IsNullOrWhiteSpace(options.Mqtt.Host) || options.Mqtt.Port is <= 0 or > 65535 || string.IsNullOrWhiteSpace(options.Mqtt.TopicFilter)))
-            errors.Add("SensorConnections:Mqtt cần Host, Port và TopicFilter hợp lệ.");
-        if (options.ActiveSources.Contains("mqtt", StringComparer.OrdinalIgnoreCase) && !options.Mqtt.Enabled)
-            errors.Add("ActiveSources có 'mqtt' nhưng SensorConnections:Mqtt:Enabled đang false.");
-
-        var connectionIds = options.ModbusTcp.Select(x => x.Id).Concat(options.ModbusRtu.Select(x => x.Id)).ToList();
-        if (connectionIds.Any(string.IsNullOrWhiteSpace) || connectionIds.Count != connectionIds.Distinct(StringComparer.OrdinalIgnoreCase).Count())
-            errors.Add("Mỗi kết nối Modbus phải có Id duy nhất và không được để trống.");
-
-        foreach (var tcp in options.ModbusTcp)
-        {
-            if (tcp.Enabled && (string.IsNullOrWhiteSpace(tcp.Host) || tcp.Port is <= 0 or > 65535))
-                errors.Add($"Modbus TCP '{tcp.Id}' cần Host và Port hợp lệ.");
-            if (tcp.PollIntervalMilliseconds < 100 || tcp.TimeoutMilliseconds <= 0)
-                errors.Add($"Modbus TCP '{tcp.Id}' có PollInterval/Timeout không hợp lệ.");
-        }
-        foreach (var rtu in options.ModbusRtu)
-        {
-            if (rtu.Enabled && string.IsNullOrWhiteSpace(rtu.PortName)) errors.Add($"Modbus RTU '{rtu.Id}' thiếu PortName.");
-            if (!Enum.TryParse<System.IO.Ports.Parity>(rtu.Parity, true, out _)) errors.Add($"Modbus RTU '{rtu.Id}' có Parity không hợp lệ.");
-            if (!Enum.TryParse<System.IO.Ports.StopBits>(rtu.StopBits, true, out _)) errors.Add($"Modbus RTU '{rtu.Id}' có StopBits không hợp lệ.");
-            if (rtu.BaudRate <= 0 || rtu.DataBits is < 5 or > 8 || rtu.PollIntervalMilliseconds < 100 || rtu.TimeoutMilliseconds <= 0)
-                errors.Add($"Modbus RTU '{rtu.Id}' có thông số serial/polling không hợp lệ.");
-        }
-
-        var mappings = options.ModbusTcp.SelectMany(x => x.Mappings)
-            .Concat(options.ModbusRtu.SelectMany(x => x.Mappings)).ToList();
-        foreach (var mapping in mappings)
-        {
-            if (string.IsNullOrWhiteSpace(mapping.SensorId) || string.IsNullOrWhiteSpace(mapping.PondId) || string.IsNullOrWhiteSpace(mapping.Metric))
-                errors.Add("Mỗi Modbus mapping phải có SensorId, PondId và Metric.");
-            if (!SupportedMetrics.Contains(mapping.Metric))
-                errors.Add($"{mapping.SensorId}: Metric '{mapping.Metric}' không được hỗ trợ.");
-            if (!SupportedDataTypes.Contains(mapping.DataType))
-                errors.Add($"{mapping.SensorId}: DataType '{mapping.DataType}' không được hỗ trợ.");
-            else if (RequiredRegisterCounts[mapping.DataType] != mapping.RegisterCount)
-                errors.Add($"{mapping.SensorId}: {mapping.DataType} cần RegisterCount={RequiredRegisterCounts[mapping.DataType]}.");
-            else if (!ModbusCodec.IsValidByteOrder(mapping.DataType, mapping.ByteOrder))
-                errors.Add($"{mapping.SensorId}: ByteOrder '{mapping.ByteOrder}' không hợp lệ cho {mapping.DataType}.");
-            if (mapping.Scale == 0) errors.Add($"{mapping.SensorId}: Scale không được bằng 0.");
-        }
-        if (mappings.Select(x => x.SensorId).Count() != mappings.Select(x => x.SensorId).Distinct(StringComparer.OrdinalIgnoreCase).Count())
-            errors.Add("SensorId trong các Modbus mapping phải là duy nhất.");
-        return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
-    }
-}
-
 public sealed class SystemBehaviorOptionsValidator : IValidateOptions<SystemBehaviorOptions>
 {
     public ValidateOptionsResult Validate(string? name, SystemBehaviorOptions options)
@@ -154,11 +86,6 @@ public sealed class SystemBehaviorOptionsValidator : IValidateOptions<SystemBeha
             errors.Add("Giới hạn timestamp telemetry không hợp lệ.");
         if (options.HealthScore.MonitorMinimum >= options.HealthScore.StableMinimum)
             errors.Add("HealthScore: MonitorMinimum phải nhỏ hơn StableMinimum.");
-        foreach (var policy in options.AutomationPolicies)
-        {
-            if (string.IsNullOrWhiteSpace(policy.Metric) || policy.DeviceTypes.Count == 0)
-                errors.Add("Mỗi AutomationPolicy cần Metric và ít nhất một DeviceType.");
-        }
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }
@@ -174,23 +101,6 @@ public sealed class DeviceControlOptionsValidator : IValidateOptions<DeviceContr
             errors.Add("DeviceControl:DefaultTransport không được để trống.");
         if (options.CommandTimeoutSeconds is < 1 or > 300)
             errors.Add("DeviceControl:CommandTimeoutSeconds phải trong khoảng 1–300 giây.");
-        if (string.IsNullOrWhiteSpace(options.Fx5u.Host) || options.Fx5u.Port is <= 0 or > 65535)
-            errors.Add("DeviceControl:Fx5u cần Host và Port hợp lệ.");
-        if (options.Fx5u.UnitId == 0)
-            errors.Add("DeviceControl:Fx5u:UnitId phải lớn hơn 0.");
-        if (options.Fx5u.Devices.Count == 0 || options.Fx5u.Devices.Select(x => x.DeviceId)
-                .Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Fx5u.Devices.Count)
-            errors.Add("DeviceControl:Fx5u:Devices phải có DeviceId duy nhất và không được rỗng.");
-        foreach (var mapping in options.Fx5u.Devices)
-        {
-            try
-            {
-                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.CommandDevice);
-                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.FeedbackDevice);
-                _ = AquacultureMonitoring.Devices.Fx5uModbusTcpDeviceTransport.ToModbusCoilAddress(mapping.FaultDevice);
-            }
-            catch (FormatException ex) { errors.Add($"{mapping.DeviceId}: {ex.Message}"); }
-        }
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }

@@ -1,0 +1,51 @@
+@if (isOpen)
+{
+    <div class="modal-layer" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <button class="modal-backdrop" @onclick="() => Complete(false)" aria-label="Đóng"></button>
+        <section class="modal-card compact confirm-card @severity">
+            <div class="modal-heading">
+                <span class="eyebrow">XÁC NHẬN THAO TÁC</span>
+                <h2 id="confirm-title">@title</h2>
+                <p>@message</p>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(details)) { <pre class="confirm-details">@details</pre> }
+            @if (requireReason)
+            {
+                <label class="confirm-reason">Lý do thực hiện
+                    <textarea @bind="reason" rows="3" placeholder="Nhập lý do để lưu audit..."></textarea>
+                </label>
+            }
+            <div class="modal-actions">
+                <button type="button" class="button ghost" @onclick="() => Complete(false)">Hủy</button>
+                <button type="button" class="button @(severity == "danger" ? "danger" : "primary")"
+                        disabled="@(requireReason && string.IsNullOrWhiteSpace(reason))" @onclick="() => Complete(true)">@confirmLabel</button>
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    private bool isOpen; private string title = string.Empty; private string message = string.Empty;
+    private string details = string.Empty; private string severity = "normal"; private string confirmLabel = "Xác nhận";
+    private bool requireReason; private string reason = string.Empty;
+    private TaskCompletionSource<ConfirmationResult>? completion;
+
+    /// <summary>Displays one shared confirmation surface and returns the operator's decision.</summary>
+    public Task<ConfirmationResult> ShowAsync(string dialogTitle, string dialogMessage, string? detailText = null,
+        string level = "normal", bool reasonRequired = false, string actionLabel = "Xác nhận")
+    {
+        completion?.TrySetResult(new(false, string.Empty));
+        title = dialogTitle; message = dialogMessage; details = detailText ?? string.Empty; severity = level;
+        requireReason = reasonRequired; confirmLabel = actionLabel; reason = string.Empty; isOpen = true;
+        completion = new(TaskCreationOptions.RunContinuationsAsynchronously); StateHasChanged();
+        return completion.Task;
+    }
+
+    private void Complete(bool confirmed)
+    {
+        if (!isOpen) return; isOpen = false;
+        completion?.TrySetResult(new(confirmed, reason.Trim())); completion = null;
+    }
+
+    public sealed record ConfirmationResult(bool Confirmed, string Reason);
+}

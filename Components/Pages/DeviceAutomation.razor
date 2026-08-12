@@ -1,0 +1,80 @@
+@page "/devices/{DeviceId}/automation"
+@attribute [Authorize(Roles = "Administrator")]
+@inject FarmStateService State
+@inject SystemConfigurationService Configuration
+
+<PageTitle>Điều kiện AUTO · AquaOps</PageTitle>
+<AuthGate>
+<section class="page-stack">
+    <header class="page-heading">
+        <div><span class="eyebrow">AUTOMATION POLICY</span><h1>@(Device?.Name ?? "Thiết bị")</h1><p>Rule builder giới hạn với hysteresis, persistence, min ON/OFF và lockout.</p></div>
+        <a class="button ghost" href="/devices">← Thiết bị</a>
+    </header>
+    @if (Device is not null)
+    {
+        <div class="two-column-layout">
+            <section class="panel form-panel">
+                <div class="panel-heading"><div><span class="eyebrow">POLICY EDITOR</span><h2>Điều kiện vận hành AUTO</h2></div></div>
+                <EditForm Model="model" OnValidSubmit="Save">
+                    <DataAnnotationsValidator />
+                    <div class="cycle-form-grid">
+                        <label>Tên policy<InputText @bind-Value="model.Name" /></label>
+                        <label>Cảm biến<InputSelect @bind-Value="model.SensorId" @bind-Value:after="SensorChanged"><option value="">-- Chọn sensor --</option>@foreach (var sensor in Sensors) { <option value="@sensor.Id">@sensor.Name · @sensor.Id</option> }</InputSelect></label>
+                        <label>Chiều kích hoạt<InputSelect @bind-Value="model.TriggerDirection"><option value="low">Bật khi giá trị thấp</option><option value="high">Bật khi giá trị cao</option></InputSelect></label>
+                        <label>Ngưỡng START<InputNumber @bind-Value="model.StartThreshold" /></label>
+                        <label>Ngưỡng STOP<InputNumber @bind-Value="model.StopThreshold" /></label>
+                        <label>Duy trì trước START (giây)<InputNumber @bind-Value="model.StartPersistenceSeconds" /></label>
+                        <label>Duy trì trước STOP (giây)<InputNumber @bind-Value="model.StopPersistenceSeconds" /></label>
+                        <label>Minimum ON (giây)<InputNumber @bind-Value="model.MinimumOnSeconds" /></label>
+                        <label>Minimum OFF (giây)<InputNumber @bind-Value="model.MinimumOffSeconds" /></label>
+                        <label>Tối đa START/giờ<InputNumber @bind-Value="model.MaximumStartsPerHour" /></label>
+                        <label>Sensor lỗi
+                            <InputSelect @bind-Value="model.InputFailureAction">
+                                <option value="alert-only">Chỉ cảnh báo</option><option value="hold">Giữ trạng thái</option>
+                                <option value="safe-off">Safe OFF</option><option value="safe-on">Safe ON</option>
+                                <option value="switch-to-remote-manual">Chuyển Remote Manual</option><option value="use-backup">Dùng sensor backup</option>
+                            </InputSelect>
+                        </label>
+                        <label class="check-label"><InputCheckbox @bind-Value="model.IsEnabled" /> Enable policy</label>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(error)) { <p class="auth-error">@error</p> }
+                    <div class="modal-actions"><button class="button primary" type="submit">Lưu policy</button></div>
+                </EditForm>
+            </section>
+            <section class="panel">
+                <div class="panel-heading"><div><span class="eyebrow">RUNTIME STATE</span><h2>Chống đóng cắt liên tục</h2></div></div>
+                <dl class="device-specs"><div><dt>State</dt><dd>@model.RuntimeState</dd></div><div><dt>Hysteresis</dt><dd>@model.StartThreshold → @model.StopThreshold</dd></div><div><dt>Starts 1 giờ</dt><dd>@model.RecentStartTimesUtc.Count / @model.MaximumStartsPerHour</dd></div><div><dt>Transition cuối</dt><dd>@(model.LastTransitionAtUtc?.ToLocalTime().ToString("dd/MM HH:mm:ss") ?? "Chưa có")</dd></div></dl>
+                <p class="form-notice">PLC vẫn phải có interlock và anti-short-cycle độc lập. Server không thay thế bảo vệ điện/cơ khí.</p>
+            </section>
+        </div>
+    }
+    <ConfirmActionDialog @ref="confirmation" />
+</section>
+</AuthGate>
+
+@code {
+    [Parameter] public string DeviceId { get; set; } = string.Empty;
+    private Device? Device => State.Devices.FirstOrDefault(x => x.Id == DeviceId);
+    private List<SensorDefinition> Sensors => State.Sensors.Where(x => x.PondId == Device?.PondId && x.IsEnabled && !x.IsArchived).ToList();
+    private DeviceAutomationPolicy model = new(); private ConfirmActionDialog? confirmation; private string error = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await State.InitializeUserAsync(); if (Device is null) return;
+        var existing = (await Configuration.GetAutomationPoliciesAsync(DeviceId)).FirstOrDefault();
+        model = existing ?? new DeviceAutomationPolicy { Name = $"AUTO · {Device.Name}", PondId = Device.PondId,
+            DeviceId = Device.Id, StartPersistenceSeconds = 60, StopPersistenceSeconds = 180,
+            MinimumOnSeconds = 600, MinimumOffSeconds = 300, MaximumStartsPerHour = 4 };
+    }
+
+    private void SensorChanged() { var sensor = Sensors.FirstOrDefault(x => x.Id == model.SensorId); if (sensor is not null) model.Metric = sensor.Metric; }
+    private async Task Save()
+    {
+        error = string.Empty;
+        var result = await confirmation!.ShowAsync("Lưu điều kiện AUTO?", $"Policy {model.Name} sẽ điều khiển {Device?.Name}.",
+            $"START {model.TriggerDirection} {model.StartThreshold} sau {model.StartPersistenceSeconds}s\nSTOP {model.StopThreshold} sau {model.StopPersistenceSeconds}s\nMin ON/OFF {model.MinimumOnSeconds}/{model.MinimumOffSeconds}s · max {model.MaximumStartsPerHour} START/giờ\nSensor lỗi: {model.InputFailureAction}",
+            model.InputFailureAction is "safe-on" or "safe-off" ? "danger" : "warning", true, "Lưu policy");
+        if (!result.Confirmed) return;
+        try { await Configuration.SaveAutomationPolicyAsync(model); } catch (Exception ex) { error = ex.Message; }
+    }
+}

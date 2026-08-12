@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
+#include "aqua_provisioning.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_wifi.h"
@@ -17,23 +18,38 @@
 #include "lwip/inet.h"
 
 /* This is a deliberately small FX5U-compatible test endpoint, not a complete PLC emulator.
- * It implements only FC01, FC03 and FC05 required by AquaOps commissioning. */
+ * It implements FC01/FC03/FC05/FC06 required by AquaOps commissioning and config ACK. */
 #define WIFI_CONNECTED_BIT BIT0
 #define FX5_M_BASE 0x2000
 #define FX5_M_COUNT 7680
 #define COIL_BYTES ((FX5_M_COUNT + 7) / 8)
 #define D_HEARTBEAT_ADDRESS 100
+#define D_REGISTER_COUNT 256
+#define M_CONFIG_REQUEST 50
+#define M_APPLY_REQUEST 51
+#define M_APPLY_ACK 52
+#define M_CONFIG_ERROR 53
+#define D_DESIRED_VERSION 110
+#define D_APPLIED_VERSION 111
+#define D_ERROR_CODE 112
+#define M_MANUAL_START 100
+#define M_MANUAL_STOP 101
+#define M_LOCAL_OVERRIDE 200
+#define M_REMOTE_ALLOWED 201
+#define M_AUTO_REQUEST 210
+#define M_AUTO_FEEDBACK 211
+#define M_RUN_FEEDBACK 300
+#define M_FAULT 400
 
 static const char *TAG = "fx5u_sim";
 static EventGroupHandle_t wifi_events;
 static SemaphoreHandle_t register_lock;
 static uint8_t coils[COIL_BYTES];
-static uint16_t heartbeat;
+static uint16_t holding[D_REGISTER_COUNT];
 static TickType_t last_master_activity;
-
-static const uint16_t command_m[] = { 100, 200, 300 };
-static const uint16_t feedback_m[] = { 101, 201, 301 };
-static const uint16_t fault_m[] = { 102, 202, 302 };
+static aqua_bootstrap_config_t bootstrap;
+static bool motor_running;
+static bool previous_start, previous_stop, previous_apply;
 
 static uint16_t read_be16(const uint8_t *p) { return ((uint16_t)p[0] << 8) | p[1]; }
 static void write_be16(uint8_t *p, uint16_t value) { p[0] = value >> 8; p[1] = value & 0xff; }
@@ -46,11 +62,10 @@ static void coil_set(uint16_t m, bool value)
 
 static bool is_writeable_m(uint16_t m)
 {
-    /* AquaOps writes command coils. Fault coils are also writable so a commissioning laptop can
-     * inject failures; feedback coils remain read-only and are owned by the PLC scan. */
-    for (size_t i = 0; i < 3; ++i)
-        if (m == command_m[i] || m == fault_m[i]) return true;
-    return false;
+    /* Request coils are writable by AquaOps. Local/fault bits are writable only in this simulator
+     * so a commissioning laptop can emulate the physical selector and protection relay. */
+    return m == M_APPLY_REQUEST || m == M_MANUAL_START || m == M_MANUAL_STOP ||
+        m == M_AUTO_REQUEST || m == M_LOCAL_OVERRIDE || m == M_REMOTE_ALLOWED || m == M_FAULT;
 }
 
 static void wifi_event_handler(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -74,9 +89,8 @@ static void start_wifi(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL));
     wifi_config_t config = { 0 };
-    snprintf((char *)config.sta.ssid, sizeof(config.sta.ssid), "%s", CONFIG_PLC_WIFI_SSID);
-    snprintf((char *)config.sta.password, sizeof(config.sta.password), "%s", CONFIG_PLC_WIFI_PASSWORD);
-    config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+    snprintf((char *)config.sta.ssid, sizeof(config.sta.ssid), "%s", bootstrap.wifi_ssid);
+    snprintf((char *)config.sta.password, sizeof(config.sta.password), "%s", bootstrap.wifi_password);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &config));
     ESP_ERROR_CHECK(esp_wifi_start());
@@ -144,15 +158,23 @@ static size_t process_pdu(const uint8_t *request, size_t length, uint8_t *respon
     }
 
     if (function == 0x03) {
-        if (address != D_HEARTBEAT_ADDRESS || value_or_count != 1) {
+        if (value_or_count == 0 || value_or_count > 32 || (uint32_t)address + value_or_count > D_REGISTER_COUNT) {
             xSemaphoreGive(register_lock);
             return modbus_exception(function, 0x02, response);
         }
         response[0] = function;
-        response[1] = 2;
-        write_be16(response + 2, heartbeat);
+        response[1] = value_or_count * 2;
+        for (uint16_t i = 0; i < value_or_count; ++i) write_be16(response + 2 + i * 2, holding[address + i]);
         xSemaphoreGive(register_lock);
-        return 4;
+        return 2 + value_or_count * 2;
+    }
+
+    if (function == 0x06) {
+        if (address >= D_REGISTER_COUNT || (address != D_DESIRED_VERSION && address != D_ERROR_CODE)) {
+            xSemaphoreGive(register_lock); return modbus_exception(function, 0x02, response);
+        }
+        holding[address] = value_or_count; memcpy(response, request, 5);
+        xSemaphoreGive(register_lock); return 5;
     }
 
     xSemaphoreGive(register_lock);
@@ -213,13 +235,23 @@ static void plc_scan_task(void *arg)
         xSemaphoreTake(register_lock, portMAX_DELAY);
         const bool watchdog_expired = (xTaskGetTickCount() - last_master_activity) >
             pdMS_TO_TICKS(CONFIG_PLC_WATCHDOG_SECONDS * 1000);
-        for (size_t i = 0; i < 3; ++i) {
-            if (watchdog_expired) coil_set(command_m[i], false);
-            /* A fault always forces feedback OFF, matching a normally-open fail-safe output. */
-            coil_set(feedback_m[i], !coil_get(fault_m[i]) && coil_get(command_m[i]));
+        const bool start = coil_get(M_MANUAL_START), stop = coil_get(M_MANUAL_STOP), apply = coil_get(M_APPLY_REQUEST);
+        const bool local = coil_get(M_LOCAL_OVERRIDE), remote_allowed = coil_get(M_REMOTE_ALLOWED);
+        if (apply && !previous_apply) {
+            holding[D_APPLIED_VERSION] = holding[D_DESIRED_VERSION]; holding[D_ERROR_CODE] = 0;
+            coil_set(M_APPLY_ACK, true); coil_set(M_CONFIG_ERROR, false); coil_set(M_CONFIG_REQUEST, false);
         }
+        if (!apply) coil_set(M_APPLY_ACK, false);
+        if (!local && remote_allowed && !watchdog_expired && !coil_get(M_FAULT)) {
+            /* Rising-edge request semantics prevent a held/replayed command from retriggering. */
+            if (stop && !previous_stop) motor_running = false;
+            else if (start && !previous_start) motor_running = true;
+        }
+        if (coil_get(M_FAULT)) motor_running = false;
+        coil_set(M_RUN_FEEDBACK, motor_running); coil_set(M_AUTO_FEEDBACK, coil_get(M_AUTO_REQUEST) && !local);
+        previous_start = start; previous_stop = stop; previous_apply = apply;
         if (xTaskGetTickCount() - heartbeat_tick >= pdMS_TO_TICKS(1000)) {
-            heartbeat++;
+            holding[D_HEARTBEAT_ADDRESS]++;
             heartbeat_tick = xTaskGetTickCount();
         }
         xSemaphoreGive(register_lock);
@@ -229,9 +261,13 @@ static void plc_scan_task(void *arg)
 
 void app_main(void)
 {
-    ESP_ERROR_CHECK(nvs_flash_init());
+    esp_err_t init = nvs_flash_init();
+    if (init == ESP_ERR_NVS_NO_FREE_PAGES || init == ESP_ERR_NVS_NEW_VERSION_FOUND) { ESP_ERROR_CHECK(nvs_flash_erase()); ESP_ERROR_CHECK(nvs_flash_init()); }
+    aqua_provisioning_start_console(false);
+    if (!aqua_provisioning_load(&bootstrap, false)) { ESP_LOGE(TAG, "Thiếu Wi-Fi/node bootstrap NVS; provision qua UART rồi restart."); while (true) vTaskDelay(pdMS_TO_TICKS(1000)); }
     wifi_events = xEventGroupCreate();
     register_lock = xSemaphoreCreateMutex();
+    coil_set(M_REMOTE_ALLOWED, true); /* Physical program default for the commissioning simulator. */
     start_wifi();
     xTaskCreate(plc_scan_task, "plc_scan", 3072, NULL, 8, NULL);
     xTaskCreate(modbus_server_task, "modbus_tcp", 6144, NULL, 5, NULL);

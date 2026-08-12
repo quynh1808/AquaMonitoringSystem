@@ -1,0 +1,55 @@
+@inject FarmStateService State
+@inject SystemConfigurationService Configuration
+
+@if (IsOpen)
+{
+    <div class="modal-layer" role="dialog" aria-modal="true">
+        <button class="modal-backdrop" @onclick="Close" aria-label="Đóng"></button>
+        <section class="modal-card">
+            <button class="modal-close" @onclick="Close">×</button>
+            <div class="modal-heading"><span class="eyebrow">SENSOR COMMISSIONING</span><h2>@(Existing is null ? "Thêm cảm biến" : "Chỉnh sửa cảm biến")</h2><p>@PondName</p></div>
+            <EditForm Model="model" OnValidSubmit="RequestSave"><DataAnnotationsValidator />
+                <div class="form-grid">
+                    <label>Sensor ID<InputText @bind-Value="model.Id" disabled="@(Existing is not null)" placeholder="do-pond-01" /></label>
+                    <label>Tên cảm biến<InputText @bind-Value="model.Name" placeholder="Oxy hòa tan đầu ao" /></label>
+                    <label>Socket<InputSelect @bind-Value="model.SocketId" @bind-Value:after="SocketChanged"><option value="">-- Chọn socket --</option>@foreach(var s in sockets.Where(x=>x.PondId==PondId)){<option value="@s.Id">@s.Name · @s.NodeId</option>}</InputSelect></label>
+                    <label>Node ID<InputText @bind-Value="model.NodeId" readonly /></label>
+                    <label>Channel ID<InputText @bind-Value="model.ChannelId" placeholder="adc-do-01" /></label>
+                    <label>Metric<InputSelect @bind-Value="model.Metric">@foreach(var m in Metrics){<option value="@m.Id">@m.Label</option>}</InputSelect></label>
+                    <label>Đơn vị<InputText @bind-Value="model.Unit" placeholder="mg/L" /></label>
+                    <label>Chu kỳ gửi (giây)<InputNumber @bind-Value="model.PublishIntervalSeconds" min="0" max="86400" /><small>0 = chưa cấu hình, ESP32 không đọc/gửi kênh này.</small></label>
+                    <label>Offline timeout (giây)<InputNumber @bind-Value="model.OfflineTimeoutSeconds" min="5" max="86400" /></label>
+                    <label>Scheduling<InputSelect @bind-Value="model.SchedulingMode"><option value="node-managed">Node managed</option><option value="server-polling">Server polling</option></InputSelect></label>
+                    <label>Vai trò<InputSelect @bind-Value="model.IsPrimary"><option value="true">Primary</option><option value="false">Backup</option></InputSelect></label>
+                    <label class="full">Ghi chú<InputTextArea @bind-Value="model.Notes" rows="3" /></label>
+                    <label class="check-label"><InputCheckbox @bind-Value="model.IsEnabled" /> Enable cảm biến</label>
+                </div>
+                @if(!string.IsNullOrWhiteSpace(error)){<p class="auth-error">@error</p>}
+                <div class="modal-actions"><button type="button" class="button ghost" @onclick="Close">Hủy</button><button type="submit" class="button primary">Tiếp tục</button></div>
+            </EditForm>
+        </section>
+        <ConfirmActionDialog @ref="confirmation" />
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public string PondId { get; set; } = string.Empty;
+    [Parameter] public string PondName { get; set; } = string.Empty;
+    [Parameter] public SensorDefinition? Existing { get; set; }
+    private SensorDefinition model = new(); private List<NodeSocket> sockets=[]; private string error=string.Empty;
+    private ConfirmActionDialog? confirmation; private string loadedKey=string.Empty;
+    private static readonly (string Id,string Label,string Unit)[] Metrics=[("dissolvedOxygen","Oxy hòa tan","mg/L"),("ph","Độ pH","pH"),("temperature","Nhiệt độ","°C"),("salinity","Độ mặn","ppt"),("ammonia","Amoniac","mg/L"),("waterLevel","Mực nước","m")];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key=$"{IsOpen}:{PondId}:{Existing?.Id}"; if(!IsOpen||key==loadedKey)return; loadedKey=key;
+        sockets=await Configuration.GetSocketsAsync();
+        model=Existing is null?new SensorDefinition{PondId=PondId,Metric="dissolvedOxygen",Unit="mg/L",IsEnabled=true,IsPrimary=true}:
+            new SensorDefinition{Id=Existing.Id,PondId=Existing.PondId,Name=Existing.Name,SocketId=Existing.SocketId,NodeId=Existing.NodeId,ChannelId=Existing.ChannelId,Metric=Existing.Metric,Unit=Existing.Unit,PublishIntervalSeconds=Existing.PublishIntervalSeconds,OfflineTimeoutSeconds=Existing.OfflineTimeoutSeconds,SchedulingMode=Existing.SchedulingMode,IsEnabled=Existing.IsEnabled,IsPrimary=Existing.IsPrimary,Notes=Existing.Notes,InstallationId=Existing.InstallationId};
+    }
+    private void SocketChanged(){model.NodeId=sockets.FirstOrDefault(x=>x.Id==model.SocketId)?.NodeId??string.Empty;}
+    private async Task RequestSave(){error=string.Empty;var result=await confirmation!.ShowAsync(Existing is null?"Thêm cảm biến?":"Lưu thay đổi cảm biến?",$"{model.Name} sẽ được ánh xạ tới {model.NodeId}/{model.ChannelId}.",$"Chu kỳ: {model.PublishIntervalSeconds}s\nMetric: {model.Metric}\nSocket: {model.SocketId}");if(!result.Confirmed)return;try{model.PondId=PondId;await Configuration.SaveSensorAsync(model,Existing is null);await Close();}catch(Exception ex){error=ex.Message;}}
+    private Task Close()=>IsOpenChanged.InvokeAsync(false);
+}

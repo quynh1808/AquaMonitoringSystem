@@ -1,23 +1,8 @@
 menu "AquaOps sensor node"
-    config AQUA_WIFI_SSID
-        string "Wi-Fi SSID"
-        default "CHANGE_ME"
-    config AQUA_WIFI_PASSWORD
-        string "Wi-Fi password"
-        default "CHANGE_ME"
-    config AQUA_MQTT_URI
-        string "MQTT broker URI"
-        default "mqtt://192.168.100.66:1883"
-    config AQUA_MQTT_USERNAME
-        string "MQTT username"
-        default "aquaops_gateway"
-    config AQUA_MQTT_PASSWORD
-        string "MQTT password"
-        default "CHANGE_ME"
-    config AQUA_FARM_ID
-        string "Farm ID"
-        default "farm_main"
-    config AQUA_POND_ID
-        string "Pond ID"
-        default "pond_01"
+    config AQUA_FLASH_BUFFER_CAPACITY
+        int "Durable offline record capacity"
+        range 32 512
+        default 128
+        help
+            Telemetry records retained in NVS until AquaOps returns an application-level ACK.
 endmenu

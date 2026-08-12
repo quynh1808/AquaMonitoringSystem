@@ -13,12 +13,12 @@ public sealed class FarmRepository
     {
         var pondsTask = _db.Ponds.Find(FilterDefinition<Pond>.Empty).ToListAsync(cancellationToken);
         var telemetryTask = _db.LatestTelemetry.Find(FilterDefinition<TelemetryData>.Empty).ToListAsync(cancellationToken);
-        var sensorsTask = _db.Sensors.Find(FilterDefinition<SensorDefinition>.Empty).ToListAsync(cancellationToken);
+        var sensorsTask = _db.Sensors.Find(x => !x.IsArchived).ToListAsync(cancellationToken);
         var readingsTask = _db.SensorReadings.Find(FilterDefinition<SensorReading>.Empty)
             .SortByDescending(x => x.Timestamp)
             .Limit(readingLimit)
             .ToListAsync(cancellationToken);
-        var devicesTask = _db.Devices.Find(FilterDefinition<Device>.Empty).ToListAsync(cancellationToken);
+        var devicesTask = _db.Devices.Find(x => !x.IsArchived).ToListAsync(cancellationToken);
         var commandsTask = _db.DeviceCommands.Find(FilterDefinition<DeviceCommand>.Empty)
             .SortByDescending(x => x.CreatedAtUtc).Limit(300).ToListAsync(cancellationToken);
         var alertsTask = _db.Alerts.Find(FilterDefinition<AlertItem>.Empty)

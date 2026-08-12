@@ -33,6 +33,8 @@ public sealed class MongoDatabaseInitializer
     {
         await _db.Database.RunCommandAsync<BsonDocument>(new BsonDocument("ping", 1), cancellationToken: cancellationToken);
         await NormalizeCycleOpenStateAsync(cancellationToken);
+        await ArchiveUnusedLegacySensorsAsync(cancellationToken);
+        await ArchiveUnusedLegacyDevicesAsync(cancellationToken);
         await CreateIndexesAsync(cancellationToken);
         await SynchronizeAlarmRulesAsync(cancellationToken);
 
@@ -41,6 +43,46 @@ public sealed class MongoDatabaseInitializer
             await SeedAsync(cancellationToken);
         }
         await BackfillFeedCycleIdsAsync(cancellationToken);
+    }
+
+    /// <summary>Archives untouched P03 demo actuators while preserving any command history.</summary>
+    private async Task ArchiveUnusedLegacyDevicesAsync(CancellationToken ct)
+    {
+        var legacyIds = new[] { "dev_01", "dev_02", "dev_03" };
+        var candidates = await _db.Devices.Find(x => legacyIds.Contains(x.Id) && !x.IsArchived &&
+            x.SocketId == string.Empty && x.LastSeenAtUtc == null).ToListAsync(ct);
+        foreach (var device in candidates)
+        {
+            var hasCommands = await _db.DeviceCommands.CountDocumentsAsync(x => x.DeviceId == device.Id,
+                new CountOptions { Limit = 1 }, ct) > 0;
+            if (hasCommands) continue;
+            await _db.Devices.UpdateOneAsync(x => x.Id == device.Id,
+                Builders<Device>.Update.Set(x => x.IsArchived, true).Set(x => x.IsEnabled, false)
+                    .Set(x => x.ConnectionStatus, "archived-legacy-placeholder").Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
+                cancellationToken: ct);
+            _logger.LogInformation("Đã archive legacy placeholder device {DeviceId}; không có command history.", device.Id);
+        }
+    }
+
+    /// <summary>
+    /// Old releases created six placeholder sensors per pond. Archive only untouched placeholders;
+    /// a sensor with readings is real historical data and is never altered automatically.
+    /// </summary>
+    private async Task ArchiveUnusedLegacySensorsAsync(CancellationToken ct)
+    {
+        var candidates = await _db.Sensors.Find(x => !x.IsArchived && x.SocketId == string.Empty &&
+            x.LastSeenAtUtc == null && (x.LastQuality == "no-data" || x.LastQuality == "unknown")).ToListAsync(ct);
+        foreach (var sensor in candidates.Where(x => x.Id == $"sensor_{x.PondId}_{x.Metric}"))
+        {
+            var hasReading = await _db.SensorReadings.CountDocumentsAsync(x => x.Metadata.SensorId == sensor.Id,
+                new CountOptions { Limit = 1 }, ct) > 0;
+            if (hasReading) continue;
+            await _db.Sensors.UpdateOneAsync(x => x.Id == sensor.Id,
+                Builders<SensorDefinition>.Update.Set(x => x.IsArchived, true).Set(x => x.IsEnabled, false)
+                    .Set(x => x.Status, "archived-legacy-placeholder").Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
+                cancellationToken: ct);
+            _logger.LogInformation("Đã archive legacy placeholder sensor {SensorId}; không có reading lịch sử.", sensor.Id);
+        }
     }
 
     private async Task NormalizeCycleOpenStateAsync(CancellationToken ct)
@@ -85,7 +127,13 @@ public sealed class MongoDatabaseInitializer
 
         await _db.Sensors.Indexes.CreateManyAsync([
             new CreateIndexModel<SensorDefinition>(Builders<SensorDefinition>.IndexKeys.Ascending(x => x.PondId).Ascending(x => x.Metric)),
-            new CreateIndexModel<SensorDefinition>(Builders<SensorDefinition>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.LastSeenAtUtc))
+            new CreateIndexModel<SensorDefinition>(Builders<SensorDefinition>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.LastSeenAtUtc)),
+            new CreateIndexModel<SensorDefinition>(Builders<SensorDefinition>.IndexKeys.Ascending(x => x.SocketId).Ascending(x => x.ChannelId),
+                new CreateIndexOptions<SensorDefinition> { Unique = true, Name = "ux_sensors_socket_channel_active",
+                    PartialFilterExpression = Builders<SensorDefinition>.Filter.And(
+                        Builders<SensorDefinition>.Filter.Eq(x => x.IsArchived, false),
+                        Builders<SensorDefinition>.Filter.Gt(x => x.SocketId, string.Empty),
+                        Builders<SensorDefinition>.Filter.Gt(x => x.ChannelId, string.Empty)) })
         ], cancellationToken: ct);
 
         await _db.SensorReadings.Indexes.CreateOneAsync(
@@ -150,6 +198,41 @@ public sealed class MongoDatabaseInitializer
         await _db.WorkOrders.Indexes.CreateOneAsync(new CreateIndexModel<FarmWorkOrder>(Builders<FarmWorkOrder>.IndexKeys.Ascending(x => x.Status).Ascending(x => x.DueAtUtc)), cancellationToken: ct);
         await _db.Expenses.Indexes.CreateOneAsync(new CreateIndexModel<FarmExpense>(Builders<FarmExpense>.IndexKeys.Ascending(x => x.CycleId).Descending(x => x.IncurredAtUtc)), cancellationToken: ct);
         await _db.HarvestLots.Indexes.CreateOneAsync(new CreateIndexModel<HarvestLot>(Builders<HarvestLot>.IndexKeys.Ascending(x => x.LotCode), new CreateIndexOptions { Unique = true }), cancellationToken: ct);
+
+        await _db.MqttBrokerProfiles.Indexes.CreateOneAsync(new CreateIndexModel<MqttBrokerProfile>(
+            Builders<MqttBrokerProfile>.IndexKeys.Ascending(x => x.Name), new CreateIndexOptions { Unique = true, Name = "ux_mqtt_broker_name" }), cancellationToken: ct);
+        await _db.NodeSockets.Indexes.CreateManyAsync([
+            new CreateIndexModel<NodeSocket>(Builders<NodeSocket>.IndexKeys.Ascending(x => x.NodeId).Ascending(x => x.Transport),
+                new CreateIndexOptions<NodeSocket> { Unique = true, Name = "ux_node_socket_identity",
+                    PartialFilterExpression = Builders<NodeSocket>.Filter.Eq(x => x.IsArchived, false) }),
+            new CreateIndexModel<NodeSocket>(Builders<NodeSocket>.IndexKeys.Ascending(x => x.PondId).Ascending(x => x.RuntimeStatus))
+        ], cancellationToken: ct);
+        await _db.ConfigurationDeployments.Indexes.CreateManyAsync([
+            new CreateIndexModel<ConfigurationDeployment>(Builders<ConfigurationDeployment>.IndexKeys.Ascending(x => x.CommandId),
+                new CreateIndexOptions { Unique = true, Name = "ux_configuration_command_id" }),
+            new CreateIndexModel<ConfigurationDeployment>(Builders<ConfigurationDeployment>.IndexKeys.Ascending(x => x.SocketId).Descending(x => x.CreatedAtUtc))
+        ], cancellationToken: ct);
+        await _db.ConnectionLogs.Indexes.CreateManyAsync([
+            new CreateIndexModel<ConnectionLogEntry>(Builders<ConnectionLogEntry>.IndexKeys.Ascending(x => x.SocketId).Descending(x => x.TimestampUtc)),
+            new CreateIndexModel<ConnectionLogEntry>(Builders<ConnectionLogEntry>.IndexKeys.Ascending(x => x.ExpiresAtUtc),
+                new CreateIndexOptions { Name = "ttl_connection_logs", ExpireAfter = TimeSpan.Zero })
+        ], cancellationToken: ct);
+        await _db.SensorHealthSnapshots.Indexes.CreateOneAsync(new CreateIndexModel<SensorHealthSnapshot>(
+            Builders<SensorHealthSnapshot>.IndexKeys.Ascending(x => x.SensorId), new CreateIndexOptions { Unique = true, Name = "ux_sensor_health_sensor" }), cancellationToken: ct);
+        await _db.SensorHealthEvents.Indexes.CreateManyAsync([
+            new CreateIndexModel<SensorHealthEvent>(Builders<SensorHealthEvent>.IndexKeys.Ascending(x => x.EventId),
+                new CreateIndexOptions<SensorHealthEvent> { Unique = true, Name = "ux_sensor_health_event_id",
+                    PartialFilterExpression = Builders<SensorHealthEvent>.Filter.Gt(x => x.EventId, string.Empty) }),
+            new CreateIndexModel<SensorHealthEvent>(Builders<SensorHealthEvent>.IndexKeys.Ascending(x => x.ExpiresAtUtc),
+                new CreateIndexOptions { Name = "ttl_sensor_health_events", ExpireAfter = TimeSpan.Zero })
+        ], cancellationToken: ct);
+        await _db.SensorInstallations.Indexes.CreateOneAsync(new CreateIndexModel<SensorInstallation>(
+            Builders<SensorInstallation>.IndexKeys.Ascending(x => x.SensorId).Descending(x => x.InstalledAtUtc)), cancellationToken: ct);
+        await _db.QuarantinedNodeMessages.Indexes.CreateOneAsync(new CreateIndexModel<QuarantinedNodeMessage>(
+            Builders<QuarantinedNodeMessage>.IndexKeys.Ascending(x => x.ExpiresAtUtc),
+            new CreateIndexOptions { Name = "ttl_unassigned_node_messages", ExpireAfter = TimeSpan.Zero }), cancellationToken: ct);
+        await _db.AutomationPolicies.Indexes.CreateOneAsync(new CreateIndexModel<DeviceAutomationPolicy>(
+            Builders<DeviceAutomationPolicy>.IndexKeys.Ascending(x => x.DeviceId).Ascending(x => x.IsEnabled)), cancellationToken: ct);
     }
 
 
@@ -269,7 +352,6 @@ public sealed class MongoDatabaseInitializer
             Notes = x.Notes
         }).ToList();
 
-        var sensors = new List<SensorDefinition>();
         var latest = new List<TelemetryData>();
         var now = DateTime.UtcNow;
 
@@ -286,39 +368,15 @@ public sealed class MongoDatabaseInitializer
                 SourceType = "mqtt"
             };
 
-            foreach (var pair in _thresholds.Metrics)
-            {
-                var metric = pair.Key;
-                var threshold = pair.Value;
-                var sensor = new SensorDefinition
-                {
-                    Id = $"sensor_{pond.Id}_{metric}",
-                    PondId = pond.Id,
-                    Name = $"{threshold.DisplayName} · {pond.Name}",
-                    Metric = metric,
-                    Unit = threshold.Unit,
-                    SourceType = "mqtt",
-                    ExternalAddress = $"mqtt://aquaculture/{seed.FarmId}/{pond.Id}/sensors/{metric}/telemetry",
-                    Status = "offline",
-                    FirmwareVersion = string.Empty,
-                    MinValidValue = threshold.ValidMin,
-                    MaxValidValue = threshold.ValidMax,
-                    LastQuality = "no-data",
-                    UpdatedAtUtc = now
-                };
-                sensors.Add(sensor);
-            }
-
             latest.Add(telemetry);
         }
 
         if (ponds.Count > 0) await _db.Ponds.InsertManyAsync(ponds, cancellationToken: ct);
         if (devices.Count > 0) await _db.Devices.InsertManyAsync(devices, cancellationToken: ct);
         if (feeds.Count > 0) await _db.FeedLogs.InsertManyAsync(feeds, cancellationToken: ct);
-        if (sensors.Count > 0) await _db.Sensors.InsertManyAsync(sensors, cancellationToken: ct);
         if (latest.Count > 0) await _db.LatestTelemetry.InsertManyAsync(latest, cancellationToken: ct);
 
-        _logger.LogInformation("Đã tạo dữ liệu MongoDB ban đầu cho {PondCount} ao và {SensorCount} cảm biến.", ponds.Count, sensors.Count);
+        _logger.LogInformation("Đã tạo dữ liệu MongoDB ban đầu cho {PondCount} ao; cảm biến chỉ được tạo khi admin khai báo.", ponds.Count);
     }
 
 }

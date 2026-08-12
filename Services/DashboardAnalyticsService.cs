@@ -210,7 +210,7 @@ public sealed class DashboardAnalyticsService
         {
             Id = "fx5u-plc", Name = "PLC Mitsubishi FX5U", Type = "plc",
             Status = devices.Count > 0 && devices.All(IsDeviceConnected) ? "online" : "offline",
-            Detail = "Modbus TCP · read-back M101/M201/M301"
+            Detail = "Modbus TCP · read-back theo mapping đã commissioning"
         });
         return result;
     }

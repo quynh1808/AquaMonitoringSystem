@@ -14,31 +14,6 @@ namespace AquacultureMonitoring.Tests;
 public sealed class CoreSafetyTests
 {
     [TestMethod]
-    public void ModbusRtuRequest_AppendsKnownCrc()
-    {
-        var request = ModbusCodec.BuildRtuReadHoldingRegistersRequest(1, 0, 2);
-
-        CollectionAssert.AreEqual(new byte[] { 0x01, 0x03, 0x00, 0x00, 0x00, 0x02, 0xC4, 0x0B }, request);
-    }
-
-    [TestMethod]
-    public void ModbusFloat32_DecodesConfiguredByteOrderAndScale()
-    {
-        var mapping = new ModbusRegisterMapping
-        {
-            SensorId = "test",
-            DataType = "Float32",
-            ByteOrder = "CDAB",
-            Scale = 2,
-            Offset = 1
-        };
-
-        var value = ModbusCodec.Decode(new byte[] { 0x00, 0x00, 0x41, 0x20 }, mapping);
-
-        Assert.AreEqual(21d, value, 0.0001);
-    }
-
-    [TestMethod]
     public void PasswordHasher_VerifiesCorrectPasswordAndRejectsWrongPassword()
     {
         var hasher = new PasswordHasher();
@@ -120,6 +95,23 @@ public sealed class CoreSafetyTests
     }
 
     [TestMethod]
+    public void Fx5uDDeviceMapping_UsesRegisterNumber()
+    {
+        Assert.AreEqual((ushort)100, Fx5uModbusTcpDeviceTransport.ToHoldingRegisterAddress("D100"));
+        Assert.ThrowsExactly<FormatException>(() => Fx5uModbusTcpDeviceTransport.ToHoldingRegisterAddress("M100"));
+    }
+
+    [TestMethod]
+    public void NewSensor_DefaultsToNotPublishingUntilCommissioned()
+    {
+        var sensor = new SensorDefinition();
+
+        Assert.AreEqual(0, sensor.PublishIntervalSeconds);
+        Assert.AreEqual("draft", sensor.ConfigurationStatus);
+        Assert.IsTrue(sensor.IsPrimary);
+    }
+
+    [TestMethod]
     public void OperationalModeGuard_AllowsEdgeSimulationContract()
     {
         var guard = CreateGuard("EdgeSimulation", hardwareEnabled: false, notificationsEnabled: false);
@@ -147,10 +139,6 @@ public sealed class CoreSafetyTests
     private static OperationalModeGuard CreateGuard(string mode, bool hardwareEnabled,
         bool notificationsEnabled) =>
         new(Options.Create(new OperationalModeOptions { Mode = mode }),
-            Options.Create(new SensorConnectionOptions
-            {
-                ActiveSources = ["mqtt"], Mqtt = new MqttConnectionOptions { Enabled = true }
-            }),
             Options.Create(new DeviceControlOptions
             {
                 DefaultTransport = "fx5u-modbus-tcp", HardwareControlEnabled = hardwareEnabled

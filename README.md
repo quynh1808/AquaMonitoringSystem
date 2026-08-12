@@ -15,16 +15,26 @@ Trình duyệt LAN ─HTTP:8080─> AquaOps (.NET container từ GHCR)
 
 Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` của .NET SDK để build OCI image và đẩy lên GHCR. Ubuntu chỉ pull source vận hành (`compose.yaml`, script, Mongo init) và pull image đã build; server không compile source.
 
-## Trạng thái chức năng
+## Tính năng hiện có
 
 - Cookie authentication, PBKDF2, lockout, tự đổi/reset/recovery mật khẩu, thu hồi phiên khi khóa user/đổi mật khẩu/đổi quyền, audit đăng nhập–đăng xuất và phân quyền theo ao.
 - Server-side authorization tại service; mọi dashboard/query nghiệp vụ đều lọc theo ao được cấp, Viewer chỉ đọc.
-- Sensor pipeline có bounded backpressure, kiểm tra timestamp/miền giá trị, EventId chống trùng, sequence gap, backfill không làm lùi live state và MongoDB history/latest state.
-- Một ao pilot `pond_01`; sáu metric MQTT có topic/payload validation, QoS 1 phía ESP32 và offline timeout 120 giây.
+- Khu vực Administrator **Thiết lập hệ thống** gồm Thiết lập chung, Network & Connections, Edge nodes và nhật ký kết nối.
+- MQTT broker profile và socket ESP32/Pi/STM32/PLC được cấu hình trên web, lưu MongoDB; secret MQTT mã hóa bằng Data Protection và không trả ngược ra UI/log.
+- Dynamic MQTT/Modbus supervisor start/stop/reconnect theo dữ liệu MongoDB, exponential backoff, runtime health, last seen và log TTL; một socket lỗi không dừng socket khác.
+- Desired/reported configuration có `Draft → Applying → Applied/Rejected/Timeout/PendingReconnect/OutOfSync`; chỉ Applied khi node ACK đúng CommandId/version.
+- Sensor pipeline có bounded backpressure, kiểm tra timestamp/giới hạn vật lý do edge báo cáo, EventId chống trùng, sequence gap và backfill không làm lùi live state.
+- Một ao pilot `pond_01` và **không có sáu sensor mặc định**; admin thêm sensor động theo SocketId, NodeId, ChannelId, interval, primary/backup và calibration.
+- ESP32 báo capabilities cùng physical min/max/driver và sensor health; node/sensor lạ đi vào quarantine, không tự đăng ký.
+- ESP32 có NVS ring buffer; chỉ xóa EventId sau ACK cấp ứng dụng xác nhận MongoDB đã persist, không dựa riêng vào MQTT QoS ACK.
+- Sensor replacement giữ logical SensorId nhưng tạo SensorInstallationId mới; hỗ trợ MaintenanceOffline cho cả node và tránh alert storm.
+- Ngưỡng cảnh báo vận hành cấu hình theo PondId + Metric; giới hạn vật lý nằm trong firmware/capabilities.
 - Cảnh báo có new/acknowledged/resolved, số lần lặp, người tiếp nhận, delay/cooldown/hysteresis, webhook LAN, automation và audit.
-- Device command FX5U đi qua safety switch, durable intent, timeout và read-back `M101/M201/M301`; fault tại `M102/M202/M302`.
-- PLC monitor đọc heartbeat `D100` và trạng thái mỗi 5 giây, đánh dấu offline khi endpoint mất kết nối hoặc scan bị treo.
-- Hai ESP-IDF project cho WROOM-32E: sensor edge publish mỗi 30 giây và FX5U-compatible PLC simulator qua Wi-Fi.
+- Thiết bị có AUTO, Remote Manual và Physical/Local Override với ưu tiên `Safety > Local > Remote > Auto`; PLC chặn lệnh thật sự khi Local Override.
+- Remote Manual dùng hai pulse M riêng cho START/STOP, durable intent, read-back run/fault và không replay command cũ sau reconnect.
+- AUTO policy chỉnh trên web có hysteresis, persistence, minimum ON/OFF, maximum starts/hour, lockout và input-failure action; PLC vẫn giữ interlock cuối.
+- Hai ESP-IDF project cho WROOM-32E: sensor edge có interval động/health/durable sync và FX5U-compatible simulator FC01/03/05/06 qua Wi-Fi.
+- Bootstrap firmware lưu Wi-Fi/broker/node identity trong NVS qua UART provisioning, không hardcode thông tin từng node trong source.
 - Vụ nuôi có ràng buộc một vụ mở/ao, chuyển trạng thái hợp lệ, tăng trưởng, hao hụt, số con/khối lượng thu hoạch, biomass và FCR theo tăng biomass ròng; feeding gắn đúng CycleId.
 - Nghiệp vụ P2 tại /farm-operations: kho theo lô/hạn dùng, sức khỏe và điều trị, an toàn sinh học, work order/SOP, chi phí theo ao/vụ và truy xuất lô thu hoạch.
 - Dashboard không tạo dữ liệu giả; số liệu chưa có nguồn đo/nghiệp vụ hiển thị `no-data` hoặc 0 có chủ đích.
@@ -39,12 +49,12 @@ Cần .NET SDK phiên bản trong `global.json` và MongoDB cục bộ:
 
 ```powershell
 dotnet restore AquacultureMonitoring.sln --locked-mode
-dotnet build AquacultureMonitoring.sln -c Release --no-restore
+dotnet build AquacultureMonitoring.sln -c Release --no-restore -m:1
 dotnet test Tests/AquacultureMonitoring.Tests.csproj -c Release --no-build
 dotnet run --project AquacultureMonitoring.csproj
 ```
 
-Mặc định là `EdgeSimulation`. Khi chạy trực tiếp trên Windows, cần Mosquitto cục bộ và ghi đè `SensorConnections__Mqtt__Host=127.0.0.1`; mật khẩu production bắt buộc lấy từ environment.
+Mặc định là `EdgeSimulation`. Khi chạy trực tiếp trên Windows, cần MongoDB; Mosquitto broker và node socket được tạo tại `/admin/settings/connections`, không còn đọc `Config/sensor-connections.json`.
 
 `authentication.json` và `.env` chỉ tạo tài khoản bootstrap khi collection `users` còn rỗng. Chúng không đổi password của user đã tồn tại. Người dùng đổi password tại `/account/change-password`; Administrator reset user tại `/admin/users`. Khi mất toàn bộ quyền admin, dùng script recovery trong `scripts/README.md`.
 
@@ -65,15 +75,15 @@ Quy trình review/stage source an toàn trước khi push được mô tả tạ
 
 ## Chuyển simulation, edge simulation và thiết bị thật
 
-Telemetry và actuator là hai đường độc lập. Có thể đưa sensor thật vào trước nhưng vẫn giữ `HARDWARE_CONTROL_ENABLED=false`. Cả ba chế độ dùng chung SensorId/topic và M-device, vì vậy chuyển endpoint không đổi UI/service nghiệp vụ.
+Telemetry và actuator là hai đường độc lập. Có thể đưa sensor thật vào trước nhưng vẫn giữ `HARDWARE_CONTROL_ENABLED=false`. Cả ba chế độ dùng cùng desired/reported protocol; endpoint, SensorId/channel và M/D mapping được chỉnh trên web.
 
 Một adapter thật triển khai `IDeviceCommandTransport`, đăng ký DI bằng `Name` duy nhất, và chỉ trả success sau ACK hoặc read-back. Interlock, emergency stop, chống chạy khô/quá tải phải nằm tại PLC/relay cục bộ, không đặt duy nhất trong web app.
 
-Hướng dẫn chuyển chế độ: `Docs/OPERATING-MODES.md`. Chi tiết P03: `Docs/P03-IMPLEMENTATION.md`.
+Hướng dẫn chuyển chế độ: `Docs/OPERATING-MODES.md`. Commissioning động: `Docs/DYNAMIC-COMMISSIONING.md`. Provision firmware: `Docs/ESP32-PROVISIONING.md`. Cấu hình cũ chỉ để tham khảo: `Docs/LEGACY-NODE-CONNECTION-REFERENCE.md`.
 
 ## Cấu hình và secrets
 
-- `Config/*.json`: default có thể version-control; không lưu production secret.
+- `Config/*.json`: chỉ còn default ứng dụng; cấu hình node/broker/PLC không nằm trong source.
 - `.env`: cấu hình riêng từng Ubuntu host, đã bị Git ignore.
 - `secrets/mosquitto_passwords`: sinh bởi bootstrap script, không commit.
 - `data_protection_keys`: Docker volume để cookie không mất hiệu lực khi đổi container.
@@ -95,7 +105,7 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 
 ## Các bước còn lại trước khi điều khiển production
 
-- Cấu hình cùng register map trong GX Works3 và integration test adapter hiện có với FX5U-32MT/D thật trên test bench.
+- Cấu hình cùng register map trong GX Works3 và integration test socket/mapping với FX5U-32MT/D thật trên test bench.
 - Cấu hình Mosquitto ACL + TLS/mTLS nếu MQTT đi qua mạng không tin cậy.
 - Thêm monitoring tập trung (metrics/log/error tracking) và cảnh báo ngoài ứng dụng.
 - Diễn tập backup/restore MongoDB, mất mạng, ACK timeout, fail-safe và rollback.

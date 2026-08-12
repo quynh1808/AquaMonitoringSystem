@@ -104,12 +104,7 @@ services:
       OperationalMode__Mode: ${AQUAOPS_MODE:-EdgeSimulation}
       AlertNotifications__Enabled: ${ALERT_WEBHOOK_ENABLED:-false}
       AlertNotifications__WebhookUrl: ${ALERT_WEBHOOK_URL:-}
-      SensorConnections__Mqtt__Username: ${MQTT_USERNAME}
-      SensorConnections__Mqtt__Password: ${MQTT_PASSWORD}
       DeviceControl__HardwareControlEnabled: ${HARDWARE_CONTROL_ENABLED:-false}
-      DeviceControl__Fx5u__Host: ${FX5U_HOST:-192.168.100.81}
-      DeviceControl__Fx5u__Port: ${FX5U_PORT:-1502}
-      DeviceControl__Fx5u__UnitId: ${FX5U_UNIT_ID:-1}
     volumes:
       - data_protection_keys:/var/lib/aquaops/keys
     read_only: true

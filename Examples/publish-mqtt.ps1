@@ -1,7 +1,7 @@
 param(
     [string]$Broker = "localhost",
     [int]$Port = 1883,
-    [string]$Topic = "aquaculture/farm_main/pond_01/sensors/do_01/telemetry"
+    [string]$Topic = "aquaculture/farm_main/pond_01/nodes/sensor-node-01/sensors/sensor_pond_01_dissolvedOxygen/telemetry"
 )
 
 $payload = Get-Content "$PSScriptRoot/mqtt-payload.json" -Raw

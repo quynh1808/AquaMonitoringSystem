@@ -1,0 +1,9 @@
+@page "/admin/settings/nodes"
+@attribute [Authorize(Roles = "Administrator")]
+@inject SystemConfigurationService Configuration
+
+<PageTitle>Edge nodes · AquaOps</PageTitle>
+<AuthGate><section class="page-stack settings-page"><header class="page-heading"><div><span class="eyebrow">THIẾT LẬP HỆ THỐNG</span><h1>Edge nodes</h1><p>Capabilities do firmware báo cáo là read-only; admin dùng ChannelId này khi thêm cảm biến.</p></div><button class="button ghost" @onclick="Load">Làm mới</button></header>
+<div class="connection-grid">@foreach(var n in capabilities){<article class="panel connection-card"><header><div><span class="connection-icon">EDGE</span><div><span class="status-pill success">DISCOVERED</span><h3>@n.NodeId</h3><p>Firmware @n.FirmwareVersion · @n.ReportedAtUtc.ToLocalTime().ToString("dd/MM HH:mm:ss")</p></div></div></header><div class="responsive-table"><table><thead><tr><th>Channel</th><th>Metric</th><th>Đơn vị</th><th>Giới hạn vật lý</th><th>Driver</th></tr></thead><tbody>@foreach(var c in n.SensorChannels){<tr><td><strong>@c.ChannelId</strong></td><td>@c.Metric</td><td>@c.Unit</td><td>@c.PhysicalMin – @c.PhysicalMax</td><td>@c.Driver @c.DriverVersion<br/><small>@c.Interface</small></td></tr>}</tbody></table></div></article>}</div>
+@if(capabilities.Count==0){<section class="empty-state panel"><div class="empty-icon">EDGE</div><h2>Chưa nhận capabilities</h2><p>Khởi động node đã đăng ký; node sẽ publish capabilities sau khi kết nối broker.</p></section>}</section></AuthGate>
+@code{private List<NodeCapabilitySnapshot>capabilities=[];protected override Task OnInitializedAsync()=>Load();private async Task Load(){capabilities=await Configuration.GetCapabilitiesAsync();}}
