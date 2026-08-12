@@ -32,7 +32,7 @@
 
 ## Production middleware
 
-- Forwarded headers được xử lý trước HTTPS/HSTS khi app chạy sau Caddy trong Docker network hạn chế.
+- Ứng dụng phục vụ HTTP trực tiếp trên cổng LAN do Compose publish; không dùng forwarded headers, HTTPS redirect hoặc HSTS.
 - Data Protection keys được persist vào path cấu hình; Compose mount named volume tại `/var/lib/aquaops/keys`.
 - `/health/live` kiểm process, `/health/ready` và `/health` kiểm MongoDB.
 

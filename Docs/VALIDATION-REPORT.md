@@ -22,12 +22,12 @@ Ngày kiểm tra gần nhất: 12/08/2026
 - Login/logout có antiforgery; login có rate limit; Data Protection keys được persist.
 - Đổi/reset mật khẩu luôn tạo salt mới, xóa trạng thái khóa và không ghi mật khẩu vào file cấu hình hay tham số dòng lệnh.
 - Device command ghi pending intent trước dispatch, chỉ cập nhật state sau ACK/read-back, có master hardware switch và không retry mù.
-- MongoDB không publish host port; Kestrel chỉ expose nội bộ; Caddy xử lý TLS.
+- MongoDB không publish host port; Kestrel chỉ publish HTTP trên địa chỉ/cổng LAN được cấu hình.
 - Container app read-only, `no-new-privileges`; log có rotation.
 
 ## Chưa thể xác nhận khi chưa có hạ tầng thật
 
-- Startup integration với MongoDB/Mosquitto production và chứng chỉ/domain thật.
+- Startup integration với MongoDB/Mosquitto trên Ubuntu và chính sách firewall LAN thật.
 - MQTT ACL/TLS/mTLS, firewall LAN và độ ổn định gateway.
 - PLC/relay adapter cụ thể, output feedback, interlock và E-stop.
 - Load/soak test theo số Blazor circuit, sensor và message thực tế.

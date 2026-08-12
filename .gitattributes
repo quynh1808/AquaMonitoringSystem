@@ -1,0 +1,11 @@
+# Keep deployment files executable/parseable after commits made from Windows.
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env text eol=lf
+.env.example text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.cs text eol=lf
+*.csproj text eol=lf
+*.sln text eol=crlf

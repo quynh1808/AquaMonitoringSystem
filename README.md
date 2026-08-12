@@ -1,19 +1,19 @@
 # AquaOps — Aquaculture Monitoring
 
-AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát ao nuôi, ingest dữ liệu simulation/MQTT/Modbus, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị có audit. Dữ liệu bền vững nằm trong MongoDB; Mosquitto nhận telemetry từ gateway; Caddy kết thúc TLS và reverse proxy.
+AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát ao nuôi, ingest dữ liệu simulation/MQTT/Modbus, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị có audit. Dữ liệu bền vững nằm trong MongoDB; Mosquitto nhận telemetry từ gateway. Hệ thống được thiết kế chạy HTTP trong mạng LAN tin cậy và không cần domain/chứng chỉ Internet.
 
 ## Kiến trúc triển khai
 
 ```text
-Trình duyệt ─HTTPS─> Caddy ─HTTP nội bộ─> AquaOps (.NET container từ GHCR)
-                                                │
-                       ┌────────────────────────┼───────────────────────┐
-                       │                        │                       │
-                    MongoDB                 Mosquitto              PLC/relay
-                 dữ liệu + audit        sensor telemetry      qua transport adapter
+Trình duyệt LAN ─HTTP:8080─> AquaOps (.NET container từ GHCR)
+                                  │
+               ┌──────────────────┼──────────────────┐
+               │                  │                  │
+            MongoDB           Mosquitto          PLC/relay
+         dữ liệu + audit   sensor telemetry   transport adapter
 ```
 
-Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` của .NET SDK để build OCI image và đẩy lên GHCR. Ubuntu chỉ pull source vận hành (`compose.yaml`, Caddy, script, Mongo init) và pull image đã build; server không compile source.
+Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` của .NET SDK để build OCI image và đẩy lên GHCR. Ubuntu chỉ pull source vận hành (`compose.yaml`, script, Mongo init) và pull image đã build; server không compile source.
 
 ## Trạng thái chức năng
 
@@ -24,7 +24,7 @@ Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` c�
 - Cảnh báo có delay/cooldown/hysteresis, automation và audit.
 - Device command đi qua `IDeviceCommandTransport`, safety switch, durable intent, timeout và ACK/read-back trước khi cập nhật trạng thái.
 - Vụ nuôi, tăng trưởng, hao hụt, thu hoạch, FCR, feeding, calibration và maintenance.
-- Readiness/liveness health check, persistent Data Protection keys, reverse proxy headers và container filesystem read-only.
+- Readiness/liveness health check, persistent Data Protection keys và container filesystem read-only.
 - CI build/test và publish image bất biến `sha-<commit>` hoặc tag `v*` lên GHCR.
 
 ## Chạy phát triển trên Windows
@@ -53,7 +53,7 @@ Quy trình chuẩn:
 
 Hướng dẫn đầy đủ: `Docs/DEPLOYMENT-GHCR-UBUNTU.md`.
 
-Root hiện chưa được nối vào Git remote để tránh ghi đè lịch sử repository publish cũ; xem quy trình một lần tại `Docs/GIT-PUBLISH.md`.
+Quy trình review/stage source an toàn trước khi push được mô tả tại `Docs/GIT-PUBLISH.md`.
 
 ## Thay simulation bằng thiết bị thật
 
@@ -70,6 +70,8 @@ Chi tiết và checklist commissioning: `Docs/HARDWARE-INTEGRATION.md`.
 - `secrets/mosquitto_passwords`: sinh bởi bootstrap script, không commit.
 - `data_protection_keys`: Docker volume để cookie không mất hiệu lực khi đổi container.
 - `packages.lock.json`: khóa dependency cho build lặp lại được.
+
+`AQUAOPS_BIND_ADDRESS` nên là IPv4 tĩnh của Ubuntu trên LAN; dùng `0.0.0.0` chỉ khi máy không có interface ngoài LAN. Truy cập ứng dụng bằng `http://<IP-LAN>:<AQUAOPS_HTTP_PORT>`. Không port-forward cổng này trên router.
 
 Các mật khẩu từng xuất hiện trong Git history phải được xem là đã lộ và cần rotate, kể cả khi file hiện tại đã xóa.
 

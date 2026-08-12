@@ -34,7 +34,7 @@ cp .env.example .env
 ./scripts/bootstrap-ubuntu.sh
 docker compose config --quiet
 docker compose up -d
-curl -fsS https://your-domain/health/ready
+curl -fsS http://127.0.0.1:8080/health/ready
 ```
 
 ## Kiểm tra sensor và PLC

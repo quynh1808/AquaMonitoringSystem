@@ -1,12 +1,14 @@
 # Script vận hành
 
-- `bootstrap-ubuntu.sh`: chạy một lần sau khi tạo `.env`; sinh file mật khẩu Mosquitto và kiểm tra Compose.
-- `deploy-ubuntu.sh [image-tag]`: fast-forward source, kéo image GHCR, cập nhật stack và kiểm tra readiness. Nếu image mới không ready, script trả `.env` về tag trước và khởi động lại ứng dụng.
+- `bootstrap-ubuntu.sh`: chạy một lần sau khi tạo `.env`; kiểm tra cấu hình HTTP LAN, sinh file mật khẩu Mosquitto với đúng owner/mode và kiểm tra Compose.
+- `deploy-ubuntu.sh [image-tag]`: fast-forward source, kéo image GHCR, cập nhật stack và kiểm tra readiness qua HTTP trên IP/cổng LAN. Nếu image mới không ready, script trả `.env` về tag trước và khởi động lại ứng dụng.
 - `reset-admin-password.sh`: recovery admin trên Ubuntu bằng container chạy một lần; password nhập ẩn và không lưu vào `.env`.
 - `reset-admin-password.ps1`: recovery trên Windows; mặc định dùng `dotnet run`, thêm `-Docker` nếu stack Compose đang chạy.
 - `backup-mongodb.sh` / `restore-mongodb.sh`: backup và restore dữ liệu MongoDB; hãy thử restore định kỳ trên máy tách biệt.
 
 Trên Ubuntu chạy `chmod +x scripts/*.sh` sau lần clone đầu tiên. Không chạy script deploy đồng thời từ nhiều phiên SSH.
+
+Ứng dụng không dùng domain/Caddy/HTTPS. Cấu hình `AQUAOPS_BIND_ADDRESS` bằng IPv4 LAN tĩnh và `AQUAOPS_HTTP_PORT` trong `.env`; không port-forward cổng này ra Internet.
 
 ## Recovery mật khẩu Administrator
 

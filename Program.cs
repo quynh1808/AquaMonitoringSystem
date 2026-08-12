@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Antiforgery;
 using System.Threading.RateLimiting;
@@ -93,16 +92,6 @@ builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
     .SetApplicationName("AquaOps");
 
-// The production app is reachable only through a local/restricted reverse proxy. Clearing the
-// known-proxy list allows the Docker network proxy to forward the original HTTPS scheme.
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.ForwardLimit = 1;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
-
 var authOptions = builder.Configuration.GetSection(AquaAuthenticationOptions.SectionName).Get<AquaAuthenticationOptions>() ?? new();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -181,18 +170,13 @@ if (resetAdminPasswordMode)
     return;
 }
 
-app.UseForwardedHeaders();
-
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-
-// Serve public UI assets before authorization. This keeps the landing page and
-// login page fully styled even when no authentication cookie exists yet.
+// The deployment is HTTP-only on a trusted LAN and has no reverse proxy. Serve UI assets before
+// authorization so the landing and login pages remain styled without an authentication cookie.
 app.UseStaticFiles();
 app.UseRateLimiter();
 app.UseAuthentication();

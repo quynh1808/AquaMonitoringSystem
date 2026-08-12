@@ -5,12 +5,13 @@
 - Rotate toàn bộ credential từng xuất hiện trong source/Git history: Mongo root/app, MQTT, bootstrap admin, GHCR token.
 - Dùng password ngẫu nhiên dài; không dùng giá trị trong `.env.example` hay `Config/authentication.json`.
 - Đặt GHCR package private hoặc public có chủ đích; token server chỉ cần `read:packages`.
-- DNS đúng, HTTPS hợp lệ, chỉ mở 80/443; MQTT chỉ mở LAN/VPN khi cần.
+- Đặt `AQUAOPS_BIND_ADDRESS` thành IPv4 tĩnh trên LAN, không port-forward cổng HTTP trên router và giới hạn nguồn truy cập bằng firewall/VLAN.
+- HTTP không mã hóa cookie hay mật khẩu trên đường truyền; chỉ dùng trong LAN tin cậy. Nếu LAN có người dùng/thiết bị không tin cậy, triển khai TLS nội bộ hoặc VPN trước khi sử dụng.
 - Giữ `HARDWARE_CONTROL_ENABLED=false` tới khi hoàn thành checklist phần cứng.
 
 ## Trong Compose
 
-- AquaOps chạy root filesystem read-only, `no-new-privileges`, chỉ expose cổng nội bộ.
+- AquaOps chạy root filesystem read-only, `no-new-privileges`, chỉ publish cổng HTTP trên địa chỉ LAN được cấu hình.
 - MongoDB nằm trên network internal và không publish port.
 - Data Protection keys dùng named volume, tránh logout toàn bộ user sau deploy.
 - Log container có rotation để không lấp đĩa.
@@ -20,7 +21,7 @@ Environment variables vẫn có thể được người có quyền Docker inspe
 
 ## Ứng dụng
 
-- Cookie HttpOnly, SameSite Strict, Secure khi đi qua HTTPS và sliding expiration.
+- Cookie HttpOnly, SameSite Strict và sliding expiration. Với HTTP LAN, cookie không có thuộc tính Secure; tuyệt đối không đưa endpoint này ra Internet.
 - PBKDF2-HMAC-SHA256, lockout, role và pond claims.
 - Đổi/reset mật khẩu tạo salt mới, ghi `PasswordChangedAtUtc`, xóa lockout; recovery cục bộ chỉ chấp nhận Administrator.
 - UI chỉ hỗ trợ presentation; service guard là điểm cưỡng chế quyền cuối cùng.

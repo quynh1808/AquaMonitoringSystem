@@ -62,7 +62,10 @@ services:
         restart: true
       mosquitto:
         condition: service_healthy
-    expose: ["8080"]
+    # Publish HTTP only on the selected LAN interface. For the narrowest exposure, set
+    # AQUAOPS_BIND_ADDRESS to the Ubuntu server's fixed LAN IPv4 instead of 0.0.0.0.
+    ports:
+      - "${AQUAOPS_BIND_ADDRESS:?set AQUAOPS_BIND_ADDRESS in .env}:${AQUAOPS_HTTP_PORT:-8080}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: 8080
@@ -85,37 +88,14 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
-    networks: [frontend, backend]
-    security_opt: ["no-new-privileges:true"]
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "5" }
-
-  caddy:
-    image: ${CADDY_IMAGE:-caddy:2-alpine}
-    restart: unless-stopped
-    depends_on:
-      aquaops:
-        condition: service_started
-    environment:
-      AQUAOPS_DOMAIN: ${AQUAOPS_DOMAIN:?set AQUAOPS_DOMAIN in .env}
-      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks: [frontend]
+    networks: [lan, backend]
     security_opt: ["no-new-privileges:true"]
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
 
 networks:
-  frontend:
+  lan:
   backend:
     internal: true
 
@@ -124,5 +104,3 @@ volumes:
   mosquitto_data:
   mosquitto_log:
   data_protection_keys:
-  caddy_data:
-  caddy_config:
