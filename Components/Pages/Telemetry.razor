@@ -39,27 +39,21 @@
                 </span>
             </section>
 
-            <div class="metric-grid six">
-                <SensorMetricCard Metric="dissolvedOxygen" Label="Oxy hòa tan" Icon="O₂" Value="CurrentTelemetry.DissolvedOxygen" />
-                <SensorMetricCard Metric="ph" Label="Độ pH" Icon="pH" Value="CurrentTelemetry.Ph" />
-                <SensorMetricCard Metric="temperature" Label="Nhiệt độ" Icon="°C" Value="CurrentTelemetry.Temperature" />
-                <SensorMetricCard Metric="salinity" Label="Độ mặn" Icon="‰" Value="CurrentTelemetry.Salinity" />
-                <SensorMetricCard Metric="ammonia" Label="Amoniac NH₃" Icon="NH₃" Value="CurrentTelemetry.Ammonia" />
-                <SensorMetricCard Metric="waterLevel" Label="Mực nước" Icon="↕" Value="CurrentTelemetry.WaterLevel" />
-            </div>
+            @if(PondSensors.Count==0){<section class="empty-state panel"><div class="empty-icon">⌁</div><h2>Chưa có cảm biến</h2><p>Trang chỉ hiển thị sensor đã được Administrator thêm cho ao này.</p></section>}
+            else{<div class="metric-grid">@foreach(var sensor in PondSensors){<SensorMetricCard Metric="@sensor.Metric" Label="@sensor.Name" Icon="@MetricIcon(sensor.Metric)" Value="@State.GetSensorCurrentValue(sensor)" />}</div>}
 
-            <section class="panel chart-panel">
+            @if(PondSensors.Count>0){<section class="panel chart-panel">
                 <div class="panel-heading">
                     <div><span class="eyebrow">HISTORICAL DATA</span><h2>@MetricTitle</h2></div>
                     <div class="segmented-control">
-                        @foreach (var item in Metrics)
+                        @foreach (var item in PondMetrics)
                         {
                             <button class="@(activeMetric == item.Id ? "active" : "")" @onclick="() => activeMetric = item.Id">@item.Label</button>
                         }
                     </div>
                 </div>
                 <TrendChart Points="Trend" Unit="@MetricUnit" Digits="@MetricDigits" />
-            </section>
+            </section>}
 
             <section class="panel table-panel">
                 <div class="panel-heading">
@@ -87,6 +81,7 @@
                                     <td><button class="button ghost" @onclick="() => OpenCalibration(sensor.Id)">Hiệu chuẩn</button></td>
                                 </tr>
                             }
+                            @if(PondSensors.Count==0){<tr><td colspan="10">Chưa có cảm biến được khai báo.</td></tr>}
                         </tbody>
                     </table>
                 </div>
@@ -167,19 +162,11 @@
     private bool calibrationOpen;
     private string calibrationSensorId = string.Empty;
 
-    private static readonly (string Id, string Label)[] Metrics =
-    [
-        ("dissolvedOxygen", "Oxy DO"),
-        ("ph", "pH"),
-        ("temperature", "Nhiệt độ"),
-        ("salinity", "Độ mặn"),
-        ("ammonia", "NH₃"),
-        ("waterLevel", "Mực nước")
-    ];
-
     private Pond? Pond => State.Ponds.FirstOrDefault(p => p.Id == selectedPondId);
     private TelemetryData CurrentTelemetry => State.GetTelemetry(selectedPondId);
-    private List<SensorDefinition> PondSensors => State.Sensors.Where(x => x.PondId == selectedPondId).OrderBy(x => x.Metric).ToList();
+    private List<SensorDefinition> PondSensors => State.Sensors.Where(x => x.PondId == selectedPondId && !x.IsArchived && !x.IsPendingRemoval).OrderBy(x => x.Metric).ToList();
+    private List<(string Id,string Label)> PondMetrics => PondSensors.GroupBy(x=>x.Metric,StringComparer.OrdinalIgnoreCase)
+        .Select(x=>(x.Key,FarmStateService.GetMetricLabel(x.Key))).ToList();
     private List<MaintenanceTask> PondMaintenance => State.MaintenanceTasks.Where(x => x.PondId == selectedPondId).ToList();
     private List<CalibrationRecord> PondCalibrations
     {
@@ -190,7 +177,7 @@
         }
     }
     private IReadOnlyList<TrendPoint> Trend => State.GetTrend(selectedPondId, activeMetric, 120);
-    private string MetricTitle => Metrics.First(m => m.Id == activeMetric).Label;
+    private string MetricTitle => PondMetrics.FirstOrDefault(m => m.Id == activeMetric).Label ?? activeMetric;
     private string MetricUnit => State.GetThreshold(activeMetric).Unit;
     private int MetricDigits => State.GetThreshold(activeMetric).DecimalPlaces;
 
@@ -198,6 +185,7 @@
     {
         selectedPondId = State.SelectedPondId;
         if (string.IsNullOrWhiteSpace(selectedPondId)) selectedPondId = State.Ponds.FirstOrDefault()?.Id ?? string.Empty;
+        activeMetric = PondSensors.FirstOrDefault()?.Metric ?? string.Empty;
         State.Changed += HandleChanged;
     }
 
@@ -205,9 +193,11 @@
     {
         selectedPondId = args.Value?.ToString() ?? selectedPondId;
         State.SelectPond(selectedPondId);
+        activeMetric = PondSensors.FirstOrDefault()?.Metric ?? string.Empty;
     }
 
     private string SensorName(string sensorId) => State.Sensors.FirstOrDefault(x => x.Id == sensorId)?.Name ?? sensorId;
+    private static string MetricIcon(string metric)=>metric switch{"dissolvedOxygen"=>"O₂","ph"=>"pH","temperature"=>"°C","salinity"=>"S","ammonia"=>"NH₃","waterLevel"=>"↕",_=>"⌁"};
 
     private void OpenCalibration(string sensorId)
     {

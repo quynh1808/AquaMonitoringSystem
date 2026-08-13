@@ -12,9 +12,6 @@ namespace AquacultureMonitoring.Services;
 /// </summary>
 public sealed class DashboardAnalyticsService
 {
-    private static readonly string[] HeatmapMetrics =
-        ["dissolvedOxygen", "ph", "temperature", "salinity", "ammonia", "waterLevel"];
-
     private readonly FarmRuntimeState _runtime;
     private readonly IOptionsMonitor<SensorThresholdCatalog> _thresholds;
     private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
@@ -36,8 +33,8 @@ public sealed class DashboardAnalyticsService
         var now = DateTime.Now;
         var allowed = accessiblePondIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var ponds = _runtime.Ponds.Where(x => allowed.Contains(x.Id)).ToList();
-        var devices = _runtime.Devices.Where(x => allowed.Contains(x.PondId)).ToList();
-        var sensors = _runtime.Sensors.Where(x => allowed.Contains(x.PondId) && x.IsEnabled).ToList();
+        var devices = _runtime.Devices.Where(x => allowed.Contains(x.PondId) && !x.IsArchived && !x.IsPendingRemoval).ToList();
+        var sensors = _runtime.Sensors.Where(x => allowed.Contains(x.PondId) && !x.IsArchived && !x.IsPendingRemoval && x.IsEnabled).ToList();
         var alerts = _runtime.Alerts.Where(x => allowed.Contains(x.PondId)).ToList();
         var cycles = _runtime.ProductionCycles.Where(x => allowed.Contains(x.PondId)).ToList();
         var openCycles = cycles.Where(x => x.IsOpen).ToList();
@@ -46,8 +43,8 @@ public sealed class DashboardAnalyticsService
         var onlineSensors = sensors.Count(x => x.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
         var validSensors = sensors.Count(x => x.Status.Equals("online", StringComparison.OrdinalIgnoreCase) &&
             x.LastQuality.Equals("good", StringComparison.OrdinalIgnoreCase));
-        var validDo = summaries.Where(x => x.Telemetry.IsOnline &&
-            x.Telemetry.Quality.Equals("good", StringComparison.OrdinalIgnoreCase)).Select(x => x.Telemetry.DissolvedOxygen).ToList();
+        var validDo = summaries.SelectMany(x => x.SensorMetrics).Where(x => x.Metric == "dissolvedOxygen" &&
+            x.Status is "normal" or "warning" or "critical").Select(x => x.Value).ToList();
         var doThreshold = GetThreshold("dissolvedOxygen");
         var ages = summaries.Where(x => x.Status == "active").Select(x => x.CultureAgeDays).Order().ToList();
         var todayTasks = BuildTasks(allowed, now);
@@ -110,7 +107,7 @@ public sealed class DashboardAnalyticsService
             FeedHistory = BuildFeedHistory(allowed, now),
             AlertHistory = BuildAlertHistory(alerts, now),
             SensorAvailabilityHistory = [new() { Label = now.ToString("dd/MM"), Value = sensors.Count == 0 ? 0 : onlineSensors * 100d / sensors.Count }],
-            WaterQualityHeatmap = summaries.Select(BuildHeatmapRow).ToList(),
+            WaterQualityHeatmap = BuildHeatmapRows(summaries),
             TodayTasks = todayTasks
         };
     }
@@ -152,12 +149,25 @@ public sealed class DashboardAnalyticsService
     private DashboardPondSummary BuildPondSummary(Pond pond, DateTime now)
     {
         var telemetry = _runtime.GetTelemetry(pond.Id);
-        var sensors = _runtime.Sensors.Where(x => x.PondId == pond.Id && x.IsEnabled).ToList();
-        var devices = _runtime.Devices.Where(x => x.PondId == pond.Id).ToList();
+        var sensors = _runtime.Sensors.Where(x => x.PondId == pond.Id && x.IsEnabled && !x.IsArchived && !x.IsPendingRemoval).ToList();
+        var devices = _runtime.Devices.Where(x => x.PondId == pond.Id && !x.IsArchived && !x.IsPendingRemoval).ToList();
         var cycle = _runtime.ProductionCycles.Where(x => x.PondId == pond.Id && x.IsOpen)
             .OrderByDescending(x => x.StockingDate).FirstOrDefault();
         var feeds = _runtime.FeedLogs.Where(x => x.PondId == pond.Id).ToList();
-        var score = CalculateHealthScore(telemetry, pond.Id);
+        var sensorMetrics = sensors.Select(sensor =>
+        {
+            var threshold = GetThreshold(sensor.Metric);
+            var value = MetricValue(telemetry, sensor.Metric);
+            var online = sensor.Status == "online";
+            var status = MetricStatus(sensor.Metric, value, online, sensor.LastQuality);
+            return new DashboardHeatmapCell
+            {
+                SensorId = sensor.Id, Metric = sensor.Metric, Label = sensor.Name, Value = value,
+                Unit = sensor.Unit, Status = status,
+                FormattedValue = status == "no-data" ? "—" : value.ToString($"N{threshold.DecimalPlaces}", CultureInfo.GetCultureInfo("vi-VN"))
+            };
+        }).ToList();
+        var score = CalculateHealthScore(sensorMetrics, pond.Id);
         var sourceSummary = sensors.Count == 0 ? "Chưa khai báo cảm biến" :
             string.Join(", ", sensors.GroupBy(x => x.SourceType).Select(x => $"{x.Key}: {x.Count()}"));
 
@@ -174,29 +184,33 @@ public sealed class DashboardAnalyticsService
             FeedActualTodayKg = feeds.Where(x => x.Timestamp.ToLocalTime().Date == now.Date).Sum(x => x.AmountKg),
             FeedCycleTotalKg = cycle?.TotalFeedKg ?? feeds.Sum(x => x.AmountKg),
             Fcr = cycle?.FeedConversionRatio ?? 0,
-            HealthScore = score, HealthStatus = ResolveHealthStatus(score),
+            HealthScore = score, HealthStatus = sensors.Count == 0 ? "not-configured" : ResolveHealthStatus(score),
             ActiveAlerts = _runtime.Alerts.Count(x => x.PondId == pond.Id && !x.IsResolved),
             RunningDevices = devices.Count(IsDeviceRunning), TotalDevices = devices.Count,
             OnlineSensors = sensors.Count(x => x.Status == "online"), TotalSensors = sensors.Count,
             DataQuality = telemetry.Quality, DataSourceSummary = sourceSummary,
             LastUpdateLocal = telemetry.LastSeenAtUtc == DateTime.MinValue ? DateTime.MinValue : telemetry.LastSeenAtUtc.ToLocalTime(),
-            Telemetry = telemetry
+            Telemetry = telemetry, SensorMetrics = sensorMetrics
         };
     }
 
-    private DashboardHeatmapRow BuildHeatmapRow(DashboardPondSummary pond) => new()
+    private List<DashboardHeatmapRow> BuildHeatmapRows(List<DashboardPondSummary> ponds)
     {
-        PondId = pond.PondId,
-        PondName = pond.Name,
-        Cells = HeatmapMetrics.Select(metric =>
+        // Columns come from actually commissioned definitions across accessible ponds, never
+        // from the six-metric catalog. Missing metrics in another pond render as no-data.
+        var metrics = ponds.SelectMany(x => x.SensorMetrics).Select(x => x.Metric)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return ponds.Select(pond => new DashboardHeatmapRow
         {
-            var threshold = GetThreshold(metric);
-            var value = MetricValue(pond.Telemetry, metric);
-            return new DashboardHeatmapCell { Metric = metric, Label = threshold.DisplayName, Value = value,
-                Unit = threshold.Unit, Status = MetricStatus(metric, value, pond.Telemetry.IsOnline, pond.Telemetry.Quality),
-                FormattedValue = value.ToString($"N{threshold.DecimalPlaces}", CultureInfo.GetCultureInfo("vi-VN")) };
-        }).ToList()
-    };
+            PondId = pond.PondId, PondName = pond.Name,
+            Cells = metrics.Select(metric => pond.SensorMetrics.FirstOrDefault(x => x.Metric == metric) ??
+                new DashboardHeatmapCell
+                {
+                    Metric = metric, Label = GetThreshold(metric).DisplayName,
+                    Unit = GetThreshold(metric).Unit, Status = "no-data", FormattedValue = "—"
+                }).ToList()
+        }).ToList();
+    }
 
     private List<DashboardInfrastructureStatus> BuildInfrastructure(List<Device> devices)
     {
@@ -209,8 +223,8 @@ public sealed class DashboardAnalyticsService
         result.Add(new DashboardInfrastructureStatus
         {
             Id = "fx5u-plc", Name = "PLC Mitsubishi FX5U", Type = "plc",
-            Status = devices.Count > 0 && devices.All(IsDeviceConnected) ? "online" : "offline",
-            Detail = "Modbus TCP · read-back theo mapping đã commissioning"
+            Status = devices.Count == 0 ? "not-configured" : devices.All(IsDeviceConnected) ? "online" : "offline",
+            Detail = devices.Count == 0 ? "Chưa có thiết bị PLC được khai báo" : "Modbus TCP · read-back theo mapping đã commissioning"
         });
         return result;
     }
@@ -248,13 +262,13 @@ public sealed class DashboardAnalyticsService
         ponds.GroupBy(x => x.Species).Select(x => new DashboardCategoryValue { Key = x.Key, Label = x.Key,
             Value = x.Count(), Detail = $"{x.Sum(p => p.AreaM2):N0} m²" }).ToList();
 
-    private int CalculateHealthScore(TelemetryData telemetry, string pondId)
+    private int CalculateHealthScore(List<DashboardHeatmapCell> metrics, string pondId)
     {
         var options = _behavior.CurrentValue.HealthScore;
-        if (!telemetry.IsOnline || telemetry.Quality is "invalid" or "no-data") return options.OfflineScore;
-        var checks = HeatmapMetrics.Count(x => MetricStatus(x, MetricValue(telemetry, x), true, telemetry.Quality) == "normal");
+        if (metrics.Count == 0 || metrics.All(x => x.Status == "no-data")) return options.OfflineScore;
+        var checks = metrics.Count(x => x.Status == "normal");
         var critical = _runtime.Alerts.Count(x => x.PondId == pondId && !x.IsResolved && x.Severity == "critical");
-        return Math.Clamp(options.InitialScore - (HeatmapMetrics.Length - checks) * options.MetricOutOfRangePenalty -
+        return Math.Clamp(options.InitialScore - (metrics.Count - checks) * options.MetricOutOfRangePenalty -
             critical * options.CriticalAlertPenalty, 0, 100);
     }
 

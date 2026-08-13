@@ -62,6 +62,21 @@ public sealed class DeviceCommandService
             CreatedAtUtc = DateTime.UtcNow
         };
 
+        if (!device.IsEnabled || device.IsArchived || device.IsPendingRemoval)
+        {
+            command.Status = "blocked";
+            command.Error = "Thiết bị đã disable, đang chờ xóa hoặc đã archive.";
+            await CompleteAsync(command, device, reason, null, ct);
+            return command;
+        }
+        if (!device.ConfigurationStatus.Equals("applied", StringComparison.OrdinalIgnoreCase))
+        {
+            command.Status = "blocked";
+            command.Error = $"Cấu hình thiết bị đang ở trạng thái {device.ConfigurationStatus}; phải Apply và nhận PLC ACK trước.";
+            await CompleteAsync(command, device, reason, null, ct);
+            return command;
+        }
+
         var isAutomation = requestedBy.Equals("automation-engine", StringComparison.OrdinalIgnoreCase);
         if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
         {
@@ -180,6 +195,9 @@ public sealed class DeviceCommandService
             PreviousState = device.Mode,
             Status = "pending", Transport = transportName, RequestedBy = requestedBy, CreatedAtUtc = DateTime.UtcNow
         };
+        if (!device.IsEnabled || device.IsArchived || device.IsPendingRemoval ||
+            !device.ConfigurationStatus.Equals("applied", StringComparison.OrdinalIgnoreCase))
+        { command.Status = "blocked"; command.Error = "Thiết bị chưa Applied hoặc đang ngừng sử dụng."; await CompleteAsync(command, device, reason, null, ct); return command; }
         if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
         { command.Status = "blocked-by-local-override"; command.Error = "Physical/Local Manual đang hoạt động."; await CompleteAsync(command, device, reason, null, ct); return command; }
         if (!_options.CurrentValue.HardwareControlEnabled)

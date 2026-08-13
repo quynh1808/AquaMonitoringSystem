@@ -28,13 +28,13 @@
                 {
                     <button @onclick="() => UseSample(sample)"><span>→</span><p>@sample</p></button>
                 }
-                <div class="advisor-disclaimer"><strong>Phạm vi bản demo</strong><p>Hệ thống chỉ hỗ trợ sắp xếp ưu tiên kiểm tra từ dữ liệu mô phỏng. Không tự đưa ra liều lượng hóa chất.</p></div>
+                <div class="advisor-disclaimer"><strong>Phạm vi cố vấn</strong><p>Hệ thống chỉ sắp xếp ưu tiên kiểm tra từ sensor đã khai báo và dữ liệu đã lưu. Không tự đưa ra liều lượng hóa chất.</p></div>
             </aside>
 
             <section class="panel advisor-main">
                 <div class="advisor-status">
                     <div class="advisor-avatar">✦</div>
-                    <div><span class="status-pill success">RULE ENGINE ONLINE</span><h2>@CurrentPond?.Name</h2><p>DO @Telemetry.DissolvedOxygen.ToString("N2", Vi) · pH @Telemetry.Ph.ToString("N2", Vi) · NH₃ @Telemetry.Ammonia.ToString("N3", Vi)</p></div>
+                    <div><span class="status-pill success">RULE ENGINE ONLINE</span><h2>@CurrentPond?.Name</h2><p>@SensorSummary</p></div>
                 </div>
                 <label class="advisor-input">Câu hỏi hoặc tình trạng quan sát được<textarea rows="5" @bind="prompt" placeholder="Ví dụ: DO giảm vào sáng sớm, cần kiểm tra theo thứ tự nào?"></textarea></label>
                 <button class="button primary full large" @onclick="Analyze">✦ Phân tích dữ liệu hiện tại</button>
@@ -70,6 +70,8 @@
 
     private Pond? CurrentPond => State.Ponds.FirstOrDefault(p => p.Id == selectedPondId);
     private TelemetryData Telemetry => State.GetTelemetry(selectedPondId);
+    private List<SensorDefinition> PondSensors=>State.Sensors.Where(x=>x.PondId==selectedPondId&&x.IsEnabled).ToList();
+    private string SensorSummary=>PondSensors.Count==0?"Chưa có cảm biến được thiết lập":string.Join(" · ",PondSensors.Select(x=>$"{x.Name} {State.GetSensorCurrentValue(x).ToString($"N{State.GetThreshold(x.Metric).DecimalPlaces}",Vi)} {x.Unit}"));
 
     protected override void OnInitialized()
     {

@@ -102,6 +102,8 @@ public sealed class DashboardPondSummary
     public string DataSourceSummary { get; set; } = string.Empty;
     public DateTime LastUpdateLocal { get; set; }
     public TelemetryData Telemetry { get; set; } = new();
+    /// <summary>Only metrics backed by sensor definitions explicitly added to this pond.</summary>
+    public List<DashboardHeatmapCell> SensorMetrics { get; set; } = [];
 }
 
 public sealed class DashboardWeatherSnapshot
@@ -165,6 +167,7 @@ public sealed class DashboardHeatmapRow
 
 public sealed class DashboardHeatmapCell
 {
+    public string SensorId { get; set; } = string.Empty;
     public string Metric { get; set; } = string.Empty;
     public string Label { get; set; } = string.Empty;
     public double Value { get; set; }

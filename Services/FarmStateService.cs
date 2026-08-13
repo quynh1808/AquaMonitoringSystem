@@ -23,7 +23,6 @@ public sealed class FarmStateService : IDisposable
     private readonly FarmAccessService _access;
     private readonly DeviceCommandService _deviceCommands;
     private readonly ProductionCycleService _productionCycles;
-    private readonly SystemConfigurationRepository _systemConfiguration;
     private ClaimsPrincipal _principal = new(new ClaimsIdentity());
 
     public FarmStateService(
@@ -35,8 +34,7 @@ public sealed class FarmStateService : IDisposable
         AuthenticationStateProvider authenticationStateProvider,
         FarmAccessService access,
         DeviceCommandService deviceCommands,
-        ProductionCycleService productionCycles,
-        SystemConfigurationRepository systemConfiguration)
+        ProductionCycleService productionCycles)
     {
         _runtime = runtime;
         _repository = repository;
@@ -47,7 +45,6 @@ public sealed class FarmStateService : IDisposable
         _access = access;
         _deviceCommands = deviceCommands;
         _productionCycles = productionCycles;
-        _systemConfiguration = systemConfiguration;
         _runtime.Changed += ForwardChanged;
         SelectedPondId = string.Empty;
     }
@@ -59,8 +56,12 @@ public sealed class FarmStateService : IDisposable
     public Dictionary<string, TelemetryData> Telemetry => _runtime.Telemetry
         .Where(x => _access.CanAccessPond(_principal, x.Key))
         .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
-    public List<SensorDefinition> Sensors => _runtime.Sensors.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
-    public List<Device> Devices => _runtime.Devices.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
+    // Operational projections never expose archived or pending-removal assets. Configuration
+    // workers still read them directly from MongoDB until the node/PLC acknowledges removal.
+    public List<SensorDefinition> Sensors => _runtime.Sensors.Where(x => _access.CanAccessPond(_principal, x.PondId) &&
+        !x.IsArchived && !x.IsPendingRemoval).ToList();
+    public List<Device> Devices => _runtime.Devices.Where(x => _access.CanAccessPond(_principal, x.PondId) &&
+        !x.IsArchived && !x.IsPendingRemoval).ToList();
     public List<AlertItem> Alerts => _runtime.Alerts.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
     public List<FeedLog> FeedLogs => _runtime.FeedLogs.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
     public List<AutomationLog> AutomationLogs => _runtime.AutomationLogs.Where(x => _access.CanAccessPond(_principal, x.PondId)).ToList();
@@ -176,59 +177,6 @@ public sealed class FarmStateService : IDisposable
         if (SelectedPondId == pondId) SelectedPondId = Ponds.FirstOrDefault()?.Id ?? string.Empty;
         await _writeQueue.EnqueueAsync(writeCt => _repository.DeletePondAsync(pondId, writeCt), ct);
         return true;
-    }
-
-    public async Task<Device> AddDeviceAsync(AddDeviceRequest request, CancellationToken ct = default)
-    {
-        _access.EnsureCanManageFarm(_principal);
-        _access.EnsureCanViewPond(_principal, request.PondId);
-        var socket = await _systemConfiguration.GetSocketAsync(request.SocketId, ct);
-        if (socket is null || socket.Transport != "modbus-tcp" || socket.PondId != request.PondId || !socket.IsEnabled)
-            throw new InvalidOperationException("Thiết bị phải dùng một Modbus TCP socket đang Enable và cùng ao.");
-        var mappings = new[] { request.ManualStartRequestVariable, request.ManualStopRequestVariable,
-            request.AutoRequestVariable, request.AutoFeedbackVariable, request.LocalOverrideVariable,
-            request.RemoteAllowedVariable, request.RunFeedbackVariable, request.FaultVariable }
-            .Select(x => x.Trim().ToUpperInvariant()).ToArray();
-        if (mappings.Any(string.IsNullOrWhiteSpace) || mappings.Distinct(StringComparer.OrdinalIgnoreCase).Count() != mappings.Length)
-            throw new InvalidOperationException("Phải nhập đủ các M variables và không được trùng trong cùng thiết bị.");
-        var used = Devices.Where(x => x.SocketId == request.SocketId).SelectMany(x => new[]
-        { x.ManualStartRequestVariable, x.ManualStopRequestVariable, x.AutoRequestVariable, x.AutoFeedbackVariable,
-          x.LocalOverrideVariable, x.RemoteAllowedVariable, x.RunFeedbackVariable, x.FaultVariable })
-          .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var conflict = mappings.FirstOrDefault(used.Contains);
-        if (conflict is not null) throw new InvalidOperationException($"PLC variable {conflict} đã được thiết bị khác sử dụng trên socket.");
-        var device = new Device
-        {
-            PondId = request.PondId,
-            Name = request.Name.Trim(),
-            Type = request.Type,
-            PowerKw = request.PowerKw,
-            Status = "off",
-            Mode = "remote-manual",
-            ReportedMode = "unknown",
-            ControlTransport = request.ControlTransport.Trim(),
-            ExternalAddress = request.ExternalAddress.Trim(),
-            SocketId = request.SocketId,
-            ManualStartRequestVariable = request.ManualStartRequestVariable.ToUpperInvariant(),
-            ManualStopRequestVariable = request.ManualStopRequestVariable.ToUpperInvariant(),
-            LocalOverrideVariable = request.LocalOverrideVariable.ToUpperInvariant(),
-            RemoteAllowedVariable = request.RemoteAllowedVariable.ToUpperInvariant(),
-            RunFeedbackVariable = request.RunFeedbackVariable.ToUpperInvariant(),
-            FaultVariable = request.FaultVariable.ToUpperInvariant(),
-            AutoRequestVariable = request.AutoRequestVariable.ToUpperInvariant(),
-            AutoFeedbackVariable = request.AutoFeedbackVariable.ToUpperInvariant(),
-            FailSafeState = request.FailSafeState,
-            ConnectionStatus = "offline"
-        };
-        _runtime.AddDevice(device);
-        await AddAutomationLogAsync(request.PondId, $"Đã khai báo thiết bị mới: {device.Name} ({GetDeviceTypeLabel(device.Type)}).", string.Empty, null, ct);
-        await _writeQueue.EnqueueAsync(writeCt => _repository.UpsertDeviceAsync(device, writeCt), ct);
-        await _repository.InsertAuditLogAsync(new AuditLog
-        {
-            Actor = FarmAccessService.ActorName(_principal), Action = "device.create", EntityType = "device",
-            EntityId = device.Id, PondId = device.PondId, NewValue = $"{device.Name} · socket {device.SocketId}", Result = "success"
-        }, ct);
-        return device;
     }
 
     public async Task<DeviceCommand?> ToggleDeviceAsync(string deviceId, string reason = "manual-ui", CancellationToken ct = default)
@@ -399,13 +347,15 @@ public sealed class FarmStateService : IDisposable
         var pond = Ponds.FirstOrDefault(p => p.Id == pondId);
         if (pond is null) return "Không tìm thấy dữ liệu ao nuôi để phân tích.";
         var telemetry = GetTelemetry(pondId);
+        var configuredSensors = Sensors.Where(x => x.PondId == pondId && x.IsEnabled).ToList();
         var activeAlerts = Alerts.Where(x => x.PondId == pondId && !x.IsResolved).ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"PHÂN TÍCH CHO {pond.Name.ToUpperInvariant()}");
         sb.AppendLine($"Yêu cầu: {(!string.IsNullOrWhiteSpace(prompt) ? prompt.Trim() : "Đánh giá nhanh tình trạng ao")}");
         sb.AppendLine();
-        sb.AppendLine(telemetry.IsOnline
+        sb.AppendLine(configuredSensors.Count > 0 && telemetry.IsOnline
             ? $"Dữ liệu gần nhất: {telemetry.Timestamp.ToLocalTime():dd/MM/yyyy HH:mm:ss}, nguồn {telemetry.SourceType}, chất lượng {telemetry.Quality}."
+            : configuredSensors.Count == 0 ? "Ao chưa có cảm biến được thiết lập. Không đủ dữ liệu để đánh giá chất lượng nước."
             : "Hiện không có dữ liệu cảm biến trực tuyến đáng tin cậy.");
         if (activeAlerts.Count == 0)
         {
@@ -449,16 +399,10 @@ public sealed class FarmStateService : IDisposable
     public int CalculateHealthScore(TelemetryData telemetry)
     {
         var options = _behavior.CurrentValue.HealthScore;
-        if (!telemetry.IsOnline || telemetry.Quality is "invalid" or "no-data") return options.OfflineScore;
-        var checks = new[]
-        {
-            IsMetricSafe("dissolvedOxygen", telemetry.DissolvedOxygen),
-            IsMetricSafe("ph", telemetry.Ph),
-            IsMetricSafe("temperature", telemetry.Temperature),
-            IsMetricSafe("salinity", telemetry.Salinity),
-            IsMetricSafe("ammonia", telemetry.Ammonia),
-            IsMetricSafe("waterLevel", telemetry.WaterLevel)
-        };
+        var configured = Sensors.Where(x => x.PondId == telemetry.PondId && x.IsEnabled).ToList();
+        if (configured.Count == 0 || configured.All(x => x.Status != "online")) return options.OfflineScore;
+        var checks = configured.Select(x => x.Status == "online" && x.LastQuality == "good" &&
+            IsMetricSafe(x.Metric, GetMetricValue(telemetry, x.Metric))).ToList();
         var score = options.InitialScore - checks.Count(x => !x) * options.MetricOutOfRangePenalty;
         var criticalCount = Alerts.Count(x => x.PondId == telemetry.PondId && !x.IsResolved && x.Severity == "critical");
         return Math.Clamp(score - criticalCount * options.CriticalAlertPenalty, 0, 100);

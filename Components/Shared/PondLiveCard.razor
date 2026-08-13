@@ -6,10 +6,8 @@
     </header>
 
     <div class="ams-live-metrics">
-        <div class='@MetricClass("dissolvedOxygen", Pond.Telemetry.DissolvedOxygen)'><small>DO</small><strong>@Pond.Telemetry.DissolvedOxygen.ToString("N2", Vi)</strong><em>mg/L</em></div>
-        <div class='@MetricClass("ph", Pond.Telemetry.Ph)'><small>pH</small><strong>@Pond.Telemetry.Ph.ToString("N2", Vi)</strong><em>pH</em></div>
-        <div class='@MetricClass("temperature", Pond.Telemetry.Temperature)'><small>Nhiệt độ</small><strong>@Pond.Telemetry.Temperature.ToString("N1", Vi)</strong><em>°C</em></div>
-        <div class='@MetricClass("ammonia", Pond.Telemetry.Ammonia)'><small>NH₃</small><strong>@Pond.Telemetry.Ammonia.ToString("N3", Vi)</strong><em>mg/L</em></div>
+        @foreach(var sensor in Pond.SensorMetrics.Take(4)){<div class="@sensor.Status"><small>@sensor.Label</small><strong>@sensor.FormattedValue</strong><em>@sensor.Unit</em></div>}
+        @if(Pond.SensorMetrics.Count==0){<div class="no-data"><small>Cảm biến</small><strong>Chưa thiết lập</strong><em>Administrator chưa thêm sensor</em></div>}
     </div>
 
     <div class="ams-pond-facts">
@@ -33,16 +31,16 @@
 
     private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
     private string HealthClass => Pond.HealthStatus;
-    private string StatusText => !Pond.Telemetry.IsOnline ? "Mất dữ liệu" : Pond.ActiveAlerts > 0 ? "Cần chú ý" : "Đang vận hành";
+    private string StatusText => Pond.TotalSensors == 0 ? "Chưa thiết lập" : !Pond.Telemetry.IsOnline ? "Mất dữ liệu" : Pond.ActiveAlerts > 0 ? "Cần chú ý" : "Đang vận hành";
     private string RelativeUpdate
     {
         get
         {
+            if(Pond.TotalSensors==0||Pond.LastUpdateLocal==DateTime.MinValue)return "Chưa có dữ liệu";
             var age = DateTime.Now - Pond.LastUpdateLocal;
             if (age.TotalSeconds < 60) return $"{Math.Max(0, (int)age.TotalSeconds)} giây trước";
             if (age.TotalMinutes < 60) return $"{(int)age.TotalMinutes} phút trước";
             return Pond.LastUpdateLocal.ToString("dd/MM HH:mm");
         }
     }
-    private string MetricClass(string metric, double value) => Analytics.MetricStatus(metric, value, Pond.Telemetry.IsOnline, Pond.Telemetry.Quality);
 }

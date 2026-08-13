@@ -16,6 +16,11 @@ P03 loại bỏ toàn bộ generator sensor, dashboard data và device ACK simul
 
 `Config/seed-data.json` chỉ chạy khi collection `ponds` rỗng. P03 không tự xóa ao, history hoặc nghiệp vụ đã tồn tại vì đó là thao tác dữ liệu không thể phục hồi. Với database cũ nhiều ao, hãy backup trước, rồi archive/xóa dữ liệu ngoài `pond_01` theo quy trình được người quản trị phê duyệt.
 
+Seed mới không tạo sensor hoặc thiết bị. Khi nâng cấp database cũ, definition demo sáu sensor và ba
+thiết bị được archive để không còn xuất hiện trên giao diện; dữ liệu đọc, command và audit cũ không bị xóa.
+Asset do admin thêm chỉ được xóa bằng quy trình decommission Apply/ACK mô tả trong
+`Docs/DYNAMIC-COMMISSIONING.md`.
+
 ## Thay phần edge bằng thiết bị thật
 
 - Sensor: thay duy nhất hàm đọc giá trị trong firmware, giữ MQTT contract.

@@ -6,7 +6,7 @@
 - Một socket logic ánh xạ đúng một node vật lý.
 - MQTT broker profile dùng chung cho nhiều MQTT socket.
 - Cảm biến chỉ nhận dữ liệu sau khi Administrator khai báo `SensorId + SocketId + NodeId + ChannelId`.
-- Startup archive các placeholder sáu-sensor cũ chưa từng có reading; sensor có history không bị tự động xóa.
+- Startup archive toàn bộ definition sensor/thiết bị demo cũ; readings, commands và audit lịch sử vẫn được giữ nhưng không tạo card vận hành.
 - Chu kỳ `0` nghĩa là `NotConfigured`: firmware không đọc và không gửi channel.
 - `Applying` chỉ thành `Applied` khi node trả đúng `CommandId` và version.
 - PLC mapping M/D được nhập tay theo chương trình FX5U thực tế và được validate trước khi lưu.
@@ -77,3 +77,19 @@ và ACL chỉ cho phép publish đúng prefix mà AquaOps sinh từ PondId + Nod
 - Remote Manual dùng hai pulse M riêng cho START và STOP.
 - AUTO dùng policy MongoDB với hysteresis, persistence, minimum ON/OFF và maximum starts/hour.
 - PLC vẫn phải có interlock/anti-short-cycle độc lập; web không thay thế bảo vệ điện và cơ khí.
+
+## 8. Xóa cảm biến và thiết bị
+
+Đây là soft-delete có ACK, không phải xóa document MongoDB:
+
+1. Administrator bấm **Xóa**, đọc cảnh báo và nhập lý do.
+2. Asset bị disable, ẩn khỏi Tổng quan/Dashboard/Analytics và không còn được automation sử dụng.
+3. Nếu asset vẫn đang nằm trong reported configuration, AquaOps tạo desired version mới không chứa asset.
+4. Node offline giữ trạng thái `PendingReconnect`; timeout/rejected phải được xử lý và Apply lại.
+5. Chỉ khi node/PLC ACK đúng version, asset mới chuyển `Archived`.
+6. Asset Draft chưa từng Applied được archive ngay vì node chưa từng nhận mapping đó.
+
+Sensor không thể xóa khi còn AUTO policy Enable. Thiết bị không thể xóa nếu còn AUTO policy, đang
+chạy, fault, PLC/feedback offline hoặc Physical/Local Override. Operator phải STOP và xác nhận Run
+Feedback OFF trước. Rollback cấu hình luôn lọc asset pending/archived nên không thể làm sống lại mapping
+đã ngừng sử dụng. Reading, sensor installation, command history và audit được giữ để truy vết.

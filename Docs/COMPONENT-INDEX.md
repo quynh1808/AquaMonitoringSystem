@@ -5,6 +5,8 @@
 - `Components/Pages/SystemConnections.razor`: broker/socket CRUD, trạng thái, Apply và log.
 - `Components/Pages/SystemNodes.razor`: capability channels do edge báo cáo.
 - `Components/Shared/AddSensorModal.razor`: sensor động theo socket/node/channel/interval.
+- `Components/Pages/PondDetail.razor`: card sensor/thiết bị động, empty state và decommission có xác nhận.
+- `Data/SystemConfigurationRepository.cs`: hoàn tất archive sau ACK mà không xóa history.
 - `Components/Shared/SensorReplacementModal.razor`: lifecycle thay probe và InstallationId.
 - `Components/Pages/DeviceAutomation.razor`: AUTO policy và anti-chattering.
 - `Sensors/DynamicMqttConnectionSupervisor.cs`: broker sessions, node identity, health/config/sync.

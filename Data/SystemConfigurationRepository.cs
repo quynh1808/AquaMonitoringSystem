@@ -46,6 +46,9 @@ public sealed class SystemConfigurationRepository
     }
 
     public async Task<SensorDefinition?> GetSensorAsync(string sensorId, CancellationToken ct = default) =>
+        await _db.Sensors.Find(x => x.Id == sensorId && !x.IsArchived && !x.IsPendingRemoval).FirstOrDefaultAsync(ct);
+
+    public async Task<SensorDefinition?> GetSensorForConfigurationAsync(string sensorId, CancellationToken ct = default) =>
         await _db.Sensors.Find(x => x.Id == sensorId && !x.IsArchived).FirstOrDefaultAsync(ct);
 
     public Task UpsertSensorAsync(SensorDefinition sensor, CancellationToken ct = default) =>
@@ -60,6 +63,40 @@ public sealed class SystemConfigurationRepository
 
     public Task UpsertDeviceAsync(Device device, CancellationToken ct = default) =>
         _db.Devices.ReplaceOneAsync(x => x.Id == device.Id, device, new ReplaceOptions { IsUpsert = true }, ct);
+
+    /// <summary>
+    /// Finalizes soft deletion only after the node has acknowledged the desired configuration.
+    /// The documents are retained so telemetry, command and audit history remain referentially useful.
+    /// </summary>
+    public async Task<FinalizedAssetRemovals> FinalizePendingRemovalsAsync(
+        string socketId, long reportedVersion, CancellationToken ct = default)
+    {
+        var sensors = await _db.Sensors.Find(x => x.SocketId == socketId && x.IsPendingRemoval && !x.IsArchived)
+            .ToListAsync(ct);
+        foreach (var sensor in sensors)
+        {
+            sensor.IsPendingRemoval = false; sensor.IsArchived = true; sensor.IsEnabled = false;
+            sensor.Status = "archived"; sensor.ConfigurationStatus = "archived";
+            sensor.ReportedConfigurationVersion = reportedVersion; sensor.UpdatedAtUtc = DateTime.UtcNow;
+            await UpsertSensorAsync(sensor, ct);
+            await _db.SensorInstallations.UpdateManyAsync(
+                x => x.SensorId == sensor.Id && x.Status == "active",
+                Builders<SensorInstallation>.Update.Set(x => x.Status, "retired")
+                    .Set(x => x.RemovedAtUtc, DateTime.UtcNow)
+                    .Set(x => x.RemovalReason, sensor.RemovalReason), cancellationToken: ct);
+        }
+
+        var devices = await _db.Devices.Find(x => x.SocketId == socketId && x.IsPendingRemoval && !x.IsArchived)
+            .ToListAsync(ct);
+        foreach (var device in devices)
+        {
+            device.IsPendingRemoval = false; device.IsArchived = true; device.IsEnabled = false;
+            device.ConfigurationStatus = "archived"; device.ConnectionStatus = "archived";
+            device.ReportedConfigurationVersion = reportedVersion; device.UpdatedAtUtc = DateTime.UtcNow;
+            await UpsertDeviceAsync(device, ct);
+        }
+        return new(sensors, devices);
+    }
 
     public Task<List<NodeCapabilitySnapshot>> GetCapabilitiesAsync(CancellationToken ct = default) =>
         _db.NodeCapabilities.Find(FilterDefinition<NodeCapabilitySnapshot>.Empty).ToListAsync(ct);
@@ -138,3 +175,5 @@ public sealed class SystemConfigurationRepository
     public Task UpsertAlarmRuleAsync(AlarmRule item, CancellationToken ct = default) =>
         _db.AlarmRules.ReplaceOneAsync(x => x.Id == item.Id, item, new ReplaceOptions { IsUpsert = true }, ct);
 }
+
+public sealed record FinalizedAssetRemovals(List<SensorDefinition> Sensors, List<Device> Devices);

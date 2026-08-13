@@ -24,13 +24,15 @@ Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` c�
 - Dynamic MQTT/Modbus supervisor start/stop/reconnect theo dữ liệu MongoDB, exponential backoff, runtime health, last seen và log TTL; một socket lỗi không dừng socket khác.
 - Desired/reported configuration có `Draft → Applying → Applied/Rejected/Timeout/PendingReconnect/OutOfSync`; chỉ Applied khi node ACK đúng CommandId/version.
 - Sensor pipeline có bounded backpressure, kiểm tra timestamp/giới hạn vật lý do edge báo cáo, EventId chống trùng, sequence gap và backfill không làm lùi live state.
-- Một ao pilot `pond_01` và **không có sáu sensor mặc định**; admin thêm sensor động theo SocketId, NodeId, ChannelId, interval, primary/backup và calibration.
+- Một ao pilot `pond_01` khởi tạo **không có sensor hoặc thiết bị mặc định**; Tổng quan, Dashboard và Analytics chỉ dựng card/metric từ asset mà admin thực sự thêm.
+- Xóa sensor/thiết bị là decommission hai giai đoạn: ẩn và khóa ngay, loại khỏi desired config, chỉ archive sau node/PLC ACK; history, installation, command và audit không bị hard-delete.
 - ESP32 báo capabilities cùng physical min/max/driver và sensor health; node/sensor lạ đi vào quarantine, không tự đăng ký.
 - ESP32 có NVS ring buffer; chỉ xóa EventId sau ACK cấp ứng dụng xác nhận MongoDB đã persist, không dựa riêng vào MQTT QoS ACK.
 - Sensor replacement giữ logical SensorId nhưng tạo SensorInstallationId mới; hỗ trợ MaintenanceOffline cho cả node và tránh alert storm.
 - Ngưỡng cảnh báo vận hành cấu hình theo PondId + Metric; giới hạn vật lý nằm trong firmware/capabilities.
 - Cảnh báo có new/acknowledged/resolved, số lần lặp, người tiếp nhận, delay/cooldown/hysteresis, webhook LAN, automation và audit.
 - Thiết bị có AUTO, Remote Manual và Physical/Local Override với ưu tiên `Safety > Local > Remote > Auto`; PLC chặn lệnh thật sự khi Local Override.
+- Thiết bị ở Draft/Applying/PendingReconnect không thể điều khiển; START/STOP và đổi mode chỉ mở sau trạng thái Applied.
 - Remote Manual dùng hai pulse M riêng cho START/STOP, durable intent, read-back run/fault và không replay command cũ sau reconnect.
 - AUTO policy chỉnh trên web có hysteresis, persistence, minimum ON/OFF, maximum starts/hour, lockout và input-failure action; PLC vẫn giữ interlock cuối.
 - Hai ESP-IDF project cho WROOM-32E: sensor edge có interval động/health/durable sync và FX5U-compatible simulator FC01/03/05/06 qua Wi-Fi.

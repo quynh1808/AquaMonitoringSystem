@@ -44,7 +44,7 @@ public sealed class SensorOfflineMonitor : BackgroundService
 		{
 			SystemBehaviorOptions options = _behavior.CurrentValue;
 			List<SensorDefinition> sensors = _runtime.Sensors;
-			foreach (SensorDefinition sensor in sensors.Where(x => x.IsEnabled && !x.IsArchived && x.PublishIntervalSeconds > 0 &&
+			foreach (SensorDefinition sensor in sensors.Where(x => x.IsEnabled && !x.IsArchived && !x.IsPendingRemoval && x.PublishIntervalSeconds > 0 &&
 				x.Status is not ("maintenance" or "not-configured" or "unavailable-via-node") &&
 				(!x.LastSeenAtUtc.HasValue || x.LastSeenAtUtc.Value < DateTime.UtcNow.AddSeconds(-Math.Max(5, x.OfflineTimeoutSeconds))) && x.Status != "offline"))
 			{

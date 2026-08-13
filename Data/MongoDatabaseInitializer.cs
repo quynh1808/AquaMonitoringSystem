@@ -45,43 +45,39 @@ public sealed class MongoDatabaseInitializer
         await BackfillFeedCycleIdsAsync(cancellationToken);
     }
 
-    /// <summary>Archives untouched P03 demo actuators while preserving any command history.</summary>
+    /// <summary>
+    /// Archives every legacy demo actuator. Command/audit history is retained in its own
+    /// collections; a historical command must never make a demo card look like installed plant.
+    /// </summary>
     private async Task ArchiveUnusedLegacyDevicesAsync(CancellationToken ct)
     {
         var legacyIds = new[] { "dev_01", "dev_02", "dev_03" };
         var candidates = await _db.Devices.Find(x => legacyIds.Contains(x.Id) && !x.IsArchived &&
-            x.SocketId == string.Empty && x.LastSeenAtUtc == null).ToListAsync(ct);
+            x.SocketId == string.Empty).ToListAsync(ct);
         foreach (var device in candidates)
         {
-            var hasCommands = await _db.DeviceCommands.CountDocumentsAsync(x => x.DeviceId == device.Id,
-                new CountOptions { Limit = 1 }, ct) > 0;
-            if (hasCommands) continue;
             await _db.Devices.UpdateOneAsync(x => x.Id == device.Id,
                 Builders<Device>.Update.Set(x => x.IsArchived, true).Set(x => x.IsEnabled, false)
                     .Set(x => x.ConnectionStatus, "archived-legacy-placeholder").Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
                 cancellationToken: ct);
-            _logger.LogInformation("Đã archive legacy placeholder device {DeviceId}; không có command history.", device.Id);
+            _logger.LogInformation("Đã archive legacy placeholder device {DeviceId}; command history được giữ nguyên.", device.Id);
         }
     }
 
     /// <summary>
-    /// Old releases created six placeholder sensors per pond. Archive only untouched placeholders;
-    /// a sensor with readings is real historical data and is never altered automatically.
+    /// Old releases created six placeholder sensors per pond. Archive their definitions even
+    /// when readings exist; readings remain historical and no longer create installed cards.
     /// </summary>
     private async Task ArchiveUnusedLegacySensorsAsync(CancellationToken ct)
     {
-        var candidates = await _db.Sensors.Find(x => !x.IsArchived && x.SocketId == string.Empty &&
-            x.LastSeenAtUtc == null && (x.LastQuality == "no-data" || x.LastQuality == "unknown")).ToListAsync(ct);
+        var candidates = await _db.Sensors.Find(x => !x.IsArchived && x.SocketId == string.Empty).ToListAsync(ct);
         foreach (var sensor in candidates.Where(x => x.Id == $"sensor_{x.PondId}_{x.Metric}"))
         {
-            var hasReading = await _db.SensorReadings.CountDocumentsAsync(x => x.Metadata.SensorId == sensor.Id,
-                new CountOptions { Limit = 1 }, ct) > 0;
-            if (hasReading) continue;
             await _db.Sensors.UpdateOneAsync(x => x.Id == sensor.Id,
                 Builders<SensorDefinition>.Update.Set(x => x.IsArchived, true).Set(x => x.IsEnabled, false)
                     .Set(x => x.Status, "archived-legacy-placeholder").Set(x => x.UpdatedAtUtc, DateTime.UtcNow),
                 cancellationToken: ct);
-            _logger.LogInformation("Đã archive legacy placeholder sensor {SensorId}; không có reading lịch sử.", sensor.Id);
+            _logger.LogInformation("Đã archive legacy placeholder sensor {SensorId}; readings được giữ nguyên.", sensor.Id);
         }
     }
 

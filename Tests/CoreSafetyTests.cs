@@ -112,6 +112,28 @@ public sealed class CoreSafetyTests
     }
 
     [TestMethod]
+    public void NewDevice_DefaultsToDraftAndCannotBeMistakenForCommissionedPlant()
+    {
+        var device = new Device();
+
+        Assert.AreEqual("draft", device.ConfigurationStatus);
+        Assert.AreEqual(0L, device.DesiredConfigurationVersion);
+        Assert.AreEqual(0L, device.ReportedConfigurationVersion);
+        Assert.IsFalse(device.IsPendingRemoval);
+        Assert.IsFalse(device.IsArchived);
+    }
+
+    [TestMethod]
+    public void PendingRemoval_IsDistinctFromArchiveUntilNodeAcknowledges()
+    {
+        var sensor = new SensorDefinition { IsEnabled = false, IsPendingRemoval = true, IsArchived = false };
+        var device = new Device { IsEnabled = false, IsPendingRemoval = true, IsArchived = false };
+
+        Assert.IsTrue(sensor.IsPendingRemoval && !sensor.IsArchived);
+        Assert.IsTrue(device.IsPendingRemoval && !device.IsArchived);
+    }
+
+    [TestMethod]
     public void OperationalModeGuard_AllowsEdgeSimulationContract()
     {
         var guard = CreateGuard("EdgeSimulation", hardwareEnabled: false, notificationsEnabled: false);

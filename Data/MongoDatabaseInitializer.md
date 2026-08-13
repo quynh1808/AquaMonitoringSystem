@@ -1,3 +1,5 @@
 # MongoDatabaseInitializer
 
-Tạo index, alarm rules và seed khi MongoDB trống. Seed P03 chỉ có `pond_01`, sáu sensor MQTT offline/no-data và ba thiết bị FX5U offline; không tạo reading, feed log, growth sample hay telemetry giả. Dữ liệu MongoDB hiện có không bị xóa tự động.
+Tạo index, alarm rules và seed khi MongoDB trống. Seed chỉ tạo `pond_01`, không tạo sensor, thiết bị,
+reading, feed log, growth sample hoặc telemetry giả. Khi nâng cấp, definition của sáu sensor và ba
+thiết bị demo cũ được archive để không tạo card; reading, command và audit history vẫn được giữ.

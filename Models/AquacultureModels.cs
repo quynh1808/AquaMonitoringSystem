@@ -55,6 +55,14 @@ public sealed class SensorDefinition
     public long ReportedConfigurationVersion { get; set; }
     public bool IsPrimary { get; set; } = true;
     public bool IsArchived { get; set; }
+    /// <summary>
+    /// Hides the sensor from operational screens while its removal configuration is waiting
+    /// for the edge node ACK. Historical readings and installation lineage remain intact.
+    /// </summary>
+    public bool IsPendingRemoval { get; set; }
+    public DateTime? RemovalRequestedAtUtc { get; set; }
+    public string? RemovalRequestedBy { get; set; }
+    public string? RemovalReason { get; set; }
     public string Notes { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
     public string Status { get; set; } = "offline";
@@ -120,6 +128,14 @@ public sealed class Device
     public string SocketId { get; set; } = string.Empty;
     public bool IsEnabled { get; set; } = true;
     public bool IsArchived { get; set; }
+    /// <summary>Commissioning state is independent from the physical run feedback.</summary>
+    public string ConfigurationStatus { get; set; } = "draft";
+    public long DesiredConfigurationVersion { get; set; }
+    public long ReportedConfigurationVersion { get; set; }
+    public bool IsPendingRemoval { get; set; }
+    public DateTime? RemovalRequestedAtUtc { get; set; }
+    public string? RemovalRequestedBy { get; set; }
+    public string? RemovalReason { get; set; }
     /// <summary>Reported PLC mode: auto, remote-manual or local-manual.</summary>
     public string ReportedMode { get; set; } = "unknown";
     public string AutoRequestVariable { get; set; } = string.Empty;

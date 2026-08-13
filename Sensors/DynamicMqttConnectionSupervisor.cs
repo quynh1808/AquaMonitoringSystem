@@ -262,6 +262,24 @@ public sealed class DynamicMqttConnectionSupervisor : BackgroundService
             if (deployment.Status == "applied") sensor.ReportedConfigurationVersion = reported.Version;
             await _repository.UpsertSensorAsync(sensor, ct); _runtime.UpsertSensor(sensor);
         }
+        foreach (var device in (await _repository.GetDevicesAsync(socket.PondId, ct)).Where(x => x.SocketId == socket.Id))
+        {
+            device.ConfigurationStatus = deployment.Status;
+            if (deployment.Status == "applied") device.ReportedConfigurationVersion = reported.Version;
+            await _repository.UpsertDeviceAsync(device, ct); _runtime.UpsertDevice(device);
+        }
+        if (deployment.Status == "applied")
+        {
+            var finalized = await _repository.FinalizePendingRemovalsAsync(socket.Id, reported.Version, ct);
+            foreach (var sensor in finalized.Sensors) _runtime.UpsertSensor(sensor);
+            foreach (var device in finalized.Devices) _runtime.UpsertDevice(device);
+            if (finalized.Sensors.Count + finalized.Devices.Count > 0)
+                await _repository.InsertConnectionLogAsync(new ConnectionLogEntry
+                {
+                    SocketId = socket.Id, EventType = "asset-removal-applied", CorrelationId = deployment.CommandId,
+                    Message = $"Đã archive {finalized.Sensors.Count} sensor và {finalized.Devices.Count} thiết bị sau node ACK."
+                }, ct);
+        }
         await _repository.InsertConnectionLogAsync(new ConnectionLogEntry
         {
             SocketId = socket.Id, EventType = "configuration-reported", CorrelationId = deployment.CommandId,

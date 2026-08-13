@@ -1,3 +1,6 @@
 # Devices
 
-Trang quản lý thiết bị toàn trại. Cho phép lọc theo ao, thêm thiết bị, đổi Manual/Auto và gửi lệnh bật/tắt qua `FarmStateService`. Bản hiện tại lưu `DeviceCommand` và ACK mô phỏng trong MongoDB; transport phần cứng sẽ được thay ở lớp command adapter sau này.
+Trang quản lý thiết bị toàn trại chỉ hiển thị thiết bị do Administrator đã thêm. Thiết bị Draft phải
+Apply và nhận PLC ACK trước khi START/STOP hoặc đổi mode. Chức năng xóa kiểm tra AUTO policy,
+Run Feedback, fault, kết nối và Physical Override; mapping chỉ archive sau ACK, còn DeviceCommand và
+audit history được giữ trong MongoDB.

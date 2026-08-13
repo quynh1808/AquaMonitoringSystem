@@ -23,7 +23,7 @@ public sealed class AutomationEngineService
 
     public async Task ProcessAsync(SensorDefinition sensor, SensorReading reading, CancellationToken ct)
     {
-        if (!sensor.IsEnabled || sensor.IsArchived || sensor.Status != "online" || reading.Quality != "good") return;
+        if (!sensor.IsEnabled || sensor.IsArchived || sensor.IsPendingRemoval || sensor.Status != "online" || reading.Quality != "good") return;
         var policies = (await _configuration.GetAutomationPoliciesAsync(null, ct)).Where(x => x.IsEnabled &&
             x.PondId == sensor.PondId && x.Metric.Equals(sensor.Metric, StringComparison.OrdinalIgnoreCase) &&
             (string.IsNullOrWhiteSpace(x.SensorId) || x.SensorId == sensor.Id ||
@@ -74,7 +74,7 @@ public sealed class AutomationEngineService
     private async Task EvaluateAsync(DeviceAutomationPolicy policy, double value, CancellationToken ct)
     {
         var device = _runtime.Devices.FirstOrDefault(x => x.Id == policy.DeviceId);
-        if (device is null || !device.IsEnabled || device.IsArchived) return;
+        if (device is null || !device.IsEnabled || device.IsArchived || device.IsPendingRemoval || device.ConfigurationStatus != "applied") return;
         if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
         {
             await SetStateAsync(policy, "suppressed-by-local-override", null, ct); return;

@@ -12,12 +12,13 @@
             <div class="heading-actions"><button class="button ghost" @onclick="State.Tick">↻ Kiểm tra lại</button></div>
         </header>
 
-        <div class="threshold-grid">
+        @if(ThresholdCards.Count>0){<div class="threshold-grid">
             @foreach (var rule in ThresholdCards)
             {
                 <article><span>@rule.Icon</span><small>@rule.Label</small><strong>@State.GetTargetText(rule.Metric)</strong><p>@State.GetThreshold(rule.Metric).ProposedSolution</p></article>
             }
-        </div>
+        </div>}
+        else{<section class="empty-state panel"><div class="empty-icon">⌁</div><h2>Chưa có ngưỡng cảm biến đang sử dụng</h2><p>Ngưỡng chỉ xuất hiện khi Administrator đã thêm sensor cho ít nhất một ao được cấp quyền.</p></section>}
 
         <div class="alerts-layout">
             <section class="panel alert-list-panel">
@@ -81,7 +82,8 @@
 @code {
     private readonly CultureInfo Vi = CultureInfo.GetCultureInfo("vi-VN");
     private bool showResolved;
-    private static readonly (string Metric, string Icon, string Label)[] ThresholdCards = [("dissolvedOxygen", "O₂", "Oxy hòa tan"), ("ph", "pH", "Độ pH"), ("ammonia", "NH₃", "Amoniac"), ("waterLevel", "↕", "Mực nước")];
+    private static readonly (string Metric, string Icon, string Label)[] ThresholdCatalog = [("dissolvedOxygen", "O₂", "Oxy hòa tan"), ("ph", "pH", "Độ pH"), ("temperature", "°C", "Nhiệt độ"), ("salinity", "S", "Độ mặn"), ("ammonia", "NH₃", "Amoniac"), ("waterLevel", "↕", "Mực nước")];
+    private List<(string Metric,string Icon,string Label)> ThresholdCards=>ThresholdCatalog.Where(x=>State.Sensors.Any(s=>s.Metric==x.Metric&&s.IsEnabled)).ToList();
     private List<AlertItem> ActiveAlerts => State.Alerts.Where(a => !a.IsResolved).ToList();
     private List<AlertItem> VisibleAlerts => State.Alerts.Where(a => a.IsResolved == showResolved).OrderByDescending(a => a.Timestamp).ToList();
 

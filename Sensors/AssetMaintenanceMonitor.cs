@@ -45,7 +45,7 @@ public sealed class AssetMaintenanceMonitor : BackgroundService
 		{
 			SystemBehaviorOptions options = _behavior.CurrentValue;
 			DateTime reminderCutoff = DateTime.UtcNow.AddDays(options.CalibrationReminderDaysBefore);
-			foreach (SensorDefinition sensor in _runtime.Sensors.Where((SensorDefinition x) => x.IsEnabled && x.CalibrationDueDateUtc.HasValue && x.CalibrationDueDateUtc.Value <= reminderCutoff))
+			foreach (SensorDefinition sensor in _runtime.Sensors.Where((SensorDefinition x) => x.IsEnabled && !x.IsArchived && !x.IsPendingRemoval && x.CalibrationDueDateUtc.HasValue && x.CalibrationDueDateUtc.Value <= reminderCutoff))
 			{
 				DateTime dueAt = sensor.CalibrationDueDateUtc!.Value;
 				string text = "calibration:" + sensor.Id;

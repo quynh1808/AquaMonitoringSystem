@@ -1,6 +1,7 @@
 @page "/devices"
 @attribute [Authorize]
 @inject FarmStateService State
+@inject SystemConfigurationService Configuration
 @implements IDisposable
 
 <PageTitle>Thiết bị · AquaOps</PageTitle>
@@ -45,6 +46,7 @@
                         <div><dt>Chế độ</dt><dd>@(device.Mode == "auto" ? "Tự động" : "Thủ công")</dd></div>
                         <div><dt>PLC reported</dt><dd>@device.ReportedMode</dd></div>
                         <div><dt>Remote allowed</dt><dd>@(device.IsRemoteControlAllowed?"Có":"Không")</dd></div>
+                        <div><dt>Commissioning</dt><dd>@device.ConfigurationStatus</dd></div>
                     </dl>
                     @if(device.IsLocalOverrideActive||device.ReportedMode=="local-manual"){<p class="physical-lock">🔒 Physical Override đang hoạt động — web chỉ được giám sát.</p>}
                     <AuthorizeView Roles="Administrator,FarmManager,Technician" Context="deviceOperator"><div class="device-actions">
@@ -53,6 +55,7 @@
                         <button class="button danger" disabled="@((!IsPhysical(device)&&!CanRemote(device))||device.Status=="off")" @onclick='() => RequestCommand(device, "off")'>STOP</button>
                         <AuthorizeView Roles="Administrator" Context="deviceAdmin"><a class="button ghost small" href="@($"/devices/{device.Id}/automation")">Điều kiện AUTO</a></AuthorizeView>
                         <AuthorizeView Roles="Administrator" Context="deviceEditor"><button class="button ghost small" @onclick="()=>OpenEditDevice(device)">Chỉnh sửa</button></AuthorizeView>
+                        <AuthorizeView Roles="Administrator" Context="deviceRemover"><button class="button danger small" @onclick="()=>RequestRemoveDevice(device)">Xóa thiết bị</button></AuthorizeView>
                     </div></AuthorizeView>
                 </article>
             }
@@ -60,7 +63,7 @@
 
         @if (FilteredDevices.Count == 0)
         {
-            <section class="empty-state panel"><div class="empty-icon">⚙</div><h2>Chưa có thiết bị</h2><p>Liên hệ người vận hành có quyền để khai báo thiết bị.</p><AuthorizeView Roles="Administrator,FarmManager,Technician"><button class="button primary" @onclick="OpenAddDevice">Thêm thiết bị</button></AuthorizeView></section>
+            <section class="empty-state panel"><div class="empty-icon">⚙</div><h2>Chưa có thiết bị</h2><p>Thiết bị chỉ xuất hiện sau khi Administrator khai báo socket và mapping PLC.</p><AuthorizeView Roles="Administrator"><button class="button primary" @onclick="OpenAddDevice">Thêm thiết bị</button></AuthorizeView></section>
         }
     </section>
 
@@ -75,7 +78,8 @@
     private Device? editingDevice;
     private ConfirmActionDialog? confirmation;
 
-    private List<Device> FilteredDevices => State.Devices.Where(d => filterPondId == "all" || d.PondId == filterPondId).ToList();
+    private List<Device> FilteredDevices => State.Devices.Where(d => !d.IsArchived && !d.IsPendingRemoval &&
+        (filterPondId == "all" || d.PondId == filterPondId)).ToList();
     private string AddDevicePondName => State.Ponds.FirstOrDefault(p => p.Id == addDevicePondId)?.Name ?? "Ao nuôi";
 
     protected override void OnInitialized()
@@ -109,7 +113,7 @@
     };
 
     private static bool IsPhysical(Device device)=>device.IsLocalOverrideActive||device.ReportedMode=="local-manual";
-    private static bool CanRemote(Device device)=>!IsPhysical(device)&&(device.Mode is "manual" or "remote-manual")&&device.IsRemoteControlAllowed&&device.ConnectionStatus=="online";
+    private static bool CanRemote(Device device)=>!IsPhysical(device)&&device.ConfigurationStatus=="applied"&&(device.Mode is "manual" or "remote-manual")&&device.IsRemoteControlAllowed&&device.ConnectionStatus=="online";
     private async Task RequestCommand(Device device,string state)
     {
         if(IsPhysical(device)){await confirmation!.ShowAsync("Không thể điều khiển","Thiết bị đang ở Physical Override; chỉ tủ điện/PLC được quyền điều khiển.");return;}
@@ -120,6 +124,13 @@
     {
         if(IsPhysical(device)){await confirmation!.ShowAsync("Không thể đổi mode","Physical Override đang hoạt động tại tủ điện.");return;}
         var target=device.Mode=="auto"?"REMOTE MANUAL":"AUTO";var result=await confirmation!.ShowAsync($"Chuyển sang {target}?",$"Thiết bị {device.Name} sẽ đổi quyền điều khiển.",target=="AUTO"?"Automation policy sẽ được phép phát lệnh khi đủ điều kiện.":"Automation bị suppress; operator có thể START/STOP.","warning",true,"Đổi mode");if(result.Confirmed)await State.ToggleDeviceModeAsync(device.Id,result.Reason);
+    }
+    private async Task RequestRemoveDevice(Device device)
+    {
+        var result=await confirmation!.ShowAsync("Xóa thiết bị?",$"{device.Name} sẽ bị khóa và ẩn khỏi vận hành.",$"Chỉ thực hiện khi Run Feedback OFF, PLC online và không còn AUTO policy.\nMapping được archive sau PLC ACK; lịch sử vẫn được giữ.","danger",true,"Xóa thiết bị");
+        if(!result.Confirmed)return;
+        try{await Configuration.RequestDeviceRemovalAsync(device.Id,result.Reason);}
+        catch(Exception ex){await confirmation.ShowAsync("Không thể xóa thiết bị",ex.Message);}
     }
 
     private void HandleChanged() => InvokeAsync(StateHasChanged);

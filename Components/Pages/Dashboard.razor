@@ -34,8 +34,8 @@
                           Detail="@BiomassGrowthDetail" Meta="@BiomassSampleText" Href="/analytics/growth" />
         <DashboardKpiCard Label="CẢNH BÁO ĐANG HOẠT ĐỘNG" Value="@Snapshot.ActiveAlerts.ToString("N0", Vi)" Unit="cảnh báo" Icon="!" Tone="red"
                           Detail="@($"{Snapshot.CriticalAlerts} nghiêm trọng · {Snapshot.UnacknowledgedAlerts} chưa xác nhận")" Meta="Cần xử lý" Href="/analytics/risks" />
-        <DashboardKpiCard Label="CHẤT LƯỢNG NƯỚC TOÀN TRẠI" Value="@Snapshot.AverageDo.ToString("N2", Vi)" Unit="mg/L DO" Icon="⌁" Tone="cyan"
-                          Detail="@($"Thấp nhất {Snapshot.MinimumDo.ToString("N2", Vi)} · {Snapshot.PondsBelowDoWarning} ao dưới ngưỡng")" Meta="@($"{Snapshot.ValidDoPonds}/{Snapshot.TotalPonds} ao hợp lệ")" Href="/analytics/water-quality" />
+        <DashboardKpiCard Label="CHẤT LƯỢNG NƯỚC TOÀN TRẠI" Value="@(Snapshot.ValidDoPonds==0?"—":Snapshot.AverageDo.ToString("N2", Vi))" Unit="mg/L DO" Icon="⌁" Tone="cyan"
+                          Detail="@(Snapshot.ValidDoPonds==0?"Chưa có sensor DO được thiết lập":$"Thấp nhất {Snapshot.MinimumDo.ToString("N2", Vi)} · {Snapshot.PondsBelowDoWarning} ao dưới ngưỡng")" Meta="@($"{Snapshot.ValidDoPonds}/{Snapshot.TotalPonds} ao hợp lệ")" Href="/analytics/water-quality" />
         <DashboardKpiCard Label="THIẾT BỊ VÀ VẬN HÀNH" Value="@Snapshot.RunningDevices.ToString("N0", Vi)" Unit="đang chạy" Icon="⚙" Tone="amber"
                           Detail="@($"{Snapshot.FaultDevices} lỗi · {Snapshot.OfflineDevices} offline · {Snapshot.AutoDevices} AUTO")" Meta="@($"Tổng {Snapshot.TotalDevices} thiết bị")" Href="/analytics/equipment" />
         <DashboardKpiCard Label="NĂNG LƯỢNG VÀ PHỤ TẢI" Value="@Snapshot.CurrentPowerKw.ToString("N1", Vi)" Unit="kW" Icon="⚡" Tone="amber"
@@ -82,7 +82,8 @@
                 <div><span class="eyebrow">WATER QUALITY RISK MAP</span><h2>Heatmap chất lượng nước toàn trại</h2><p>Không dùng giá trị trung bình để che khuất ao đang có rủi ro.</p></div>
                 <a href="/analytics/water-quality">Phân tích chi tiết →</a>
             </div>
-            <WaterQualityHeatmap Rows="Snapshot.WaterQualityHeatmap" />
+            @if(Snapshot.TotalSensors>0){<WaterQualityHeatmap Rows="Snapshot.WaterQualityHeatmap" />}
+            else{<div class="empty-state compact"><h3>Chưa có cảm biến được thiết lập</h3><p>Heatmap sẽ được tạo động sau khi Administrator thêm sensor.</p></div>}
             <div class="ams-heatmap-legend"><span class="normal">Bình thường</span><span class="warning">Cảnh báo</span><span class="critical">Nghiêm trọng</span><span class="no-data">Không có dữ liệu</span></div>
         </article>
 

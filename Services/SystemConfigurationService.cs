@@ -116,7 +116,7 @@ public sealed partial class SystemConfigurationService
                 sensorId = x.Id, installationId = x.InstallationId, channelId = x.ChannelId,
                 metric = x.Metric, unit = x.Unit, intervalSeconds = x.PublishIntervalSeconds
             }),
-            devices = devices.Select(x => new
+            devices = devices.Where(x => x.IsEnabled && !x.IsArchived && !x.IsPendingRemoval).Select(x => new
             {
                 deviceId = x.Id, x.ManualStartRequestVariable, x.ManualStopRequestVariable,
                 x.LocalOverrideVariable, x.RemoteAllowedVariable, x.RunFeedbackVariable, x.FaultVariable,
@@ -145,6 +145,14 @@ public sealed partial class SystemConfigurationService
             sensor.UpdatedAtUtc = DateTime.UtcNow;
             await _repository.UpsertSensorAsync(sensor, ct);
             _runtime.UpsertSensor(sensor);
+        }
+        foreach (var device in devices.Where(x => !x.IsArchived))
+        {
+            device.DesiredConfigurationVersion = desiredVersion;
+            device.ConfigurationStatus = deployment.Status;
+            device.UpdatedAtUtc = DateTime.UtcNow;
+            await _repository.UpsertDeviceAsync(device, ct);
+            _runtime.UpsertDevice(device);
         }
         await _repository.UpsertDeploymentAsync(deployment, ct);
         await AuditAsync(actor, "socket.apply", "node-socket", socket.Id, socket.PondId, null, new { reason, deployment }, ct);
@@ -190,6 +198,20 @@ public sealed partial class SystemConfigurationService
         var desiredVersion = Math.Max(socket.DesiredVersion, socket.ReportedVersion) + 1;
         var commandId = Guid.NewGuid().ToString("N");
         var json = JsonNode.Parse(latest.PreviousJson)?.AsObject() ?? throw new InvalidDataException("Previous config không hợp lệ.");
+        // Rollback may restore prior values, but must never resurrect assets that have since
+        // entered removal/archive. Filter those identities against the current source of truth.
+        var activeSensorIds = (await _repository.GetSensorsAsync(socket.PondId, ct))
+            .Where(x => x.SocketId == socket.Id && x.IsEnabled && !x.IsPendingRemoval)
+            .Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var activeDeviceIds = (await _repository.GetDevicesAsync(socket.PondId, ct))
+            .Where(x => x.SocketId == socket.Id && x.IsEnabled && !x.IsPendingRemoval)
+            .Select(x => x.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (json["sensors"] is JsonArray sensorArray)
+            foreach (var node in sensorArray.Where(x => x?["sensorId"]?.GetValue<string>() is string id && !activeSensorIds.Contains(id)).ToList())
+                sensorArray.Remove(node);
+        if (json["devices"] is JsonArray deviceArray)
+            foreach (var node in deviceArray.Where(x => x?["deviceId"]?.GetValue<string>() is string id && !activeDeviceIds.Contains(id)).ToList())
+                deviceArray.Remove(node);
         json["commandId"] = commandId; json["version"] = desiredVersion; json["generatedAtUtc"] = DateTime.UtcNow;
         var rollback = new ConfigurationDeployment
         {
@@ -224,6 +246,22 @@ public sealed partial class SystemConfigurationService
         if (socket.PondId != sensor.PondId || !socket.NodeId.Equals(sensor.NodeId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Sensor, socket, node và ao không cùng mapping.");
         var existing = await _repository.GetSensorAsync(sensor.Id, ct);
+        if (existing is not null)
+        {
+            // Runtime/configuration fields are server-owned. The edit form submits only
+            // commissioning inputs and must not reset ACK versions, lineage or health data.
+            sensor.DesiredConfigurationVersion = existing.DesiredConfigurationVersion;
+            sensor.ReportedConfigurationVersion = existing.ReportedConfigurationVersion;
+            sensor.InstallationId = existing.InstallationId;
+            sensor.IsArchived = existing.IsArchived; sensor.IsPendingRemoval = existing.IsPendingRemoval;
+            sensor.RemovalRequestedAtUtc = existing.RemovalRequestedAtUtc;
+            sensor.RemovalRequestedBy = existing.RemovalRequestedBy; sensor.RemovalReason = existing.RemovalReason;
+            sensor.LastSeenAtUtc = existing.LastSeenAtUtc; sensor.BatteryLevel = existing.BatteryLevel;
+            sensor.SignalStrength = existing.SignalStrength; sensor.FirmwareVersion = existing.FirmwareVersion;
+            sensor.CalibrationDateUtc = existing.CalibrationDateUtc;
+            sensor.CalibrationDueDateUtc = existing.CalibrationDueDateUtc;
+            sensor.LastQuality = existing.LastQuality; sensor.LastError = existing.LastError;
+        }
         var sensors = await _repository.GetSensorsAsync(sensor.PondId, ct);
         if (sensors.Any(x => x.Id != sensor.Id && x.SocketId == sensor.SocketId &&
             x.ChannelId.Equals(sensor.ChannelId, StringComparison.OrdinalIgnoreCase)))
@@ -294,21 +332,89 @@ public sealed partial class SystemConfigurationService
         device.RemoteAllowedVariable = mappings[5]; device.RunFeedbackVariable = mappings[6]; device.FaultVariable = mappings[7];
         device.ExternalAddress = $"{device.ManualStartRequestVariable}/{device.ManualStopRequestVariable}";
         device.UpdatedAtUtc = DateTime.UtcNow; device.IsEnabled = true; device.IsArchived = false;
+        device.IsPendingRemoval = false; device.ConfigurationStatus = "draft";
         await _repository.UpsertDeviceAsync(device, ct); _runtime.UpsertDevice(device);
         await AuditAsync(actor, previous is null ? "device.create" : "device.update", "device", device.Id, device.PondId, previous, device, ct);
         return device;
     }
 
-    public async Task ArchiveSensorAsync(string sensorId, string reason, CancellationToken ct = default)
+    public async Task<ConfigurationDeployment?> RequestSensorRemovalAsync(string sensorId, string reason,
+        CancellationToken ct = default)
     {
         var actor = await RequireAdministratorAsync();
-        var sensor = await _repository.GetSensorAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
-        sensor.IsArchived = true; sensor.IsEnabled = false; sensor.PublishIntervalSeconds = 0;
-        sensor.ConfigurationStatus = "draft"; sensor.Status = "disabled"; sensor.Notes = $"{sensor.Notes}\nArchive: {reason}".Trim();
+        var sensor = await _repository.GetSensorForConfigurationAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
+        if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("Lý do xóa cảm biến là bắt buộc.");
+        var policies = await _repository.GetAutomationPoliciesAsync(null, ct);
+        var blocking = policies.Where(x => x.IsEnabled && x.SensorId == sensor.Id).Select(x => x.Name).ToList();
+        if (blocking.Count > 0)
+            throw new InvalidOperationException($"Cảm biến đang được dùng bởi AUTO policy: {string.Join(", ", blocking)}. Hãy tắt hoặc chuyển sensor trước.");
+        var neverCommissioned = sensor.DesiredConfigurationVersion == 0 && sensor.ReportedConfigurationVersion == 0;
+        var socket = await _repository.GetSocketAsync(sensor.SocketId, ct);
+        if (!neverCommissioned && socket is null)
+            throw new InvalidOperationException("Socket của cảm biến không còn tồn tại.");
+        if (!neverCommissioned && (!socket!.IsEnabled || socket.IsArchived))
+            throw new InvalidOperationException("Phải Enable socket trước để gửi cấu hình ngừng sensor tới node.");
+
+        var previous = JsonSerializer.Deserialize<SensorDefinition>(JsonSerializer.Serialize(sensor, JsonOptions), JsonOptions);
+        sensor.IsEnabled = false; sensor.PublishIntervalSeconds = 0; sensor.IsPendingRemoval = true;
+        sensor.RemovalRequestedAtUtc = DateTime.UtcNow; sensor.RemovalRequestedBy = actor;
+        sensor.RemovalReason = reason.Trim(); sensor.Status = "pending-removal";
+        sensor.ConfigurationStatus = "pending-removal";
         sensor.UpdatedAtUtc = DateTime.UtcNow;
+
+        // A draft sensor was never part of an acknowledged node configuration, so no remote
+        // decommission ACK is necessary. Its definition can be archived immediately.
+        if (neverCommissioned)
+        {
+            sensor.IsPendingRemoval = false; sensor.IsArchived = true; sensor.Status = "archived";
+            sensor.ConfigurationStatus = "archived";
+        }
         await _repository.UpsertSensorAsync(sensor, ct);
         _runtime.UpsertSensor(sensor);
-        await AuditAsync(actor, "sensor.archive", "sensor", sensor.Id, sensor.PondId, null, new { reason }, ct);
+        await AuditAsync(actor, neverCommissioned ? "sensor.archive-draft" : "sensor.remove-request",
+            "sensor", sensor.Id, sensor.PondId, previous, sensor, ct);
+        return neverCommissioned ? null : await ApplySocketAsync(socket!.Id, $"Xóa sensor {sensor.Id}: {reason}", ct);
+    }
+
+    public async Task<ConfigurationDeployment?> RequestDeviceRemovalAsync(string deviceId, string reason,
+        CancellationToken ct = default)
+    {
+        var actor = await RequireAdministratorAsync();
+        if (string.IsNullOrWhiteSpace(reason)) throw new InvalidOperationException("Lý do xóa thiết bị là bắt buộc.");
+        var devices = await _repository.GetDevicesAsync(null, ct);
+        var device = devices.FirstOrDefault(x => x.Id == deviceId)
+            ?? throw new InvalidOperationException("Thiết bị không tồn tại.");
+        var policies = await _repository.GetAutomationPoliciesAsync(device.Id, ct);
+        var blocking = policies.Where(x => x.IsEnabled).Select(x => x.Name).ToList();
+        if (blocking.Count > 0)
+            throw new InvalidOperationException($"Thiết bị còn AUTO policy đang Enable: {string.Join(", ", blocking)}. Hãy tắt policy trước.");
+        var neverCommissioned = device.DesiredConfigurationVersion == 0 && device.ReportedConfigurationVersion == 0;
+        var socket = await _repository.GetSocketAsync(device.SocketId, ct);
+        if (!neverCommissioned && socket is null)
+            throw new InvalidOperationException("Socket PLC của thiết bị không còn tồn tại.");
+        if (!neverCommissioned && (!socket!.IsEnabled || socket.IsArchived))
+            throw new InvalidOperationException("Phải Enable socket PLC trước khi gỡ mapping thiết bị.");
+        if (!neverCommissioned)
+        {
+            if (device.IsLocalOverrideActive || device.ReportedMode == "local-manual")
+                throw new InvalidOperationException("Thiết bị đang ở Physical/Local Manual. Hãy dừng và xác nhận tại tủ điện trước.");
+            if (device.Status is "on" or "running")
+                throw new InvalidOperationException("Không thể xóa thiết bị đang chạy. Hãy STOP và xác nhận Run Feedback OFF trước.");
+            if (device.Status == "fault")
+                throw new InvalidOperationException("Không thể xóa thiết bị đang fault; cần xử lý và xác nhận trạng thái vật lý trước.");
+            if (device.ConnectionStatus != "online")
+                throw new InvalidOperationException("PLC/feedback đang offline hoặc chưa xác định; không thể xác nhận thiết bị đã dừng an toàn.");
+        }
+
+        var previous = JsonSerializer.Deserialize<Device>(JsonSerializer.Serialize(device, JsonOptions), JsonOptions);
+        device.IsEnabled = false; device.IsPendingRemoval = !neverCommissioned; device.IsArchived = neverCommissioned;
+        device.RemovalRequestedAtUtc = DateTime.UtcNow; device.RemovalRequestedBy = actor;
+        device.RemovalReason = reason.Trim(); device.ConfigurationStatus = neverCommissioned ? "archived" : "pending-removal";
+        device.ConnectionStatus = neverCommissioned ? "archived" : "pending-removal"; device.UpdatedAtUtc = DateTime.UtcNow;
+        await _repository.UpsertDeviceAsync(device, ct); _runtime.UpsertDevice(device);
+        await AuditAsync(actor, neverCommissioned ? "device.archive-draft" : "device.remove-request",
+            "device", device.Id, device.PondId, previous, device, ct);
+        return neverCommissioned ? null : await ApplySocketAsync(socket!.Id, $"Xóa thiết bị {device.Id}: {reason}", ct);
     }
 
     public async Task SaveAutomationPolicyAsync(DeviceAutomationPolicy policy, CancellationToken ct = default)
@@ -343,7 +449,7 @@ public sealed partial class SystemConfigurationService
     public async Task BeginSensorReplacementAsync(string sensorId, string reason, bool nodePowerOff, CancellationToken ct = default)
     {
         var actor = await RequireAdministratorAsync();
-        var sensor = await _repository.GetSensorAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
+        var sensor = await _repository.GetSensorForConfigurationAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
         sensor.Status = "maintenance"; sensor.ConfigurationStatus = "draft"; sensor.UpdatedAtUtc = DateTime.UtcNow;
         await _repository.UpsertSensorAsync(sensor, ct); _runtime.UpsertSensor(sensor);
         if (nodePowerOff)
@@ -364,7 +470,7 @@ public sealed partial class SystemConfigurationService
         string manufacturer, string reason, CancellationToken ct = default)
     {
         var actor = await RequireAdministratorAsync();
-        var sensor = await _repository.GetSensorAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
+        var sensor = await _repository.GetSensorForConfigurationAsync(sensorId, ct) ?? throw new InvalidOperationException("Sensor không tồn tại.");
         foreach (var old in (await _repository.GetInstallationsAsync(sensor.Id, ct)).Where(x => x.Status == "active"))
         { old.Status = "replaced"; old.RemovedAtUtc = DateTime.UtcNow; old.RemovalReason = reason; await _repository.UpsertInstallationAsync(old, ct); }
         var installation = new SensorInstallation

@@ -126,7 +126,7 @@ public sealed class DynamicModbusConnectionSupervisor : BackgroundService
             deployment.UpdatedAtUtc = DateTime.UtcNow;
             await _configuration.UpsertDeploymentAsync(deployment, ct);
             await LogAsync(socket.Id, "configuration-timeout", deployment.Error, ct, "warning");
-            await UpdateSensorDeploymentStatusAsync(socket, deployment, ct);
+            await UpdateAssetDeploymentStatusAsync(socket, deployment, ct);
             return;
         }
         if (deployment.SentAtUtc.HasValue && deployment.SentAtUtc.Value > DateTime.UtcNow - retryDelay)
@@ -163,10 +163,10 @@ public sealed class DynamicModbusConnectionSupervisor : BackgroundService
             deployment.Error = "Đã gửi cấu hình; đang chờ PLC ACK đúng version.";
         }
         await _configuration.UpsertDeploymentAsync(deployment, ct); await _configuration.UpsertSocketAsync(socket, ct);
-        await UpdateSensorDeploymentStatusAsync(socket, deployment, ct);
+        await UpdateAssetDeploymentStatusAsync(socket, deployment, ct);
     }
 
-    private async Task UpdateSensorDeploymentStatusAsync(NodeSocket socket, ConfigurationDeployment deployment, CancellationToken ct)
+    private async Task UpdateAssetDeploymentStatusAsync(NodeSocket socket, ConfigurationDeployment deployment, CancellationToken ct)
     {
         foreach (var sensor in (await _configuration.GetSensorsAsync(socket.PondId, ct)).Where(x => x.SocketId == socket.Id))
         {
@@ -174,6 +174,22 @@ public sealed class DynamicModbusConnectionSupervisor : BackgroundService
             if (deployment.Status == "applied") sensor.ReportedConfigurationVersion = deployment.DesiredVersion;
             await _configuration.UpsertSensorAsync(sensor, ct);
             _runtime.UpsertSensor(sensor);
+        }
+        foreach (var device in (await _configuration.GetDevicesAsync(socket.PondId, ct)).Where(x => x.SocketId == socket.Id))
+        {
+            device.ConfigurationStatus = deployment.Status;
+            if (deployment.Status == "applied") device.ReportedConfigurationVersion = deployment.DesiredVersion;
+            await _configuration.UpsertDeviceAsync(device, ct);
+            _runtime.UpsertDevice(device);
+        }
+        if (deployment.Status == "applied")
+        {
+            var finalized = await _configuration.FinalizePendingRemovalsAsync(socket.Id, deployment.DesiredVersion, ct);
+            foreach (var sensor in finalized.Sensors) _runtime.UpsertSensor(sensor);
+            foreach (var device in finalized.Devices) _runtime.UpsertDevice(device);
+            if (finalized.Sensors.Count + finalized.Devices.Count > 0)
+                await LogAsync(socket.Id, "asset-removal-applied",
+                    $"Đã archive {finalized.Sensors.Count} sensor và {finalized.Devices.Count} thiết bị sau PLC ACK.", ct);
         }
     }
 
