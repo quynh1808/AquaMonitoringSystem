@@ -2,6 +2,14 @@
 
 AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong MongoDB. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
 
+## Bắt đầu đọc và tiếp nhận source
+
+- [Bản đồ toàn bộ source code](Docs/01.SOURCE-CODE-GUIDE.md): giải thích kiến trúc, luồng khởi động, telemetry, điều khiển, commissioning, vai trò của từng folder/file và phần riêng về mọi đuôi file.
+- [Từ điển kỹ thuật](Docs/02.TECHNICAL-GLOSSARY.md): định nghĩa thuật ngữ .NET, Blazor, MongoDB, MQTT, Modbus, PLC, ESP32, bảo mật, container và nghiệp vụ thủy sản trong đúng ngữ cảnh AquaOps.
+- [Chỉ mục component và module](Docs/03.COMPONENT-INDEX.md): đi nhanh từ một module tới tài liệu cạnh source.
+
+Thứ tự khuyến nghị cho người mới là README → bản đồ source → từ điển khi gặp thuật ngữ → companion Markdown cạnh file đang đọc → runbook tương ứng trong **Docs/**. Tài liệu milestone và validation mô tả một thời điểm lịch sử; README và bản đồ source mô tả hiện trạng.
+
 ## Kiến trúc triển khai
 
 ```text
@@ -62,7 +70,7 @@ Mặc định là `EdgeSimulation`. Khi chạy trực tiếp trên Windows, cầ
 
 ## Phát hành production
 
-Runbook đầy đủ từ Windows đến Ubuntu LAN: `Docs/BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`.
+Runbook đầy đủ từ Windows đến Ubuntu LAN: `Docs/19.BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`.
 
 Quy trình chuẩn:
 
@@ -71,9 +79,9 @@ Quy trình chuẩn:
 3. Trên Ubuntu 24.04 LTS, pull source vận hành rồi chạy `./scripts/deploy-ubuntu.sh <image-tag>`.
 4. Script pull image, cập nhật Compose, kiểm tra `/health/ready` và quay lại image tag trước nếu readiness thất bại.
 
-Hướng dẫn đầy đủ: `Docs/DEPLOYMENT-GHCR-UBUNTU.md`.
+Hướng dẫn đầy đủ: `Docs/18.DEPLOYMENT-GHCR-UBUNTU.md`.
 
-Quy trình review/stage source an toàn trước khi push được mô tả tại `Docs/GIT-PUBLISH.md`.
+Quy trình review/stage source an toàn trước khi push được mô tả tại `Docs/17.GIT-PUBLISH.md`.
 
 ## Chuyển simulation, edge simulation và thiết bị thật
 
@@ -81,7 +89,7 @@ Telemetry và actuator là hai đường độc lập. Có thể đưa sensor th
 
 Một adapter thật triển khai `IDeviceCommandTransport`, đăng ký DI bằng `Name` duy nhất, và chỉ trả success sau ACK hoặc read-back. Interlock, emergency stop, chống chạy khô/quá tải phải nằm tại PLC/relay cục bộ, không đặt duy nhất trong web app.
 
-Hướng dẫn chuyển chế độ: `Docs/OPERATING-MODES.md`. Commissioning động: `Docs/DYNAMIC-COMMISSIONING.md`. Provision firmware: `Docs/ESP32-PROVISIONING.md`. Cấu hình cũ chỉ để tham khảo: `Docs/LEGACY-NODE-CONNECTION-REFERENCE.md`.
+Hướng dẫn chuyển chế độ: `Docs/11.OPERATING-MODES.md`. Commissioning động: `Docs/09.DYNAMIC-COMMISSIONING.md`. Provision firmware: `Docs/13.ESP32-PROVISIONING.md`. Cấu hình cũ chỉ để tham khảo: `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md`.
 
 ## Cấu hình và secrets
 
@@ -101,9 +109,9 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 - `/health/ready`: ứng dụng và MongoDB sẵn sàng.
 - `/health`: alias readiness để tương thích.
 - Backup/restore: xem `scripts/MongoBackup.md` và kiểm thử restore định kỳ.
-- Security checklist: `Docs/SECURITY-HARDENING.md`.
-- Chỉ mục module: `Docs/COMPONENT-INDEX.md`.
-- Phạm vi và tiêu chí nghiệm thu P0–P2: `Docs/P0-P2-IMPLEMENTATION.md`.
+- Security checklist: `Docs/15.SECURITY-HARDENING.md`.
+- Chỉ mục module: `Docs/03.COMPONENT-INDEX.md`.
+- Phạm vi và tiêu chí nghiệm thu P0–P2: `Docs/07.P0-P2-IMPLEMENTATION.md`.
 
 ## Các bước còn lại trước khi điều khiển production
 
@@ -113,3 +121,70 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 - Diễn tập backup/restore MongoDB, mất mạng, ACK timeout, fail-safe và rollback.
 - Kiểm thử tải dài hạn cho Blazor circuits và lưu lượng sensor thực tế.
 - Đánh giá an toàn điện/cơ khí bởi kỹ sư phụ trách trước khi bật master hardware switch.
+
+<!-- aquaops-doc-context-v1 -->
+
+## Bối cảnh đầy đủ của tài liệu
+
+### Mục đích cụ thể
+
+AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong MongoDB. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
+
+Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **AquaOps — Aquaculture Monitoring**, thay vì chỉ biết tên class, page hoặc quy trình.
+
+### Vì sao thành phần hoặc quy trình này cần tồn tại
+
+Các file cấp repository định nghĩa cách toàn bộ solution được xây dựng, cấu hình, khởi động hoặc được tiếp cận. Sai khác tại đây có phạm vi ảnh hưởng toàn hệ thống.
+
+Nếu bỏ qua ranh giới này, logic dễ bị đặt sai layer, kiểm tra bị lặp hoặc trạng thái hiển thị không còn phản ánh nguồn dữ liệu có thẩm quyền.
+
+### Vai trò trong toàn hệ thống
+
+Đóng vai trò điểm vào cho developer, công cụ build và application host.
+
+Vai trò này phải được hiểu theo cả đường đi thành công và đường lỗi: thiếu dữ liệu, dependency offline, input không hợp lệ, người dùng thiếu quyền, retry và shutdown.
+
+### Cách triển khai trong source
+
+Đối chiếu nội dung tài liệu với Program.cs, project/solution, appsettings, Compose và workflow. Giá trị production phải đến từ environment hoặc database động, không hard-code.
+
+- **appsettings.json** (23 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **global.json** (7 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **packages.lock.json** (58 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **Program.cs** (244 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+
+Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
+
+### Quan hệ với các file và module khác
+
+Program.cs, AquacultureMonitoring.csproj, appsettings.json, compose*.yaml, .github/workflows và các module con.
+
+Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
+
+### Thuật ngữ chuyên môn dùng trong phạm vi này
+
+- **Repository**: Toàn bộ cây source được Git quản lý. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Composition root**: Nơi ghép dependency thành ứng dụng. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Application host**: Tiến trình .NET chứa web và background service. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Immutable image**: Container image gắn đúng một bản build. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+
+Các thuật ngữ liên quan khác, sự khác nhau giữa các khái niệm dễ nhầm và lý do sử dụng trong dự án được giải thích tại [Từ điển kỹ thuật](Docs/02.TECHNICAL-GLOSSARY.md).
+
+### Cách đọc và sử dụng tài liệu này
+
+1. Đọc phần mục đích để biết đầu ra mong đợi.
+2. Mở file source hoặc cấu hình được liệt kê ở phần triển khai.
+3. Theo quan hệ upstream để biết dữ liệu đến từ đâu và downstream để biết thay đổi ảnh hưởng ai.
+4. Xem failure mode, authorization, idempotency và trạng thái no-data/offline trước khi sửa happy path.
+5. Cập nhật tài liệu trong cùng commit với source để tránh kiến thức bị lỗi thời.
+
+### Kiểm tra bắt buộc khi thay đổi
+
+Build solution ở Release, chạy test, validate Compose và kiểm tra không có secret hay output runtime trong diff.
+
+Ngoài kiểm tra chuyên biệt, luôn rà soát diff để chắc chắn không có secret, credential, dữ liệu runtime, output **bin/obj** hoặc thay đổi ngoài phạm vi.
+
+### Đọc tiếp
+
+- [Bản đồ toàn bộ source code](Docs/01.SOURCE-CODE-GUIDE.md)
+- [Từ điển kỹ thuật](Docs/02.TECHNICAL-GLOSSARY.md)

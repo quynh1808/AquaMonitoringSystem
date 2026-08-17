@@ -1,5 +1,5 @@
 # Production overlay. Apply only after the real sensor probes and FX5U read-back/fail-safe
-# checklist in Docs/OPERATING-MODES.md has passed.
+# checklist in Docs/11.OPERATING-MODES.md has passed.
 services:
   aquaops:
     environment:

@@ -13,3 +13,67 @@ Biến môi trường được khai báo trong `.env`:
 - `MONGO_APP_DATABASE`
 
 Nếu volume đã tồn tại trước khi thêm script, cần tạo user thủ công hoặc xóa volume trong môi trường thử nghiệm rồi khởi tạo lại.
+
+<!-- aquaops-doc-context-v1 -->
+
+## Bối cảnh đầy đủ của tài liệu
+
+### Mục đích cụ thể
+
+`01-create-app-user.sh` chỉ chạy khi Docker khởi tạo volume MongoDB mới.
+
+Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **MongoDB init**, thay vì chỉ biết tên class, page hoặc quy trình.
+
+### Vì sao thành phần hoặc quy trình này cần tồn tại
+
+Ứng dụng không nên kết nối MongoDB bằng root; user ứng dụng phải được tạo đúng lúc volume khởi tạo.
+
+Nếu bỏ qua ranh giới này, logic dễ bị đặt sai layer, kiểm tra bị lặp hoặc trạng thái hiển thị không còn phản ánh nguồn dữ liệu có thẩm quyền.
+
+### Vai trò trong toàn hệ thống
+
+Thiết lập least-privilege database account cho Compose.
+
+Vai trò này phải được hiểu theo cả đường đi thành công và đường lỗi: thiếu dữ liệu, dependency offline, input không hợp lệ, người dùng thiếu quyền, retry và shutdown.
+
+### Cách triển khai trong source
+
+Mongo image chạy script init lần đầu data directory; biến môi trường cung cấp tên database/user/password.
+
+- **mongo-init/01-create-app-user.sh** (23 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+
+Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
+
+### Quan hệ với các file và module khác
+
+compose.yaml, .env, Data/MongoContext.cs và deployment runbook.
+
+Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
+
+### Thuật ngữ chuyên môn dùng trong phạm vi này
+
+- **Init script**: Script image chạy khi database mới. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Application user**: Tài khoản quyền giới hạn. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Least privilege**: Chỉ cấp đúng quyền cần. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Volume**: Dữ liệu sống ngoài container. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+
+Các thuật ngữ liên quan khác, sự khác nhau giữa các khái niệm dễ nhầm và lý do sử dụng trong dự án được giải thích tại [Từ điển kỹ thuật](../Docs/02.TECHNICAL-GLOSSARY.md).
+
+### Cách đọc và sử dụng tài liệu này
+
+1. Đọc phần mục đích để biết đầu ra mong đợi.
+2. Mở file source hoặc cấu hình được liệt kê ở phần triển khai.
+3. Theo quan hệ upstream để biết dữ liệu đến từ đâu và downstream để biết thay đổi ảnh hưởng ai.
+4. Xem failure mode, authorization, idempotency và trạng thái no-data/offline trước khi sửa happy path.
+5. Cập nhật tài liệu trong cùng commit với source để tránh kiến thức bị lỗi thời.
+
+### Kiểm tra bắt buộc khi thay đổi
+
+Thử trên volume mới, xác nhận app user truy cập đúng database và không có quyền quản trị vượt mức.
+
+Ngoài kiểm tra chuyên biệt, luôn rà soát diff để chắc chắn không có secret, credential, dữ liệu runtime, output **bin/obj** hoặc thay đổi ngoài phạm vi.
+
+### Đọc tiếp
+
+- [Bản đồ toàn bộ source code](../Docs/01.SOURCE-CODE-GUIDE.md)
+- [Từ điển kỹ thuật](../Docs/02.TECHNICAL-GLOSSARY.md)
