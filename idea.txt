@@ -1,0 +1,2 @@
+26.08.07: (Hỏi chatGPT)LÀM thế nào để phát hiện động cơ có đang chạy hay không ki tiến hành điều khiển bằng PLC để đưa tín hiệu này lên Webserver
+26.08.17: (Hỏi chatGPT)Trong xây dựng ứng dụng web, nếu muốn phát triển và update source trên window và deploy lên Server ubuntu thì sẽ cần thông qua trung gian là github,..., Nếu không muốn có bước trung gian này nhằm đảm bảo vấn đề bảo mật thì cần làm như thế nào, có thể dùng github nhưng để respos ở chế độ private thay vì publish không
