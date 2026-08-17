@@ -265,7 +265,32 @@ pio device monitor -p COM5 -b 115200
 Thoát monitor bằng `Ctrl+C`. Nếu ký tự rác, xác nhận baud 115200 và nhấn EN/RESET. Nếu “port busy”,
 đóng Arduino Serial Monitor, PuTTY, một cửa sổ VS Code khác hoặc tiến trình đang giữ COM.
 
-## 11. Provision bootstrap qua UART
+## 11. Provision bootstrap bằng file hoặc UART
+
+### 11.1 Cách khuyến nghị: file local và script tự động
+
+Không cần mở Serial Monitor để nhập từng dòng:
+
+~~~powershell
+notepad .\provisioning.local.json
+.\provision-esp32.ps1 -ValidateOnly
+.\provision-esp32.ps1
+~~~
+
+Quy trình:
+
+1. điền Wi-Fi, MQTT, Farm/Pond/Node ID trong `provisioning.local.json`;
+2. chạy `-ValidateOnly` để kiểm JSON, byte length, URI và identity mà chưa mở COM;
+3. kiểm tra đúng ESP32/COM rồi đổi `confirmProvisioning` thành `true`;
+4. đóng Serial Monitor;
+5. chạy script; script gửi toàn bộ khóa, status và restart;
+6. mở monitor lại khi cần xác minh Wi-Fi/SNTP/MQTT.
+
+File local chứa secret đã bị `.gitignore` chặn. Template commit được là
+`provisioning.example.json`. Chi tiết về field, nhiều node, bảo mật, lỗi giữa chừng và cách phục hồi:
+[PROVISIONING-FILE.md](PROVISIONING-FILE.md).
+
+### 11.2 Cách dự phòng: nhập thủ công trong Serial Monitor
 
 Firmware không chứa thông tin cụ thể của trang trại. Trong serial monitor, nhập lần lượt:
 

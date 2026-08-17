@@ -496,6 +496,7 @@ Rà soát log trước khi gửi để che password, token và dữ liệu đị
 ## 14. Tài liệu liên quan
 
 - [Runbook PlatformIO](PLATFORMIO-RUNBOOK.md)
+- [Provision tự động bằng file JSON](PROVISIONING-FILE.md)
 - [Kiến trúc PlatformIO](../PLATFORMIO.md)
 - [Provisioning ESP32](../../Docs/13.ESP32-PROVISIONING.md)
 - [Commissioning động](../../Docs/09.DYNAMIC-COMMISSIONING.md)

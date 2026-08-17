@@ -21,10 +21,20 @@ Thay `COM5` bằng port từ `pio device list`. Đọc theo thứ tự:
 
 1. [Kiến trúc PlatformIO](../PLATFORMIO.md).
 2. [Runbook chạy sensor node](PLATFORMIO-RUNBOOK.md).
-3. [Xử lý lỗi](PLATFORMIO-TROUBLESHOOTING.md).
-4. [Provisioning và khóa NVS](../../Docs/13.ESP32-PROVISIONING.md).
+3. [Provision tự động bằng file JSON](PROVISIONING-FILE.md).
+4. [Xử lý lỗi](PLATFORMIO-TROUBLESHOOTING.md).
+5. [Provisioning và khóa NVS](../../Docs/13.ESP32-PROVISIONING.md).
 
-Không commit `.pio`, `managed_components`, `sdkconfig.aquaops_sensor_node` hoặc secret. Commit
+Provision không cần nhập từng dòng trong monitor:
+
+~~~powershell
+notepad .\provisioning.local.json
+.\provision-esp32.ps1 -ValidateOnly
+.\provision-esp32.ps1
+~~~
+
+Không commit `.pio`, `managed_components`, `sdkconfig.aquaops_sensor_node`,
+`provisioning*.local.json` hoặc secret. Commit
 `dependencies.lock` vì file này khóa version/hash MQTT và cJSON managed components. File
 `platformio.ini` pin platform, chọn board 4 MB, ESP-IDF, source `main` và custom partition table.
 

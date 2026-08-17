@@ -57,6 +57,10 @@ Firmware/
     ├── dependencies.lock
     ├── platformio.ini
     ├── partitions.csv
+    ├── provision-esp32.ps1
+    ├── provisioning.example.json
+    ├── provisioning.local.json  (Git ignore, chứa secret)
+    ├── PROVISIONING-FILE.md
     ├── sdkconfig.defaults
     ├── PLATFORMIO-RUNBOOK.md
     ├── PLATFORMIO-TROUBLESHOOTING.md
@@ -259,6 +263,7 @@ PlatformIO nào đang chạy.
 - `.pio/`: artifact và cache của PlatformIO;
 - `managed_components/`: source MQTT/cJSON tải từ ESP Component Registry;
 - `sdkconfig.*`: cấu hình sinh theo environment;
+- `provisioning*.local.json`: Wi-Fi/MQTT credential và identity của node trên máy kỹ thuật viên;
 - ngoại lệ `sdkconfig.defaults`: baseline có chủ đích phải được giữ trong Git.
 
 Vì `.gitignore` nằm ngay trong `esp32_sensor_node`, pattern phải tương đối với thư mục này. Viết
@@ -275,6 +280,8 @@ Vì `.gitignore` nằm ngay trong `esp32_sensor_node`, pattern phải tương đ
 | Capability code | channel id, driver mapping | `sensor_node.c` | Có |
 | Bootstrap identity | Wi-Fi, broker URI, farm/pond/node ID | NVS `aqua_boot` | Không |
 | MQTT secret | username/password | NVS `aqua_boot` | Không |
+| Provision input local | Wi-Fi/MQTT/identity trước khi ghi NVS | `provisioning*.local.json` | Không |
+| Provision template/script | schema mẫu và công cụ UART tự động | example JSON + PowerShell | Có |
 | Desired sensor config | interval, server config version | NVS/runtime qua MQTT | Không |
 | Build artifact | `.bin`, `.elf`, object | `.pio/` | Không |
 
@@ -329,10 +336,11 @@ telemetry và health đã chuẩn hóa.
 1. Tài liệu hiện tại để hiểu kiến trúc build.
 2. [PLATFORMIO-RUNBOOK.md](esp32_sensor_node/PLATFORMIO-RUNBOOK.md) để cài, build, flash và
    commissioning.
-3. [ESP32 provisioning](../Docs/13.ESP32-PROVISIONING.md) để hiểu khóa NVS và lệnh UART.
-4. [Dynamic commissioning](../Docs/09.DYNAMIC-COMMISSIONING.md) để hiểu desired/reported/ACK.
-5. [Operating modes](../Docs/11.OPERATING-MODES.md) trước khi chuyển từ edge simulation sang probe.
-6. [PLATFORMIO-TROUBLESHOOTING.md](esp32_sensor_node/PLATFORMIO-TROUBLESHOOTING.md) khi kết quả
+3. [PROVISIONING-FILE.md](esp32_sensor_node/PROVISIONING-FILE.md) để nhập một file và tự gửi qua UART.
+4. [ESP32 provisioning](../Docs/13.ESP32-PROVISIONING.md) để hiểu khóa NVS và lệnh UART.
+5. [Dynamic commissioning](../Docs/09.DYNAMIC-COMMISSIONING.md) để hiểu desired/reported/ACK.
+6. [Operating modes](../Docs/11.OPERATING-MODES.md) trước khi chuyển từ edge simulation sang probe.
+7. [PLATFORMIO-TROUBLESHOOTING.md](esp32_sensor_node/PLATFORMIO-TROUBLESHOOTING.md) khi kết quả
    khác mong đợi.
 
 ## 15. Thuật ngữ
@@ -348,6 +356,7 @@ telemetry và health đã chuẩn hóa.
 - **NVS**: key-value storage bền vững trên flash.
 - **Artifact**: kết quả build như `.bin`, `.elf`, map file.
 - **Provisioning**: đưa bootstrap identity và credential vào thiết bị lần đầu.
+- **File-assisted provisioning**: script đọc secret từ file local và tự gửi UART thay vì nhập tay.
 - **Commissioning**: đăng ký node/cảm biến với server và áp cấu hình vận hành có xác nhận.
 
 ## 16. Tài liệu chính thức

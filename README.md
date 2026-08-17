@@ -91,7 +91,8 @@ Một adapter thật triển khai `IDeviceCommandTransport`, đăng ký DI bằn
 
 Hướng dẫn chuyển chế độ: `Docs/11.OPERATING-MODES.md`. Commissioning động: `Docs/09.DYNAMIC-COMMISSIONING.md`.
 Provision firmware: `Docs/13.ESP32-PROVISIONING.md`. PlatformIO: `Firmware/PLATFORMIO.md` và
-`Firmware/esp32_sensor_node/PLATFORMIO-RUNBOOK.md`. Cấu hình cũ chỉ để tham khảo:
+`Firmware/esp32_sensor_node/PLATFORMIO-RUNBOOK.md`. Provision tự động không nhập từng lệnh:
+`Firmware/esp32_sensor_node/PROVISIONING-FILE.md`. Cấu hình cũ chỉ để tham khảo:
 `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md`.
 
 ## Cấu hình và secrets

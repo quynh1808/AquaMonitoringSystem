@@ -15,6 +15,8 @@ sang phần cứng thật: `Docs/11.OPERATING-MODES.md`.
   partition, artifact và ranh giới cấu hình runtime.
 - [Runbook ESP32 sensor node](esp32_sensor_node/PLATFORMIO-RUNBOOK.md): cài đặt trên Windows,
   build, flash, UART provisioning, MQTT/AquaOps commissioning và acceptance test.
+- [Provision bằng file JSON](esp32_sensor_node/PROVISIONING-FILE.md): nhập cấu hình một lần trong
+  file local, validation rồi tự gửi qua COM mà không gõ từng lệnh trong monitor.
 - [Xử lý lỗi PlatformIO/ESP32](esp32_sensor_node/PLATFORMIO-TROUBLESHOOTING.md): khoanh vùng lỗi từ
   toolchain, USB, Wi-Fi, SNTP, MQTT đến Apply/ACK và offline replay.
 

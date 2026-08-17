@@ -9,3 +9,7 @@ managed_components/
 # defaults in Git, but never commit the machine-generated configuration.
 sdkconfig.*
 !sdkconfig.defaults
+
+# This workstation-only file contains Wi-Fi/MQTT credentials. Keep the example
+# in Git, but never stage or publish the local provisioning values.
+provisioning*.local.json
