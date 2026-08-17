@@ -1,2 +1,8 @@
 26.08.07: (Hỏi chatGPT)LÀM thế nào để phát hiện động cơ có đang chạy hay không ki tiến hành điều khiển bằng PLC để đưa tín hiệu này lên Webserver
 26.08.17: (Hỏi chatGPT)Trong xây dựng ứng dụng web, nếu muốn phát triển và update source trên window và deploy lên Server ubuntu thì sẽ cần thông qua trung gian là github,..., Nếu không muốn có bước trung gian này nhằm đảm bảo vấn đề bảo mật thì cần làm như thế nào, có thể dùng github nhưng để respos ở chế độ private thay vì publish không
+26.08.17: TRong các file .md mô tả nội dụng source code hãy thêm vào mục đích, lý do, vai trò của file được mô tả đó đối với toàn hệ thống
+Ví dụ file được tạo dùng cho mục đích gì, tại sao lại cần file này, file này được triển khai như thế nào, có liên quan gì với các file khác không,....
+Hãy mô tả càng chi tiết càng tốt.
+Tương tự ở các file trong thư mục DOCS cũng vậy, hãy bổ sung thêm Mục đích, lý do, vai trò,... cho các bước triển khai, cácc cập nhật,... mô tả càng chi tiết càng tốt.
+Mục tiêu duy nhất là người đọc có thể hiểu toàn bộ source code khi đọc các file .md
+Bên cạnh đó, hãy thêm một file .md chung mô tả chi tiết mục đích, vài trò của tất các các folder và các file trong toàn bộ source code (và thêm 1 phần phổ cập kiến thức về chức năng của các đuôi file trong source code, phần này được thêm ở cuối file và được thể hiện riêng với phần mô tả phía trên)
