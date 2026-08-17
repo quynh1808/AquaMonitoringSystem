@@ -1,0 +1,9 @@
+# ESP-IDF 6 moved MQTT and cJSON out of the framework into managed components.
+# Pin exact releases so a firmware rebuild does not silently change libraries.
+dependencies:
+  idf:
+    version: ">=6.0.1,<6.1.0"
+  espressif/mqtt:
+    version: "1.0.0"
+  espressif/cjson:
+    version: "1.7.19~2"

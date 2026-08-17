@@ -89,7 +89,10 @@ Telemetry và actuator là hai đường độc lập. Có thể đưa sensor th
 
 Một adapter thật triển khai `IDeviceCommandTransport`, đăng ký DI bằng `Name` duy nhất, và chỉ trả success sau ACK hoặc read-back. Interlock, emergency stop, chống chạy khô/quá tải phải nằm tại PLC/relay cục bộ, không đặt duy nhất trong web app.
 
-Hướng dẫn chuyển chế độ: `Docs/11.OPERATING-MODES.md`. Commissioning động: `Docs/09.DYNAMIC-COMMISSIONING.md`. Provision firmware: `Docs/13.ESP32-PROVISIONING.md`. Cấu hình cũ chỉ để tham khảo: `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md`.
+Hướng dẫn chuyển chế độ: `Docs/11.OPERATING-MODES.md`. Commissioning động: `Docs/09.DYNAMIC-COMMISSIONING.md`.
+Provision firmware: `Docs/13.ESP32-PROVISIONING.md`. PlatformIO: `Firmware/PLATFORMIO.md` và
+`Firmware/esp32_sensor_node/PLATFORMIO-RUNBOOK.md`. Cấu hình cũ chỉ để tham khảo:
+`Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md`.
 
 ## Cấu hình và secrets
 

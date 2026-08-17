@@ -1,0 +1,11 @@
+# PlatformIO stores downloaded/build artifacts below the project directory.
+.pio/
+
+# ESP-IDF Component Manager downloads source here. Commit dependencies.lock,
+# not the downloaded components, so dependency resolution remains reproducible.
+managed_components/
+
+# PlatformIO generates one merged sdkconfig per environment. Keep the reviewed
+# defaults in Git, but never commit the machine-generated configuration.
+sdkconfig.*
+!sdkconfig.defaults

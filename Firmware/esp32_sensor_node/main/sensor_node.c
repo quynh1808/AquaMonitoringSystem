@@ -8,7 +8,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_random.h"
-#include "esp_sntp.h"
+#include "esp_netif_sntp.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "mqtt_client.h"
@@ -244,8 +244,17 @@ static void start_wifi(void)
     wifi_init_config_t init = WIFI_INIT_CONFIG_DEFAULT(); ESP_ERROR_CHECK(esp_wifi_init(&init));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifi_event_handler, NULL));
-    wifi_config_t config = { 0 }; snprintf((char *)config.sta.ssid, sizeof(config.sta.ssid), "%s", bootstrap.wifi_ssid);
-    snprintf((char *)config.sta.password, sizeof(config.sta.password), "%s", bootstrap.wifi_password);
+    wifi_config_t config = { 0 };
+    const size_t ssid_length = strlen(bootstrap.wifi_ssid);
+    const size_t password_length = strlen(bootstrap.wifi_password);
+    if (ssid_length > sizeof(config.sta.ssid) || password_length > sizeof(config.sta.password)) {
+        ESP_LOGE(TAG, "Wi-Fi bootstrap exceeds ESP32 SSID/password limits");
+        ESP_ERROR_CHECK(ESP_ERR_INVALID_SIZE);
+        return;
+    }
+    /* A 32-byte SSID or 64-byte WPA key may fill the whole ESP-IDF field without a trailing NUL. */
+    memcpy(config.sta.ssid, bootstrap.wifi_ssid, ssid_length);
+    memcpy(config.sta.password, bootstrap.wifi_password, password_length);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA)); ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &config)); ESP_ERROR_CHECK(esp_wifi_start());
 }
 
@@ -302,7 +311,10 @@ void app_main(void)
     if (!aqua_provisioning_load(&bootstrap, true)) { ESP_LOGE(TAG, "Thiếu bootstrap NVS; provision qua UART rồi restart."); while (true) vTaskDelay(pdMS_TO_TICKS(1000)); }
     events = xEventGroupCreate(); state_lock = xSemaphoreCreateMutex(); load_runtime_state(); start_wifi();
     xEventGroupWaitBits(events, WIFI_CONNECTED_BIT, pdFALSE, pdTRUE, portMAX_DELAY);
-    esp_sntp_config_t clock = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org"); esp_netif_sntp_init(&clock);
+    /* UTC must be synchronized before records are accepted into the durable queue.
+     * Production LANs without Internet should replace this host with a local NTP service. */
+    esp_sntp_config_t clock = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    ESP_ERROR_CHECK(esp_netif_sntp_init(&clock));
     char will_topic[192]; topic(will_topic, sizeof(will_topic), "status");
     const esp_mqtt_client_config_t mqtt_config = {
         .broker.address.uri = bootstrap.mqtt_uri, .credentials.username = bootstrap.mqtt_username,

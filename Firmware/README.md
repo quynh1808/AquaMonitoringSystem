@@ -9,6 +9,21 @@
 Không commit `sdkconfig` có secret. Quy trình: `Docs/13.ESP32-PROVISIONING.md`; chuyển Edge Simulation
 sang phần cứng thật: `Docs/11.OPERATING-MODES.md`.
 
+## Tài liệu PlatformIO
+
+- [Kiến trúc build PlatformIO](PLATFORMIO.md): giải thích PlatformIO, ESP-IDF, CMake, Kconfig,
+  partition, artifact và ranh giới cấu hình runtime.
+- [Runbook ESP32 sensor node](esp32_sensor_node/PLATFORMIO-RUNBOOK.md): cài đặt trên Windows,
+  build, flash, UART provisioning, MQTT/AquaOps commissioning và acceptance test.
+- [Xử lý lỗi PlatformIO/ESP32](esp32_sensor_node/PLATFORMIO-TROUBLESHOOTING.md): khoanh vùng lỗi từ
+  toolchain, USB, Wi-Fi, SNTP, MQTT đến Apply/ACK và offline replay.
+
+Cấu hình `platformio.ini` hiện chỉ áp dụng cho `esp32_sensor_node`. PLC simulator vẫn dùng ESP-IDF
+CLI cho đến khi có environment PlatformIO riêng đã được kiểm chứng.
+
+Sensor node dùng ESP-IDF 6.0.1; MQTT/cJSON được pin trong `main/idf_component.yml` và
+`dependencies.lock`. Không commit thư mục tải về `managed_components`.
+
 <!-- aquaops-doc-context-v1 -->
 
 ## Bối cảnh đầy đủ của tài liệu
