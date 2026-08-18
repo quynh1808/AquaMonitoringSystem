@@ -7,3 +7,4 @@ Tương tự ở các file trong thư mục DOCS cũng vậy, hãy bổ sung th�
 Mục tiêu duy nhất là người đọc có thể hiểu toàn bộ source code khi đọc các file .md
 Bên cạnh đó, hãy thêm một file .md chung mô tả chi tiết mục đích, vài trò của tất các các folder và các file trong toàn bộ source code (và thêm 1 phần phổ cập kiến thức về chức năng của các đuôi file trong source code, phần này được thêm ở cuối file và được thể hiện riêng với phần mô tả phía trên)
 26.08.17: Xây dựng mô hình ao nuôi thực tế, mô phỏng và hiển thị ngay trên web server
+26.08.19:có thể truy cập vào gx simulator từ file .c# không
