@@ -9,3 +9,6 @@ Bên cạnh đó, hãy thêm một file .md chung mô tả chi tiết mục đí
 26.08.17: Xây dựng mô hình ao nuôi thực tế, mô phỏng và hiển thị ngay trên web server
 26.08.19:có thể truy cập vào gx simulator từ file .c# không
 26.08.20: Nếu Admin quên mật khẩu thì sao, có cách nào lấy lại mật khẩu mà không cần reset không (nếu dùng reset bằng command thì có mất đi tài khoản, mật khẩu đã tạo được cấp cho User không).
+26.08.20: Điều khiển động cơ từ WebServer thông qua PLC ở mode thủ công thì chỉ kích một biến M(biến trung gian) trong PLC, nếu biến M đó thỏa điều kiện thì mới khởi động động cơ.
+Tương tự khi thao tác với các thiết bị ngoại vi khác, gửi lệnh -> kiểm tra điều kiện -> (thỏa mãn)Thực hiện lệnh.
+=> KHông để server điều khiển một cách trực tiếp
