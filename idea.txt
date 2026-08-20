@@ -13,4 +13,4 @@ Bên cạnh đó, hãy thêm một file .md chung mô tả chi tiết mục đí
 Tương tự khi thao tác với các thiết bị ngoại vi khác, gửi lệnh -> kiểm tra điều kiện -> (thỏa mãn)Thực hiện lệnh.
 => KHông để server điều khiển một cách trực tiếp
 26.08.20: (NGhiên cứu, đánh giá) Thay đổi CSDL từ MongdoDB sang PostgreSQL.
-26.08.20: LINK cài đặt MQTT Broker máy chủ trên ubuntu "https://viblo.asia/p/trien-khai-mosquitto-broker-tren-ubuntu-server-2204-va-tich-hop-co-che-xac-thuc-uy-quyen-part-1-EbNVQwroJvR"
+26.08.20: LINK cài đặt MQTT Broker máy chủ trên ubuntu "https://viblo.asia/p/dua-may-chu-mosquitto-broker-tu-local-len-internet-part-3-WR5JR67pJGv"
