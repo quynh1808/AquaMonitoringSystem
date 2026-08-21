@@ -14,3 +14,25 @@ Tương tự khi thao tác với các thiết bị ngoại vi khác, gửi lện
 => KHông để server điều khiển một cách trực tiếp
 26.08.20: (NGhiên cứu, đánh giá) Thay đổi CSDL từ MongdoDB sang PostgreSQL.
 26.08.20: LINK cài đặt MQTT Broker máy chủ trên ubuntu "https://viblo.asia/p/dua-may-chu-mosquitto-broker-tu-local-len-internet-part-3-WR5JR67pJGv"
+----------------------------
+2026.08.21: 
++ Mô phỏng FX5U - Kepware  - WSV
++ Nghiên cứu phát hiện động cơ có đang chạy hay không
++ Dùng cảm biến siêu âm hoặc cảm biến mức đo mức chất lỏng tròng bồn (đo độ sâu của ao)
++ Về lưu trữ dữ liệu: Lưuu trên CSDL, Folder QL, Cloud.
++ Về quản lý (TRiển khai nếu chưa có): QL ao nuôi(nhiều phần nhỏ khác), chi tiêu cho từng ao, lượng thức ăn, thời gian chạy quạt, máy cho ăn, cảm biến,...
++ Tìm hiểu về làm thế nào để hòa tan oxy xuống ao một cách hiệu quả nhất (so với cách dùng chạy quạt và sụt khí đáy truyền thống)
++ Nghiên cứu về ứng dụng phao quan trắc đặt trong ao, gần với chồi tôm để dễ dàng sử dụng wifi hoặc cáp ethernet giao tiếp.
++ Về backup dữ liệu.
++ Về quản lý: Mỗi vụ mỗi đơn vị quản lý nên chỉ cần 1 file excel để quản lý (nghiên cứu về form mẫu excel)
++ Tạo thêm một trang "QUẢN LÝ DỮ LIỆU HỆ THỐNG" ở trang này admin có thể query(truy vấn) toàn bộ dữ liệu mà database đang có
+thêm phân quyền truy vấn theo từng cấp (admin được xem toàn bộ). 
+CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
++ Xây dựng lại phần [TRANG CHỦ]
+. Trang chủ không còn mô tả thông tin chi tiết về hệ thống giám sát nữa.
+. Đầu trang (Melrandia -----nền sáng/tối; ngôn ngữ; đăng nhập)
+. Tiếp theo là Tiêu đề  Trang chủ, giới thiệu, Dự án(Gồm các mục dự án như AMS,AWS, mỗi dự án 1 trang), Bài Viết(Gồm các mục như Về sách, về Công nghệ, về  kiến thức chuyên môn,..., mỗi phần 1 trang), Liên hệ.
+. Sau khi đăng nhập -> CHuyển đến trang Menu (Menu của ADMIN gồm các dự án như truy cập AMS, AMV, AMZ gì gì đó, quản lý tài khoản, Thiết lập chung,ĐĂng bài viết (chọn bài viết về sách hay công nghệ),,, ) => VÌ có thể có nhiều dự án về sau.....
++ Ở phần QL tài khoản có thể thêm mục "QUẢN LÝ QUYỀN TRUY CẬP" có thể chỉnh sửa quyền truy cập cho các member dành cho admin
++ 
+=> Sửa  lại để có thể thêm nhiều dự án khác nhau vào chứ không chỉ dừng lại ở 1 dự án AMS, làm sao để sau này thêm dự án vào sẽ trở ên dễ dàng hơn.....
