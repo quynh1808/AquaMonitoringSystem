@@ -1,7 +1,7 @@
 # DeviceControlOptions
 
 Cấu hình này chỉ giữ master safety switch và command timeout. Endpoint Mitsubishi FX5U, handshake
-và M/D mapping được Administrator nhập tại Network & Connections, lưu MongoDB. Tên `M100` được
+và M/D mapping được Administrator nhập tại Network & Connections, lưu PostgreSQL. Tên `M100` được
 adapter chuyển thành coil `0x2064`; admin không nhập địa chỉ decimal Modbus.
 
 <!-- aquaops-doc-context-v1 -->
@@ -10,7 +10,7 @@ adapter chuyển thành coil `0x2064`; admin không nhập địa chỉ decimal 
 
 ### Mục đích cụ thể
 
-Cấu hình này chỉ giữ master safety switch và command timeout. Endpoint Mitsubishi FX5U, handshake và M/D mapping được Administrator nhập tại Network & Connections, lưu MongoDB. Tên `M100` được adapter chuyển thành coil `0x2064`; admin không nhập địa chỉ decimal Modbus.
+Cấu hình này chỉ giữ master safety switch và command timeout. Endpoint Mitsubishi FX5U, handshake và M/D mapping được Administrator nhập tại Network & Connections, lưu PostgreSQL. Tên `M100` được adapter chuyển thành coil `0x2064`; admin không nhập địa chỉ decimal Modbus.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **DeviceControlOptions**, thay vì chỉ biết tên class, page hoặc quy trình.
 

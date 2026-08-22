@@ -1,6 +1,6 @@
 # ProductionMetricsCalculator
 
-Bộ tính KPI thuần, không phụ thuộc MongoDB. FCR sử dụng tăng biomass ròng: biomass hiện tại + đã thu hoạch − biomass ban đầu. Số con còn sống trừ cả hao hụt và số con đã thu hoạch. Vì là hàm thuần nên có unit test hồi quy trực tiếp.
+Bộ tính KPI thuần, không phụ thuộc PostgreSQL. FCR sử dụng tăng biomass ròng: biomass hiện tại + đã thu hoạch − biomass ban đầu. Số con còn sống trừ cả hao hụt và số con đã thu hoạch. Vì là hàm thuần nên có unit test hồi quy trực tiếp.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Bộ tính KPI thuần, không phụ thuộc MongoDB. FCR sử dụng tăng biom
 
 ### Mục đích cụ thể
 
-Bộ tính KPI thuần, không phụ thuộc MongoDB. FCR sử dụng tăng biomass ròng: biomass hiện tại + đã thu hoạch − biomass ban đầu. Số con còn sống trừ cả hao hụt và số con đã thu hoạch. Vì là hàm thuần nên có unit test hồi quy trực tiếp.
+Bộ tính KPI thuần, không phụ thuộc PostgreSQL. FCR sử dụng tăng biomass ròng: biomass hiện tại + đã thu hoạch − biomass ban đầu. Số con còn sống trừ cả hao hụt và số con đã thu hoạch. Vì là hàm thuần nên có unit test hồi quy trực tiếp.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **ProductionMetricsCalculator**, thay vì chỉ biết tên class, page hoặc quy trình.
 

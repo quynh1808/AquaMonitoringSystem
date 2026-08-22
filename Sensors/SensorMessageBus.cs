@@ -20,7 +20,7 @@ public sealed class SensorMessageBus
         _channel.Writer.WriteAsync(envelope, cancellationToken);
 
     /// <summary>
-    /// Waits for MongoDB ingestion. Backfill firmware must not erase flash data after an MQTT QoS
+    /// Waits for PostgreSQL ingestion. Backfill firmware must not erase flash data after an MQTT QoS
     /// acknowledgement alone; it waits for this application-level durable result.
     /// </summary>
     public async Task<SensorIngestionResult> PublishAndWaitAsync(SensorEnvelope envelope, CancellationToken cancellationToken)

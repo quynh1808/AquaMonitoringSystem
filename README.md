@@ -1,12 +1,13 @@
 # AquaOps — Aquaculture Monitoring
 
-AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong MongoDB. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
+AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong PostgreSQL. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
 
 ## Bắt đầu đọc và tiếp nhận source
 
 - [Bản đồ toàn bộ source code](Docs/01.SOURCE-CODE-GUIDE.md): giải thích kiến trúc, luồng khởi động, telemetry, điều khiển, commissioning, vai trò của từng folder/file và phần riêng về mọi đuôi file.
-- [Từ điển kỹ thuật](Docs/02.TECHNICAL-GLOSSARY.md): định nghĩa thuật ngữ .NET, Blazor, MongoDB, MQTT, Modbus, PLC, ESP32, bảo mật, container và nghiệp vụ thủy sản trong đúng ngữ cảnh AquaOps.
+- [Từ điển kỹ thuật](Docs/02.TECHNICAL-GLOSSARY.md): định nghĩa thuật ngữ .NET, Blazor, PostgreSQL, MQTT, Modbus, PLC, ESP32, bảo mật, container và nghiệp vụ thủy sản trong đúng ngữ cảnh AquaOps.
 - [Chỉ mục component và module](Docs/03.COMPONENT-INDEX.md): đi nhanh từ một module tới tài liệu cạnh source.
+- [Thiết lập PostgreSQL trên Windows/Ubuntu](Docs/16.POSTGRESQL-SETUP-WINDOWS-UBUNTU.md): cài đặt, credential, migration, backup/restore và xử lý lỗi database.
 
 Thứ tự khuyến nghị cho người mới là README → bản đồ source → từ điển khi gặp thuật ngữ → companion Markdown cạnh file đang đọc → runbook tương ứng trong **Docs/**. Tài liệu milestone và validation mô tả một thời điểm lịch sử; README và bản đồ source mô tả hiện trạng.
 
@@ -17,25 +18,27 @@ Trình duyệt LAN ─HTTP:8080─> AquaOps (.NET container từ GHCR)
                                   │
                ┌──────────────────┼──────────────────┐
                │                  │                  │
-            MongoDB           Mosquitto       ESP32/FX5U Modbus TCP
+            PostgreSQL           Mosquitto       ESP32/FX5U Modbus TCP
          dữ liệu + audit   MQTT telemetry    command + read-back
 ```
 
-Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` của .NET SDK để build OCI image và đẩy lên GHCR. Ubuntu chỉ pull source vận hành (`compose.yaml`, script, Mongo init) và pull image đã build; server không compile source.
+Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` của .NET SDK để build OCI image và đẩy lên GHCR. Ubuntu chỉ pull source vận hành (`compose.yaml`, script, PostgreSQL init) và pull image đã build; server không compile source.
 
 ## Tính năng hiện có
 
 - Cookie authentication, PBKDF2, lockout, tự đổi/reset/recovery mật khẩu, thu hồi phiên khi khóa user/đổi mật khẩu/đổi quyền, audit đăng nhập–đăng xuất và phân quyền theo ao.
 - Server-side authorization tại service; mọi dashboard/query nghiệp vụ đều lọc theo ao được cấp, Viewer chỉ đọc.
 - Khu vực Administrator **Thiết lập hệ thống** gồm Thiết lập chung, Network & Connections, Edge nodes và nhật ký kết nối.
-- MQTT broker profile và socket ESP32/Pi/STM32/PLC được cấu hình trên web, lưu MongoDB; secret MQTT mã hóa bằng Data Protection và không trả ngược ra UI/log.
-- Dynamic MQTT/Modbus supervisor start/stop/reconnect theo dữ liệu MongoDB, exponential backoff, runtime health, last seen và log TTL; một socket lỗi không dừng socket khác.
+- MQTT broker profile và socket ESP32/Pi/STM32/PLC được cấu hình trên web, lưu PostgreSQL; secret MQTT mã hóa bằng Data Protection và không trả ngược ra UI/log.
+- Dynamic MQTT/Modbus supervisor start/stop/reconnect theo dữ liệu PostgreSQL, exponential backoff, runtime health, last seen và log có thời hạn; một socket lỗi không dừng socket khác.
 - Desired/reported configuration có `Draft → Applying → Applied/Rejected/Timeout/PendingReconnect/OutOfSync`; chỉ Applied khi node ACK đúng CommandId/version.
 - Sensor pipeline có bounded backpressure, kiểm tra timestamp/giới hạn vật lý do edge báo cáo, EventId chống trùng, sequence gap và backfill không làm lùi live state.
+- PostgreSQL/EF Core có migration versioned, foreign key cho quan hệ ao–asset–telemetry, unique partial index cho EventId/channel/vụ mở và transaction cho tồn kho, chu kỳ nuôi cùng audit.
+- `latest_sensor_states` giữ đúng một trạng thái cho mỗi sensor; lịch sử nằm trong `sensor_readings` với index theo sensor/ao/metric/thời gian, BRIN và retention mặc định 365 ngày.
 - Một ao pilot `pond_01` khởi tạo **không có sensor hoặc thiết bị mặc định**; Tổng quan, Dashboard và Analytics chỉ dựng card/metric từ asset mà admin thực sự thêm.
 - Xóa sensor/thiết bị là decommission hai giai đoạn: ẩn và khóa ngay, loại khỏi desired config, chỉ archive sau node/PLC ACK; history, installation, command và audit không bị hard-delete.
 - ESP32 báo capabilities cùng physical min/max/driver và sensor health; node/sensor lạ đi vào quarantine, không tự đăng ký.
-- ESP32 có NVS ring buffer; chỉ xóa EventId sau ACK cấp ứng dụng xác nhận MongoDB đã persist, không dựa riêng vào MQTT QoS ACK.
+- ESP32 có NVS ring buffer; chỉ xóa EventId sau ACK cấp ứng dụng xác nhận PostgreSQL đã persist, không dựa riêng vào MQTT QoS ACK.
 - Sensor replacement giữ logical SensorId nhưng tạo SensorInstallationId mới; hỗ trợ MaintenanceOffline cho cả node và tránh alert storm.
 - Ngưỡng cảnh báo vận hành cấu hình theo PondId + Metric; giới hạn vật lý nằm trong firmware/capabilities.
 - Cảnh báo có new/acknowledged/resolved, số lần lặp, người tiếp nhận, delay/cooldown/hysteresis, webhook LAN, automation và audit.
@@ -55,22 +58,25 @@ Source không có Dockerfile. GitHub Actions dùng target `PublishContainer` c�
 
 ## Chạy phát triển trên Windows
 
-Cần .NET SDK phiên bản trong `global.json` và MongoDB cục bộ:
+Cần .NET SDK phiên bản trong `global.json` và PostgreSQL cục bộ:
 
 ```powershell
+dotnet tool restore
 dotnet restore AquacultureMonitoring.sln --locked-mode
 dotnet build AquacultureMonitoring.sln -c Release --no-restore -m:1
 dotnet test Tests/AquacultureMonitoring.Tests.csproj -c Release --no-build
 dotnet run --project AquacultureMonitoring.csproj
 ```
 
-Mặc định là `EdgeSimulation`. Khi chạy trực tiếp trên Windows, cần MongoDB; Mosquitto broker và node socket được tạo tại `/admin/settings/connections`, không còn đọc `Config/sensor-connections.json`.
+Mặc định là `EdgeSimulation`. Khi chạy trực tiếp trên Windows, cần PostgreSQL; Mosquitto broker và node socket được tạo tại `/admin/settings/connections`, không còn đọc `Config/sensor-connections.json`.
 
-`authentication.json` và `.env` chỉ tạo tài khoản bootstrap khi collection `users` còn rỗng. Chúng không đổi password của user đã tồn tại. Người dùng đổi password tại `/account/change-password`; Administrator reset user tại `/admin/users`. Khi mất toàn bộ quyền admin, dùng script recovery trong `scripts/README.md`.
+`authentication.json` và `.env` chỉ tạo tài khoản bootstrap khi bảng `users` còn rỗng. Chúng không đổi password của user đã tồn tại. Người dùng đổi password tại `/account/change-password`; Administrator reset user tại `/admin/users`. Khi mất toàn bộ quyền admin, dùng script recovery trong `scripts/README.md`.
+
+`appsettings.json` cố ý để trống PostgreSQL password. Thiết lập database theo `Docs/16.POSTGRESQL-SETUP-WINDOWS-UBUNTU.md` và truyền secret bằng environment.
 
 ## Phát hành production
 
-Runbook đầy đủ từ Windows đến Ubuntu LAN: `Docs/19.BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`.
+Runbook đầy đủ từ Windows đến Ubuntu LAN: `Docs/20.BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md`.
 
 Quy trình chuẩn:
 
@@ -79,9 +85,9 @@ Quy trình chuẩn:
 3. Trên Ubuntu 24.04 LTS, pull source vận hành rồi chạy `./scripts/deploy-ubuntu.sh <image-tag>`.
 4. Script pull image, cập nhật Compose, kiểm tra `/health/ready` và quay lại image tag trước nếu readiness thất bại.
 
-Hướng dẫn đầy đủ: `Docs/18.DEPLOYMENT-GHCR-UBUNTU.md`.
+Hướng dẫn đầy đủ: `Docs/19.DEPLOYMENT-GHCR-UBUNTU.md`.
 
-Quy trình review/stage source an toàn trước khi push được mô tả tại `Docs/17.GIT-PUBLISH.md`.
+Quy trình review/stage source an toàn trước khi push được mô tả tại `Docs/18.GIT-PUBLISH.md`.
 
 ## Chuyển simulation, edge simulation và thiết bị thật
 
@@ -110,9 +116,9 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 ## Health và vận hành
 
 - `/health/live`: process còn phục vụ HTTP.
-- `/health/ready`: ứng dụng và MongoDB sẵn sàng.
+- `/health/ready`: ứng dụng và PostgreSQL sẵn sàng.
 - `/health`: alias readiness để tương thích.
-- Backup/restore: xem `scripts/MongoBackup.md` và kiểm thử restore định kỳ.
+- Cài đặt và backup/restore PostgreSQL: xem `Docs/16.POSTGRESQL-SETUP-WINDOWS-UBUNTU.md` và kiểm thử restore định kỳ.
 - Security checklist: `Docs/15.SECURITY-HARDENING.md`.
 - Chỉ mục module: `Docs/03.COMPONENT-INDEX.md`.
 - Phạm vi và tiêu chí nghiệm thu P0–P2: `Docs/07.P0-P2-IMPLEMENTATION.md`.
@@ -122,7 +128,7 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 - Cấu hình cùng register map trong GX Works3 và integration test socket/mapping với FX5U-32MT/D thật trên test bench.
 - Cấu hình Mosquitto ACL + TLS/mTLS nếu MQTT đi qua mạng không tin cậy.
 - Thêm monitoring tập trung (metrics/log/error tracking) và cảnh báo ngoài ứng dụng.
-- Diễn tập backup/restore MongoDB, mất mạng, ACK timeout, fail-safe và rollback.
+- Diễn tập backup/restore PostgreSQL, mất mạng, ACK timeout, fail-safe và rollback.
 - Kiểm thử tải dài hạn cho Blazor circuits và lưu lượng sensor thực tế.
 - Đánh giá an toàn điện/cơ khí bởi kỹ sư phụ trách trước khi bật master hardware switch.
 
@@ -132,7 +138,7 @@ Các mật khẩu từng xuất hiện trong Git history phải được xem là
 
 ### Mục đích cụ thể
 
-AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong MongoDB. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
+AquaOps là ứng dụng Blazor Interactive Server trên .NET 10 để giám sát một ao pilot, ingest telemetry MQTT, quản lý vụ nuôi, cảnh báo và điều khiển thiết bị Mitsubishi FX5U-compatible qua Modbus TCP có audit/read-back. Dữ liệu bền vững nằm trong PostgreSQL. Hệ thống chạy HTTP trong mạng LAN và không cần domain/chứng chỉ Internet.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **AquaOps — Aquaculture Monitoring**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -152,10 +158,10 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 Đối chiếu nội dung tài liệu với Program.cs, project/solution, appsettings, Compose và workflow. Giá trị production phải đến từ environment hoặc database động, không hard-code.
 
-- **appsettings.json** (23 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **appsettings.json** (27 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
 - **global.json** (7 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
-- **packages.lock.json** (58 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
-- **Program.cs** (244 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **packages.lock.json** (226 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **Program.cs** (253 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
 
 Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
 

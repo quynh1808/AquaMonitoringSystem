@@ -1,6 +1,9 @@
 # FarmOperationsService
 
-Ranh giới nghiệp vụ và authorization của trang vận hành P2. Service kiểm tra quyền theo role/ao, xác thực cycle thuộc pond, cập nhật tồn kho nguyên tử và ghi audit cho mọi mutation. Trang Razor chỉ gọi service này, không truy cập MongoDB trực tiếp.
+Ranh giới nghiệp vụ và authorization của trang vận hành P2. Service kiểm tra quyền theo role/ao,
+xác thực cycle thuộc pond và commit mỗi mutation cùng audit trong transaction. Xuất kho dùng
+`Serializable` và update có điều kiện `QuantityOnHand >= quantity`, nên không thể tạo tồn kho âm do
+hai request đồng thời. Trang Razor không truy cập PostgreSQL trực tiếp.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +11,7 @@ Ranh giới nghiệp vụ và authorization của trang vận hành P2. Service 
 
 ### Mục đích cụ thể
 
-Ranh giới nghiệp vụ và authorization của trang vận hành P2. Service kiểm tra quyền theo role/ao, xác thực cycle thuộc pond, cập nhật tồn kho nguyên tử và ghi audit cho mọi mutation. Trang Razor chỉ gọi service này, không truy cập MongoDB trực tiếp.
+Ranh giới nghiệp vụ và authorization của trang vận hành P2. Service kiểm tra quyền theo role/ao, xác thực cycle thuộc pond, cập nhật tồn kho nguyên tử và ghi audit cho mọi mutation. Trang Razor chỉ gọi service này, không truy cập PostgreSQL trực tiếp.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **FarmOperationsService**, thay vì chỉ biết tên class, page hoặc quy trình.
 

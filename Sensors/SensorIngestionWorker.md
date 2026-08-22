@@ -1,6 +1,6 @@
 # SensorIngestionWorker
 
-Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backfill; chỉ cập nhật live state sau khi reading đã ghi MongoDB. Không có nhánh simulation override. Dữ liệu MQTT được xử lý như phép đo field, còn provenance nằm ở operational mode/firmware version.
+Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backfill; chỉ cập nhật live state sau khi reading đã ghi PostgreSQL. Không có nhánh simulation override. Dữ liệu MQTT được xử lý như phép đo field, còn provenance nằm ở operational mode/firmware version.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backf
 
 ### Mục đích cụ thể
 
-Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backfill; chỉ cập nhật live state sau khi reading đã ghi MongoDB. Không có nhánh simulation override. Dữ liệu MQTT được xử lý như phép đo field, còn provenance nằm ở operational mode/firmware version.
+Kiểm tra timestamp, metric, miền giá trị, EventId, sequence gap và backfill; chỉ cập nhật live state sau khi reading đã ghi PostgreSQL. Không có nhánh simulation override. Dữ liệu MQTT được xử lý như phép đo field, còn provenance nằm ở operational mode/firmware version.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **SensorIngestionWorker**, thay vì chỉ biết tên class, page hoặc quy trình.
 

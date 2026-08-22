@@ -1,6 +1,6 @@
 # FarmOperationsModels
 
-Các document MongoDB cho nghiệp vụ P2: vật tư/giao dịch kho, sức khỏe thủy sản, an toàn sinh học, work order/SOP, chi phí và lô thu hoạch. `PondId` và `CycleId` là liên kết logic được kiểm tra ở `FarmOperationsService`; không cho UI ghi thẳng collection.
+Các entity PostgreSQL cho nghiệp vụ P2: vật tư/giao dịch kho, sức khỏe thủy sản, an toàn sinh học, work order/SOP, chi phí và lô thu hoạch. `PondId` và `CycleId` được service kiểm tra, còn các quan hệ cốt lõi được database constraint bảo vệ; UI không ghi thẳng bảng.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Các document MongoDB cho nghiệp vụ P2: vật tư/giao dịch kho, sức kh�
 
 ### Mục đích cụ thể
 
-Các document MongoDB cho nghiệp vụ P2: vật tư/giao dịch kho, sức khỏe thủy sản, an toàn sinh học, work order/SOP, chi phí và lô thu hoạch. `PondId` và `CycleId` là liên kết logic được kiểm tra ở `FarmOperationsService`; không cho UI ghi thẳng collection.
+Các entity PostgreSQL cho nghiệp vụ P2: vật tư/giao dịch kho, sức khỏe thủy sản, an toàn sinh học, work order/SOP, chi phí và lô thu hoạch. Service áp dụng authorization/transaction và UI không ghi thẳng bảng.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **FarmOperationsModels**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -26,7 +26,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 ### Cách triển khai trong source
 
-Class/record được Mongo serializer, repository, service, worker và component dùng; model không tự thực hiện I/O.
+Class/record được PostgreSQL serializer, repository, service, worker và component dùng; model không tự thực hiện I/O.
 
 - **Models/FarmOperationsModels.cs** (116 dòng): các điểm vào nhận diện được gồm InventoryItem, InventoryTransaction, AquaticHealthEvent, BiosecurityEvent, FarmWorkOrder, FarmExpense, HarvestLot, FarmOperationsSnapshot.
 
@@ -41,7 +41,7 @@ Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay 
 ### Thuật ngữ chuyên môn dùng trong phạm vi này
 
 - **Model**: Kiểu biểu diễn dữ liệu/domain. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
-- **Document**: Model được lưu trong MongoDB. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Document**: Model được lưu trong PostgreSQL. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **DTO**: Object mang dữ liệu giữa ranh giới. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **View model**: Dữ liệu đã định hình cho UI. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **Backward compatibility**: Khả năng đọc dữ liệu/contract phiên bản cũ. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.

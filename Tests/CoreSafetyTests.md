@@ -2,7 +2,7 @@
 
 ## Mục đích
 
-File test này bảo vệ các invariant cốt lõi có thể kiểm tra nhanh mà không cần MongoDB, broker hoặc PLC thật.
+File test này bảo vệ các invariant cốt lõi có thể kiểm tra nhanh mà không cần PostgreSQL, broker hoặc PLC thật.
 
 ## Phạm vi
 
@@ -18,7 +18,7 @@ Workflow phải chạy test trước khi publish container. Khi thêm quy tắc 
 
 ### Mục đích cụ thể
 
-File test này bảo vệ các invariant cốt lõi có thể kiểm tra nhanh mà không cần MongoDB, broker hoặc PLC thật.
+File test này bảo vệ các invariant cốt lõi có thể kiểm tra nhanh mà không cần PostgreSQL, broker hoặc PLC thật.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **CoreSafetyTests**, thay vì chỉ biết tên class, page hoặc quy trình.
 

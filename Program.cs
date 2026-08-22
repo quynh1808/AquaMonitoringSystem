@@ -7,6 +7,7 @@ using System.Threading.RateLimiting;
 using AquaAuthenticationOptions = AquacultureMonitoring.Configuration.AuthenticationOptions;
 using System.Security.Claims;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using AquacultureMonitoring.Components;
 using AquacultureMonitoring.Configuration;
 using AquacultureMonitoring.Data;
@@ -33,8 +34,8 @@ builder.Services
 
 builder.Services.AddCascadingAuthenticationState();
 
-builder.Services.AddOptions<MongoDbOptions>()
-    .Bind(builder.Configuration.GetSection(MongoDbOptions.SectionName)).ValidateOnStart();
+builder.Services.AddOptions<PostgreSqlOptions>()
+    .Bind(builder.Configuration.GetSection(PostgreSqlOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<OperationalModeOptions>()
     .Bind(builder.Configuration.GetSection(OperationalModeOptions.SectionName)).ValidateOnStart();
 builder.Services.AddOptions<AlertNotificationOptions>()
@@ -48,7 +49,7 @@ builder.Services.AddOptions<AquaAuthenticationOptions>()
 builder.Services.AddOptions<DeviceControlOptions>()
     .Bind(builder.Configuration.GetSection(DeviceControlOptions.SectionName)).ValidateOnStart();
 
-builder.Services.AddSingleton<IValidateOptions<MongoDbOptions>, MongoDbOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<PostgreSqlOptions>, PostgreSqlOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<OperationalModeOptions>, OperationalModeOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<AlertNotificationOptions>, AlertNotificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<SensorThresholdCatalog>, SensorThresholdCatalogValidator>();
@@ -56,10 +57,13 @@ builder.Services.AddSingleton<IValidateOptions<SystemBehaviorOptions>, SystemBeh
 builder.Services.AddSingleton<IValidateOptions<AquaAuthenticationOptions>, AuthenticationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<DeviceControlOptions>, DeviceControlOptionsValidator>();
 
-builder.Services.AddSingleton<MongoContext>();
+var postgreSql = builder.Configuration.GetSection(PostgreSqlOptions.SectionName).Get<PostgreSqlOptions>() ?? new();
+builder.Services.AddPooledDbContextFactory<AquaDbContext>(options =>
+    options.UseNpgsql(AquaDbConnection.Build(postgreSql), npgsql =>
+        npgsql.CommandTimeout(postgreSql.CommandTimeoutSeconds)));
 builder.Services.AddSingleton<FarmRepository>();
 builder.Services.AddSingleton<SystemConfigurationRepository>();
-builder.Services.AddSingleton<MongoDatabaseInitializer>();
+builder.Services.AddSingleton<PostgreSqlDatabaseInitializer>();
 builder.Services.AddSingleton<FarmRuntimeState>();
 builder.Services.AddSingleton<SensorMessageBus>();
 builder.Services.AddSingleton<DataSourceHealthService>();
@@ -143,17 +147,18 @@ builder.Services.AddRateLimiter(options =>
         }));
 });
 
-builder.Services.AddSingleton<MongoWriteQueue>();
-builder.Services.AddSingleton<IMongoWriteQueue>(sp => sp.GetRequiredService<MongoWriteQueue>());
+builder.Services.AddSingleton<DatabaseWriteQueue>();
+builder.Services.AddSingleton<IDatabaseWriteQueue>(sp => sp.GetRequiredService<DatabaseWriteQueue>());
 
-// Node-specific connections are reconciled from MongoDB. Legacy JSON connection files are not
+// Node-specific connections are reconciled from PostgreSQL. Legacy JSON connection files are not
 // registered as active data sources and remain documentation/migration references only.
 
 builder.Services.AddScoped<FarmStateService>();
-builder.Services.AddHealthChecks().AddCheck<MongoDbHealthCheck>("mongodb", tags: ["ready"]);
+builder.Services.AddHealthChecks().AddCheck<PostgreSqlHealthCheck>("postgresql", tags: ["ready"]);
 
-builder.Services.AddHostedService<MongoBootstrapHostedService>();
-builder.Services.AddHostedService<MongoWriteQueue>(sp => sp.GetRequiredService<MongoWriteQueue>());
+builder.Services.AddHostedService<PostgreSqlBootstrapHostedService>();
+builder.Services.AddHostedService<DatabaseWriteQueue>(sp => sp.GetRequiredService<DatabaseWriteQueue>());
+builder.Services.AddHostedService<PostgreSqlRetentionWorker>();
 builder.Services.AddHostedService<SensorIngestionWorker>();
 builder.Services.AddHostedService<SensorOfflineMonitor>();
 builder.Services.AddHostedService<AssetMaintenanceMonitor>();
@@ -173,6 +178,10 @@ if (resetAdminPasswordMode)
     if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         throw new InvalidOperationException("AQUAOPS_RESET_USERNAME và AQUAOPS_RESET_PASSWORD là bắt buộc.");
 
+    // Recovery exits before app.Run(), so hosted services are never started in this mode.
+    // Prepare/upgrade the schema explicitly before UserAccountService queries PostgreSQL.
+    await app.Services.GetRequiredService<PostgreSqlDatabaseInitializer>()
+        .InitializeAsync(CancellationToken.None);
     await app.Services.GetRequiredService<UserAccountService>()
         .ResetAdministratorPasswordAsync(username, password, CancellationToken.None);
     Environment.SetEnvironmentVariable("AQUAOPS_RESET_PASSWORD", null);
@@ -193,7 +202,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapStaticAssets().AllowAnonymous();
-// Liveness proves that the process can serve HTTP; readiness additionally checks MongoDB.
+// Liveness proves that the process can serve HTTP; readiness additionally checks PostgreSQL.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 app.MapHealthChecks("/health").AllowAnonymous();

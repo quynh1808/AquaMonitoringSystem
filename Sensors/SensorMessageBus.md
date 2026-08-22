@@ -1,6 +1,6 @@
 # SensorMessageBus
 
-Channel này tách tốc độ nhận dữ liệu khỏi tốc độ ghi MongoDB.
+Channel này tách tốc độ nhận dữ liệu khỏi tốc độ ghi PostgreSQL.
 
 - MQTT/Modbus/simulation chỉ publish envelope.
 - Một ingestion worker duy nhất validate và ghi dữ liệu theo đúng thứ tự nhận.
@@ -15,7 +15,7 @@ Trong hệ thống lớn, module này có thể thay bằng Kafka, RabbitMQ ho�
 
 ### Mục đích cụ thể
 
-Channel này tách tốc độ nhận dữ liệu khỏi tốc độ ghi MongoDB.
+Channel này tách tốc độ nhận dữ liệu khỏi tốc độ ghi PostgreSQL.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **SensorMessageBus**, thay vì chỉ biết tên class, page hoặc quy trình.
 

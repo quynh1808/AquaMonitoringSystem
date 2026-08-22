@@ -10,7 +10,7 @@ using MQTTnet;
 namespace AquacultureMonitoring.Sensors;
 
 /// <summary>
-/// Reconciles enabled MongoDB broker profiles with live MQTT clients. One client is shared per
+/// Reconciles enabled PostgreSQL broker profiles with live MQTT clients. One client is shared per
 /// broker, while every incoming message is authorized against its one-node logical socket.
 /// </summary>
 public sealed class DynamicMqttConnectionSupervisor : BackgroundService

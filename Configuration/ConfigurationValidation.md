@@ -6,15 +6,17 @@ Kiểm tra các file cấu hình ngay khi ứng dụng khởi động. Ứng d�
 
 ## Các nhóm kiểm tra
 
-- Kết nối MongoDB và timeout.
+- PostgreSQL host, port, database, username, password và command timeout.
 - Catalog có đủ metric hiển thị và alarm defaults hợp lệ. Giới hạn vật lý runtime do edge capabilities cung cấp.
-- Miền giá trị, bước thay đổi và xác suất bất thường của mô phỏng.
-- Tên nguồn dữ liệu, MQTT host/port và mapping Modbus.
+- Operational mode thuộc `Simulation`, `EdgeSimulation` hoặc `Production`.
+- Alert webhook, device command timeout và hardware-control guard.
 - Thời gian offline, retention, giới hạn runtime và dải điểm sức khỏe.
 
 ## Khi chỉnh JSON
 
-Sau khi sửa file trong `Config/`, nên kiểm tra log. Một số giá trị dùng `IOptionsMonitor` và được nạp lại khi file thay đổi; việc bật/tắt cả một adapter kết nối cần khởi động lại ứng dụng để tạo hoặc dừng tiến trình nguồn dữ liệu.
+Sau khi sửa file trong `Config/` hoặc environment, kiểm tra log startup. Threshold/system behavior dùng
+`IOptionsMonitor`; credential PostgreSQL và mode triển khai cần restart host. Endpoint MQTT/Modbus
+của từng node được chỉnh trên web và lưu PostgreSQL, không được validator đọc từ source JSON.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -42,7 +44,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 Program bind section vào class, đăng ký IValidateOptions và ValidateOnStart; service inject IOptions hoặc IOptionsMonitor.
 
-- **Configuration/ConfigurationValidation.cs** (123 dòng): các điểm vào nhận diện được gồm OperationalModeOptionsValidator, AlertNotificationOptionsValidator, MongoDbOptionsValidator, SensorThresholdCatalogValidator, SystemBehaviorOptionsValidator, DeviceControlOptionsValidator, AuthenticationOptionsValidator.
+- **Configuration/ConfigurationValidation.cs** (123 dòng): các điểm vào nhận diện được gồm OperationalModeOptionsValidator, AlertNotificationOptionsValidator, PostgreSqlOptionsValidator, SensorThresholdCatalogValidator, SystemBehaviorOptionsValidator, DeviceControlOptionsValidator, AuthenticationOptionsValidator.
 
 Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
 

@@ -2,12 +2,12 @@
 
 Đây là cache runtime dùng chung giữa Dashboard và pipeline cảm biến.
 
-- MongoDB vẫn là nguồn dữ liệu bền vững.
+- PostgreSQL vẫn là nguồn dữ liệu bền vững.
 - Runtime state giữ snapshot mới nhất để Blazor render nhanh và phát sự kiện `Changed`.
-- Lịch sử gần nhất được giữ trong RAM theo `RuntimeReadingLimit`; lịch sử đầy đủ nằm trong MongoDB.
+- Lịch sử gần nhất được giữ trong RAM theo `RuntimeReadingLimit`; lịch sử đầy đủ nằm trong PostgreSQL.
 - Mọi cập nhật đều đi qua method có khóa đồng bộ, tránh component đọc collection trong lúc worker đang sửa.
 
-Khi triển khai nhiều instance web server, runtime state nên được thay bằng MongoDB change stream/Redis pub-sub để đồng bộ giữa các instance.
+Khi triển khai nhiều instance web server, runtime state nên được thay bằng PostgreSQL change stream/Redis pub-sub để đồng bộ giữa các instance.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -21,7 +21,7 @@ Tài liệu này đồng thời giúp người đọc xác định ranh giới t
 
 ### Vì sao thành phần hoặc quy trình này cần tồn tại
 
-UI và worker cần snapshot nhanh nhưng MongoDB vẫn phải là nguồn bền vững.
+UI và worker cần snapshot nhanh nhưng PostgreSQL vẫn phải là nguồn bền vững.
 
 Nếu bỏ qua ranh giới này, logic dễ bị đặt sai layer, kiểm tra bị lặp hoặc trạng thái hiển thị không còn phản ánh nguồn dữ liệu có thẩm quyền.
 

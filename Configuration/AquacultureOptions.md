@@ -2,7 +2,7 @@
 
 Các POCO này chỉ ánh xạ default cấp ứng dụng như `OperationalMode`, alert notification,
 threshold mặc định, system behavior, seed và authentication. Broker, node socket, sensor channel
-và PLC M/D mapping là cấu hình commissioning động trong MongoDB, không còn bind từ source JSON.
+và PLC M/D mapping là cấu hình commissioning động trong PostgreSQL, không còn bind từ source JSON.
 `OperationalMode` nhận `Simulation`, `EdgeSimulation`, `Production`; mọi mode đều dùng cùng
 MQTT/Modbus contract và không bật generator trong server.
 
@@ -12,7 +12,7 @@ MQTT/Modbus contract và không bật generator trong server.
 
 ### Mục đích cụ thể
 
-Các POCO này chỉ ánh xạ default cấp ứng dụng như `OperationalMode`, alert notification, threshold mặc định, system behavior, seed và authentication. Broker, node socket, sensor channel và PLC M/D mapping là cấu hình commissioning động trong MongoDB, không còn bind từ source JSON. `OperationalMode` nhận `Simulation`, `EdgeSimulation`, `Production`; mọi mode đều dùng cùng MQTT/Modbus contract và không bật generator trong server.
+Các POCO này chỉ ánh xạ default cấp ứng dụng như `OperationalMode`, alert notification, threshold mặc định, system behavior, seed và authentication. Broker, node socket, sensor channel và PLC M/D mapping là cấu hình commissioning động trong PostgreSQL, không còn bind từ source JSON. `OperationalMode` nhận `Simulation`, `EdgeSimulation`, `Production`; mọi mode đều dùng cùng MQTT/Modbus contract và không bật generator trong server.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Aquaculture options**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -32,7 +32,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 Program bind section vào class, đăng ký IValidateOptions và ValidateOnStart; service inject IOptions hoặc IOptionsMonitor.
 
-- **Configuration/AquacultureOptions.cs** (146 dòng): các điểm vào nhận diện được gồm MongoDbOptions, OperationalModeOptions, AlertNotificationOptions, SensorThresholdCatalog, MetricThresholdOptions, SystemBehaviorOptions, HealthScoreOptions, FarmSeedOptions, PondSeedItem, DeviceSeedItem, FeedSeedItem, AuthenticationOptions.
+- **Configuration/AquacultureOptions.cs** (146 dòng): các điểm vào nhận diện được gồm PostgreSqlOptions, OperationalModeOptions, AlertNotificationOptions, SensorThresholdCatalog, MetricThresholdOptions, SystemBehaviorOptions, HealthScoreOptions, FarmSeedOptions, PondSeedItem, DeviceSeedItem, FeedSeedItem, AuthenticationOptions.
 
 Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
 

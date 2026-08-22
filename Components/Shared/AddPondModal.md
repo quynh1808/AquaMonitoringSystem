@@ -1,6 +1,6 @@
 # AddPondModal
 
-Form thêm ao mới. Dữ liệu được validate bằng `AddPondRequest`; service tạo ao, telemetry ban đầu, bộ sensor mô phỏng và thiết bị mặc định từ các file cấu hình, sau đó ghi MongoDB.
+Form thêm ao mới. Dữ liệu được validate bằng `AddPondRequest`; service tạo ao, telemetry ban đầu, bộ sensor mô phỏng và thiết bị mặc định từ các file cấu hình, sau đó ghi PostgreSQL.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Form thêm ao mới. Dữ liệu được validate bằng `AddPondRequest`; serv
 
 ### Mục đích cụ thể
 
-Form thêm ao mới. Dữ liệu được validate bằng `AddPondRequest`; service tạo ao, telemetry ban đầu, bộ sensor mô phỏng và thiết bị mặc định từ các file cấu hình, sau đó ghi MongoDB.
+Form thêm ao mới. Dữ liệu được validate bằng `AddPondRequest`; service tạo ao, telemetry ban đầu, bộ sensor mô phỏng và thiết bị mặc định từ các file cấu hình, sau đó ghi PostgreSQL.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **AddPondModal**, thay vì chỉ biết tên class, page hoặc quy trình.
 

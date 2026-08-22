@@ -102,7 +102,7 @@ cache hỏng.
 Terminal không đứng ở thư mục có `platformio.ini`:
 
 ~~~powershell
-cd C:/duong-dan/AquacultureMonitoring20260812/Firmware/esp32_sensor_node
+cd C:/duong-dan/AquacultureMonitoringSystem/Firmware/esp32_sensor_node
 Test-Path platformio.ini
 pio run -e aquaops_sensor_node
 ~~~
@@ -375,7 +375,7 @@ Kiểm tra theo thứ tự:
 6. ESP32 publish reported/ACK đúng CommandId và version;
 7. server nhận ACK.
 
-Không sửa trạng thái MongoDB bằng tay. Version hoặc CommandId không khớp phải bị từ chối để ACK cũ
+Không sửa trạng thái PostgreSQL bằng tay. Version hoặc CommandId không khớp phải bị từ chối để ACK cũ
 không xác nhận nhầm cấu hình mới.
 
 ### 9.3 Dữ liệu bị quarantine
@@ -500,5 +500,5 @@ Rà soát log trước khi gửi để che password, token và dữ liệu đị
 - [Kiến trúc PlatformIO](../PLATFORMIO.md)
 - [Provisioning ESP32](../../Docs/13.ESP32-PROVISIONING.md)
 - [Commissioning động](../../Docs/09.DYNAMIC-COMMISSIONING.md)
-- [Troubleshooting toàn hệ thống](../../Docs/20.TROUBLESHOOTING.md)
+- [Troubleshooting toàn hệ thống](../../Docs/21.TROUBLESHOOTING.md)
 - [PlatformIO FAQ chính thức](https://docs.platformio.org/en/latest/faq/index.html)

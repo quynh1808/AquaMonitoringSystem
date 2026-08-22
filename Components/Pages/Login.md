@@ -17,7 +17,7 @@ Form POST tới `/auth/login` với:
 - `password`
 - `returnUrl`
 
-Endpoint kiểm tra tài khoản trong MongoDB, tạo cookie xác thực khi thành công và redirect tới `returnUrl` an toàn.
+Endpoint kiểm tra tài khoản trong PostgreSQL, tạo cookie xác thực khi thành công và redirect tới `returnUrl` an toàn.
 Form có antiforgery token; endpoint có fixed-window rate limit theo IP trước khi truy vấn tài khoản.
 Trường mật khẩu có nút `Hiện/Ẩn` chạy bằng helper DOM tối thiểu để hoạt động ngay cả trước khi Blazor circuit kết nối; helper không đọc nội dung mật khẩu.
 

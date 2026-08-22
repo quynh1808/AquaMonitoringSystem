@@ -19,7 +19,7 @@
     @if (showCreate)
     {
         <article class="panel">
-            <div class="panel-heading"><div><h2>Tài khoản mới</h2><p>Mật khẩu được băm PBKDF2 trước khi lưu MongoDB.</p></div></div>
+            <div class="panel-heading"><div><h2>Tài khoản mới</h2><p>Mật khẩu được băm PBKDF2 trước khi lưu PostgreSQL.</p></div></div>
             <EditForm Model="model" OnValidSubmit="CreateAsync">
                 <DataAnnotationsValidator />
                 <ValidationSummary />

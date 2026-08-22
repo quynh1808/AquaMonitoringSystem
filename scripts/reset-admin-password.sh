@@ -5,8 +5,8 @@ set -euo pipefail
 # short-lived recovery container; it is never written to .env, command history or application log.
 cd "$(dirname "$0")/.."
 test -f .env || { echo "Missing .env." >&2; exit 1; }
-docker compose ps --status running --services | grep -qx mongodb || {
-  echo "MongoDB service is not running." >&2
+docker compose ps --status running --services | grep -qx postgresql || {
+  echo "PostgreSQL service is not running." >&2
   exit 1
 }
 

@@ -117,7 +117,7 @@ public sealed class DeviceCommandService
             return command;
         }
 
-        // A command intent must be durable before any physical output is changed. If MongoDB
+        // A command intent must be durable before any physical output is changed. If PostgreSQL
         // cannot accept the pending record, fail closed and do not contact the PLC/relay.
         try
         {

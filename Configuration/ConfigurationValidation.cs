@@ -24,16 +24,17 @@ public sealed class AlertNotificationOptionsValidator : IValidateOptions<AlertNo
     }
 }
 
-public sealed class MongoDbOptionsValidator : IValidateOptions<MongoDbOptions>
+public sealed class PostgreSqlOptionsValidator : IValidateOptions<PostgreSqlOptions>
 {
-    public ValidateOptionsResult Validate(string? name, MongoDbOptions options)
+    public ValidateOptionsResult Validate(string? name, PostgreSqlOptions options)
     {
         var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(options.ConnectionString)) errors.Add("MongoDb:ConnectionString không được để trống.");
-        if (string.IsNullOrWhiteSpace(options.DatabaseName)) errors.Add("MongoDb:DatabaseName không được để trống.");
-        if (string.IsNullOrWhiteSpace(options.Username) != string.IsNullOrWhiteSpace(options.Password))
-            errors.Add("MongoDb:Username và MongoDb:Password phải được cấu hình cùng nhau.");
-        if (options.ServerSelectionTimeoutSeconds <= 0) errors.Add("MongoDb:ServerSelectionTimeoutSeconds phải lớn hơn 0.");
+        if (string.IsNullOrWhiteSpace(options.Host)) errors.Add("PostgreSql:Host không được để trống.");
+        if (options.Port is < 1 or > 65535) errors.Add("PostgreSql:Port phải trong khoảng 1-65535.");
+        if (string.IsNullOrWhiteSpace(options.DatabaseName)) errors.Add("PostgreSql:DatabaseName không được để trống.");
+        if (string.IsNullOrWhiteSpace(options.Username)) errors.Add("PostgreSql:Username không được để trống.");
+        if (string.IsNullOrWhiteSpace(options.Password)) errors.Add("PostgreSql:Password không được để trống.");
+        if (options.CommandTimeoutSeconds is < 1 or > 300) errors.Add("PostgreSql:CommandTimeoutSeconds phải trong khoảng 1-300.");
         return errors.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(errors);
     }
 }

@@ -8,7 +8,7 @@ Quản lý trạng thái vận hành của từng nguồn dữ liệu:
 - tổng số bản tin;
 - lỗi gần nhất.
 
-Mỗi thay đổi được cập nhật vào `FarmRuntimeState` để UI thấy ngay và upsert vào MongoDB collection `data_source_health`.
+Mỗi thay đổi được cập nhật vào `FarmRuntimeState` để UI thấy ngay và upsert vào bảng PostgreSQL `data_source_health`.
 
 
 ## Định danh nguồn

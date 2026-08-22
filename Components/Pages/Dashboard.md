@@ -1,6 +1,6 @@
 # Dashboard
 
-Dashboard tổng lấy `DashboardSnapshot` từ dữ liệu runtime/MongoDB đã lọc quyền. Nhãn nguồn thể hiện MQTT + Modbus live. Không có form nhập sensor giả; các panel thiếu weather/energy/growth measurement hiển thị trạng thái chưa có dữ liệu.
+Dashboard tổng lấy `DashboardSnapshot` từ dữ liệu runtime/PostgreSQL đã lọc quyền. Nhãn nguồn thể hiện MQTT + Modbus live. Không có form nhập sensor giả; các panel thiếu weather/energy/growth measurement hiển thị trạng thái chưa có dữ liệu.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Dashboard tổng lấy `DashboardSnapshot` từ dữ liệu runtime/MongoDB đã
 
 ### Mục đích cụ thể
 
-Dashboard tổng lấy `DashboardSnapshot` từ dữ liệu runtime/MongoDB đã lọc quyền. Nhãn nguồn thể hiện MQTT + Modbus live. Không có form nhập sensor giả; các panel thiếu weather/energy/growth measurement hiển thị trạng thái chưa có dữ liệu.
+Dashboard tổng lấy `DashboardSnapshot` từ dữ liệu runtime/PostgreSQL đã lọc quyền. Nhãn nguồn thể hiện MQTT + Modbus live. Không có form nhập sensor giả; các panel thiếu weather/energy/growth measurement hiển thị trạng thái chưa có dữ liệu.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Dashboard**, thay vì chỉ biết tên class, page hoặc quy trình.
 

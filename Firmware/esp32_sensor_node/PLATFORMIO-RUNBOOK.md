@@ -21,7 +21,7 @@ Tài liệu dành cho firmware [esp32_sensor_node](README.md). Nó không áp d�
 Windows + PlatformIO                    Ubuntu Server 24.04 LTS
 ┌────────────────────┐                 ┌────────────────────────────┐
 │ Build/flash ESP32  │                 │ Mosquitto :1883            │
-│ Serial provisioning│                 │ AquaOps + MongoDB + Caddy  │
+│ Serial provisioning│                 │ AquaOps + PostgreSQL + Caddy  │
 └─────────┬──────────┘                 └──────────────┬─────────────┘
           │ USB                                       │
           v                                           │ MQTT trong LAN
@@ -122,7 +122,7 @@ code .
 Nếu source đã có:
 
 ~~~powershell
-cd C:/duong-dan/AquacultureMonitoring20260812/Firmware/esp32_sensor_node
+cd C:/duong-dan/AquacultureMonitoringSystem/Firmware/esp32_sensor_node
 git status --short
 code .
 ~~~
@@ -425,7 +425,7 @@ timeout và calibration health thuộc firmware/driver edge.
 4. ESP32 nhận desired version, lưu cấu hình, trả reported/ACK đúng CommandId và version.
 5. Chỉ khi ACK hợp lệ, trạng thái mới thành `Applied`.
 
-Nếu node offline, trạng thái có thể là `PendingReconnect`. Không sửa trực tiếp MongoDB để ép
+Nếu node offline, trạng thái có thể là `PendingReconnect`. Không sửa trực tiếp PostgreSQL để ép
 `Applied` vì như vậy UI nói cấu hình đã chạy trong khi firmware chưa nhận.
 
 ## 14. Xác minh telemetry và health

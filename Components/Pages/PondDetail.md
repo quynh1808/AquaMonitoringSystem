@@ -2,7 +2,7 @@
 
 Workspace giữ route riêng cho từng ao và các tab Tổng quan, Cảm biến, Thiết bị, Cho ăn và Cảnh báo.
 
-Các thay đổi trong phiên bản MongoDB:
+Các thay đổi trong phiên bản PostgreSQL:
 
 - `SensorMetricCard` chỉ được dựng từ sensor Administrator đã thêm; ao mới không có card mặc định.
 - Trend lấy lịch sử đã ingest.

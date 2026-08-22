@@ -6,11 +6,11 @@
 
 ## Luồng xử lý
 
-1. Chờ `FarmRuntimeState` nạp xong dữ liệu MongoDB.
+1. Chờ `FarmRuntimeState` nạp xong dữ liệu PostgreSQL.
 2. Định kỳ đọc `CalibrationDueDateUtc` của cảm biến đang bật.
 3. Khi cảm biến bước vào khoảng nhắc trước hạn, tạo hoặc cập nhật `MaintenanceTask` có ID ổn định `calibration:{sensorId}`.
 4. Tạo cảnh báo `warning`; nếu đã quá hạn thì dùng mức `critical`.
-5. Ghi task và cảnh báo vào MongoDB.
+5. Ghi task và cảnh báo vào PostgreSQL.
 6. Khi người dùng ghi nhận hiệu chuẩn trong UI, `FarmStateService.RecordCalibration` hoàn thành task và đóng cảnh báo liên quan.
 
 ## Cấu hình ngoài code

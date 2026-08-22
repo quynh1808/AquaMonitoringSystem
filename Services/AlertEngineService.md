@@ -11,7 +11,7 @@ Cơ chế chống cảnh báo giả:
 - `CooldownSeconds`: giới hạn tần suất cập nhật cảnh báo.
 - Miền `ValidMin/ValidMax`: tách lỗi dữ liệu/cảm biến khỏi cảnh báo môi trường.
 
-Cảnh báo đang hoạt động được upsert thay vì tạo hàng nghìn bản ghi giống nhau. Khi hồi phục, trạng thái chuyển sang `resolved` và vẫn giữ lịch sử trong MongoDB.
+Cảnh báo đang hoạt động được upsert thay vì tạo hàng nghìn bản ghi giống nhau. Khi hồi phục, trạng thái chuyển sang `resolved` và vẫn giữ lịch sử trong PostgreSQL.
 
 <!-- aquaops-doc-context-v1 -->
 

@@ -7,7 +7,7 @@ run feedback và fault độc lập với thao tác UI. Mất heartbeat/kết n�
 trạng thái `on` cũ trên dashboard.
 
 Endpoint và toàn bộ mapping M/D được Administrator khai báo tại `Thiết lập hệ thống →
-Network & Connections`, lưu trong MongoDB và chỉ có hiệu lực sau chu trình Apply/ACK.
+Network & Connections`, lưu trong PostgreSQL và chỉ có hiệu lực sau chu trình Apply/ACK.
 Emergency stop, overload, dry-run, minimum on/off time và watchdog tải vẫn phải nằm trong
 PLC/tủ điện; web server không thay thế lớp an toàn vật lý này.
 

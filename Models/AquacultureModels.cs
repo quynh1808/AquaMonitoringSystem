@@ -94,6 +94,15 @@ public sealed class SensorReading
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public SensorReadingMetadata Metadata { get; set; } = new();
+    // PostgreSQL stores the routing dimensions as normal columns so they can be indexed and
+    // protected by foreign keys. Metadata remains the protocol-facing shape used by the workers.
+    public string PondId { get => Metadata.PondId; set => Metadata.PondId = value; }
+    public string SensorId { get => Metadata.SensorId; set => Metadata.SensorId = value; }
+    public string Metric { get => Metadata.Metric; set => Metadata.Metric = value; }
+    public string SourceType { get => Metadata.SourceType; set => Metadata.SourceType = value; }
+    public string SocketId { get => Metadata.SocketId; set => Metadata.SocketId = value; }
+    public string NodeId { get => Metadata.NodeId; set => Metadata.NodeId = value; }
+    public string InstallationId { get => Metadata.InstallationId; set => Metadata.InstallationId = value; }
     public double Value { get; set; }
     public string Unit { get; set; } = string.Empty;
     public string Quality { get; set; } = "good";
@@ -107,6 +116,23 @@ public sealed class SensorReading
     public long? SequenceNumber { get; set; }
     public bool IsBackfill { get; set; }
     public string TimeQuality { get; set; } = "synchronized";
+}
+
+/// <summary>
+/// One row per configured sensor used by dashboards and reconnect bootstrap. Historical values
+/// remain in SensorReading; this projection avoids the former fixed six-metric pond document.
+/// </summary>
+public sealed class LatestSensorState
+{
+    public string SensorId { get; set; } = string.Empty;
+    public string PondId { get; set; } = string.Empty;
+    public string Metric { get; set; } = string.Empty;
+    public double Value { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public string Quality { get; set; } = "unknown";
+    public DateTime MeasuredAtUtc { get; set; }
+    public DateTime ReceivedAtUtc { get; set; }
+    public string InstallationId { get; set; } = string.Empty;
 }
 
 public sealed class Device

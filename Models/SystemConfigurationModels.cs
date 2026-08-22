@@ -5,7 +5,7 @@ namespace AquacultureMonitoring.Models;
 /// <summary>
 /// A broker profile contains infrastructure-level MQTT settings. Node sockets reference a
 /// profile so changing the broker address does not require editing every ESP32 connection.
-/// Secrets are encrypted before this object is stored in MongoDB.
+/// Secrets are encrypted before this object is stored in PostgreSQL.
 /// </summary>
 public sealed class MqttBrokerProfile
 {
@@ -71,7 +71,7 @@ public sealed class ModbusNodeSocketSettings
     [Range(0, 255)] public byte UnitId { get; set; } = 1;
     [Range(100, 60000)] public int TimeoutMilliseconds { get; set; } = 3000;
     [Range(250, 60000)] public int PollIntervalMilliseconds { get; set; } = 2000;
-    // Deliberately blank: PLC addresses belong to the commissioned socket in MongoDB,
+    // Deliberately blank: PLC addresses belong to the commissioned socket in PostgreSQL,
     // never to a server-side source default. The simulator map is documented separately.
     public string HeartbeatRegister { get; set; } = string.Empty;
     public string ConfigRequestVariable { get; set; } = string.Empty;

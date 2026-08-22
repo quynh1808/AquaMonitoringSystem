@@ -319,7 +319,7 @@ public sealed partial class SystemConfigurationService
         if (conflict is not null) throw new InvalidOperationException($"PLC variable {conflict} đã được thiết bị khác sử dụng trên socket.");
         var previous = string.IsNullOrWhiteSpace(existingId) ? null : devices.FirstOrDefault(x => x.Id == existingId);
         // Work on a detached copy so the audit log retains the exact pre-edit state.
-        // MongoDB returns mutable models and editing that same reference would otherwise
+        // Persistence returns mutable models and editing that same reference would otherwise
         // make PreviousValue and NewValue identical.
         var device = previous is null
             ? new Device { Id = Guid.NewGuid().ToString("N"), Status = "off", Mode = "remote-manual", ReportedMode = "unknown" }

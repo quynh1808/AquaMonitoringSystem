@@ -1,15 +1,15 @@
 namespace AquacultureMonitoring.Configuration;
 
-public sealed class MongoDbOptions
+public sealed class PostgreSqlOptions
 {
-    public const string SectionName = "MongoDb";
-    public string ConnectionString { get; set; } = "mongodb://localhost:27017";
+    public const string SectionName = "PostgreSql";
+    public string Host { get; set; } = "localhost";
+    public int Port { get; set; } = 5432;
     public string DatabaseName { get; set; } = "aquaculture_monitoring";
-    /// <summary>Optional credential fields avoid unsafe URI interpolation of special characters.</summary>
-    public string Username { get; set; } = string.Empty;
+    public string Username { get; set; } = "aquaops";
     public string Password { get; set; } = string.Empty;
-    public string AuthenticationDatabase { get; set; } = string.Empty;
-    public int ServerSelectionTimeoutSeconds { get; set; } = 10;
+    public int CommandTimeoutSeconds { get; set; } = 30;
+    public bool AutoMigrate { get; set; } = true;
 }
 
 /// <summary>Selects the safety profile independently from ASP.NET hosting environment.</summary>

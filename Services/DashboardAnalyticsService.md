@@ -1,6 +1,6 @@
 # DashboardAnalyticsService
 
-Tạo snapshot theo danh sách PondId được phép xem, chỉ từ MongoDB/runtime. Weather, energy history, feed plan hoặc growth chưa có nguồn đo sẽ không được tạo giả. Trạng thái thiết bị lấy từ PLC monitor/read-back; telemetry lấy từ MQTT pipeline.
+Tạo snapshot theo danh sách PondId được phép xem, chỉ từ PostgreSQL/runtime. Weather, energy history, feed plan hoặc growth chưa có nguồn đo sẽ không được tạo giả. Trạng thái thiết bị lấy từ PLC monitor/read-back; telemetry lấy từ MQTT pipeline.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Tạo snapshot theo danh sách PondId được phép xem, chỉ từ MongoDB/run
 
 ### Mục đích cụ thể
 
-Tạo snapshot theo danh sách PondId được phép xem, chỉ từ MongoDB/runtime. Weather, energy history, feed plan hoặc growth chưa có nguồn đo sẽ không được tạo giả. Trạng thái thiết bị lấy từ PLC monitor/read-back; telemetry lấy từ MQTT pipeline.
+Tạo snapshot theo danh sách PondId được phép xem, chỉ từ PostgreSQL/runtime. Weather, energy history, feed plan hoặc growth chưa có nguồn đo sẽ không được tạo giả. Trạng thái thiết bị lấy từ PLC monitor/read-back; telemetry lấy từ MQTT pipeline.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **DashboardAnalyticsService**, thay vì chỉ biết tên class, page hoặc quy trình.
 

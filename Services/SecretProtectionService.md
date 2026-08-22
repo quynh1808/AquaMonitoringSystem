@@ -2,11 +2,11 @@
 
 ## Mục đích
 
-SecretProtectionService bảo vệ credential của cấu hình động, đặc biệt MQTT password, trước khi document được lưu trong MongoDB.
+SecretProtectionService bảo vệ credential của cấu hình động, đặc biệt MQTT password, trước khi document được lưu trong PostgreSQL.
 
 ## Vì sao cần
 
-Biến môi trường phù hợp với secret cấp deployment, nhưng broker/socket do Administrator tạo trên web cần persistence. Lưu plaintext làm database backup, log debug hoặc quyền đọc collection trở thành nguồn rò credential.
+Biến môi trường phù hợp với secret cấp deployment, nhưng broker/socket do Administrator tạo trên web cần persistence. Lưu plaintext làm database backup, log debug hoặc quyền đọc bảng trở thành nguồn rò credential.
 
 ## Cách triển khai
 
@@ -22,7 +22,7 @@ SystemConfigurationService bảo vệ giá trị khi save; MQTT supervisor giả
 
 ### Mục đích cụ thể
 
-SecretProtectionService bảo vệ credential của cấu hình động, đặc biệt MQTT password, trước khi document được lưu trong MongoDB.
+SecretProtectionService bảo vệ credential của cấu hình động, đặc biệt MQTT password, trước khi document được lưu trong PostgreSQL.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **SecretProtectionService**, thay vì chỉ biết tên class, page hoặc quy trình.
 

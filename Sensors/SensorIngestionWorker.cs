@@ -5,7 +5,8 @@ using AquacultureMonitoring.Models;
 using AquacultureMonitoring.Runtime;
 using AquacultureMonitoring.Services;
 using Microsoft.Extensions.Options;
-using MongoDB.Driver;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace AquacultureMonitoring.Sensors;
 
@@ -75,7 +76,7 @@ public sealed class SensorIngestionWorker : BackgroundService
         if (!_thresholds.CurrentValue.Metrics.TryGetValue(envelope.Metric, out var threshold))
             throw new InvalidDataException($"Metric '{envelope.Metric}' chưa có trong sensor-thresholds.json.");
         if (_runtime.GetPond(envelope.PondId) is null)
-            throw new InvalidDataException($"PondId '{envelope.PondId}' chưa được đăng ký trong MongoDB.");
+            throw new InvalidDataException($"PondId '{envelope.PondId}' chưa được đăng ký trong PostgreSQL.");
 
         var now = DateTime.UtcNow;
         var timestamp = envelope.TimestampUtc == default ? now : envelope.TimestampUtc;
@@ -168,7 +169,8 @@ public sealed class SensorIngestionWorker : BackgroundService
         {
             await _repository.InsertReadingAsync(reading, ct);
         }
-        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey && !string.IsNullOrWhiteSpace(reading.EventId))
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation } && !string.IsNullOrWhiteSpace(reading.EventId))
         {
             _logger.LogDebug("Bỏ qua bản tin trùng EventId {EventId} của {SensorId}.", reading.EventId, envelope.SensorId);
             return;
@@ -180,7 +182,6 @@ public sealed class SensorIngestionWorker : BackgroundService
         var applied = _runtime.ApplyReading(reading, sensor);
         await Task.WhenAll(
             _repository.UpsertSensorAsync(applied.Sensor, ct),
-            _repository.UpsertTelemetryAsync(applied.Telemetry, ct),
             _sourceHealth.RecordMessageAsync(
                 string.IsNullOrWhiteSpace(envelope.SourceId) ? envelope.SourceType : envelope.SourceId, ct));
 

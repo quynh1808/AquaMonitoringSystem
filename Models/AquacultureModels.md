@@ -1,6 +1,6 @@
 # AquacultureModels
 
-Chứa các document MongoDB và DTO dùng bởi UI.
+Chứa các entity PostgreSQL và DTO dùng bởi UI.
 
 ## Document chính
 
@@ -17,7 +17,7 @@ Chứa các document MongoDB và DTO dùng bởi UI.
 
 ## DTO UI
 
-Các request thêm ao, thiết bị, thức ăn và mô phỏng được giữ tách khỏi document MongoDB để validation form không làm thay đổi schema lưu trữ.
+Các request thêm ao, thiết bị và thức ăn được giữ tách khỏi entity PostgreSQL để validation form không làm thay đổi schema lưu trữ.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -25,7 +25,7 @@ Các request thêm ao, thiết bị, thức ăn và mô phỏng được giữ t
 
 ### Mục đích cụ thể
 
-Chứa các document MongoDB và DTO dùng bởi UI.
+Chứa các entity PostgreSQL và DTO dùng bởi UI.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **AquacultureModels**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -43,7 +43,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 ### Cách triển khai trong source
 
-Class/record được Mongo serializer, repository, service, worker và component dùng; model không tự thực hiện I/O.
+Class/record được PostgreSQL serializer, repository, service, worker và component dùng; model không tự thực hiện I/O.
 
 - **Models/AquacultureModels.cs** (560 dòng): các điểm vào nhận diện được gồm Pond, TelemetryData, SensorDefinition, SensorReadingMetadata, SensorReading, Device, DeviceCommand, AlertItem, AlertNotification, AlarmRule, FeedLog, AutomationLog.
 
@@ -58,7 +58,7 @@ Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay 
 ### Thuật ngữ chuyên môn dùng trong phạm vi này
 
 - **Model**: Kiểu biểu diễn dữ liệu/domain. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
-- **Document**: Model được lưu trong MongoDB. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Document**: Model được lưu trong PostgreSQL. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **DTO**: Object mang dữ liệu giữa ranh giới. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **View model**: Dữ liệu đã định hình cho UI. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **Backward compatibility**: Khả năng đọc dữ liệu/contract phiên bản cũ. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.

@@ -1,6 +1,6 @@
 # AlertNotificationService
 
-Gửi payload cảnh báo tới webhook nội bộ bằng `IHttpClientFactory`, áp timeout cấu hình và lưu từng lần gửi vào MongoDB. Recipient audit chỉ giữ phần URL path, không giữ query string có thể chứa secret. Service không ném lỗi delivery để tránh dừng sensor ingestion.
+Gửi payload cảnh báo tới webhook nội bộ bằng `IHttpClientFactory`, áp timeout cấu hình và lưu từng lần gửi vào PostgreSQL. Recipient audit chỉ giữ phần URL path, không giữ query string có thể chứa secret. Service không ném lỗi delivery để tránh dừng sensor ingestion.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Gửi payload cảnh báo tới webhook nội bộ bằng `IHttpClientFactory`, 
 
 ### Mục đích cụ thể
 
-Gửi payload cảnh báo tới webhook nội bộ bằng `IHttpClientFactory`, áp timeout cấu hình và lưu từng lần gửi vào MongoDB. Recipient audit chỉ giữ phần URL path, không giữ query string có thể chứa secret. Service không ném lỗi delivery để tránh dừng sensor ingestion.
+Gửi payload cảnh báo tới webhook nội bộ bằng `IHttpClientFactory`, áp timeout cấu hình và lưu từng lần gửi vào PostgreSQL. Recipient audit chỉ giữ phần URL path, không giữ query string có thể chứa secret. Service không ném lỗi delivery để tránh dừng sensor ingestion.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **AlertNotificationService**, thay vì chỉ biết tên class, page hoặc quy trình.
 

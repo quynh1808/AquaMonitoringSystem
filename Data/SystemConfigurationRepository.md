@@ -2,11 +2,12 @@
 
 ## Mục đích
 
-Repository này bao bọc mọi collection/query thuộc commissioning: broker, socket, capability, deployment, connection log, health, installation, quarantine và automation policy.
+Repository này bao bọc mọi bảng/query thuộc commissioning: broker, socket, capability, deployment, connection log, health, installation, quarantine và automation policy.
 
 ## Vì sao tách khỏi FarmRepository
 
-FarmRepository phục vụ dữ liệu ao và nghiệp vụ chung. Commissioning có query theo SocketId/version, TTL log, finalize removal sau ACK và yêu cầu idempotency riêng; tách repository giúp ranh giới này dễ review.
+FarmRepository phục vụ dữ liệu ao và nghiệp vụ chung. Commissioning có query theo SocketId/version,
+log có `ExpiresAtUtc`, finalize removal sau ACK và yêu cầu idempotency riêng; tách repository giúp ranh giới này dễ review.
 
 ## Trách nhiệm quan trọng
 
@@ -24,25 +25,25 @@ Repository không quyết định người dùng có quyền hay thiết bị c�
 
 ### Mục đích cụ thể
 
-Repository này bao bọc mọi collection/query thuộc commissioning: broker, socket, capability, deployment, connection log, health, installation, quarantine và automation policy.
+Repository này bao bọc mọi bảng/query thuộc commissioning: broker, socket, capability, deployment, connection log, health, installation, quarantine và automation policy.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **SystemConfigurationRepository**, thay vì chỉ biết tên class, page hoặc quy trình.
 
 ### Vì sao thành phần hoặc quy trình này cần tồn tại
 
-MongoDB access, index và migration cần tập trung để quy tắc persistence không bị trộn vào UI hoặc use case.
+PostgreSQL access, index và migration cần tập trung để quy tắc persistence không bị trộn vào UI hoặc use case.
 
 Nếu bỏ qua ranh giới này, logic dễ bị đặt sai layer, kiểm tra bị lặp hoặc trạng thái hiển thị không còn phản ánh nguồn dữ liệu có thẩm quyền.
 
 ### Vai trò trong toàn hệ thống
 
-Là ranh giới bền vững cho document, query, migration, seed và commissioning state.
+Là ranh giới bền vững cho query và desired/reported commissioning state.
 
 Vai trò này phải được hiểu theo cả đường đi thành công và đường lỗi: thiếu dữ liệu, dependency offline, input không hợp lệ, người dùng thiếu quyền, retry và shutdown.
 
 ### Cách triển khai trong source
 
-MongoContext giữ client/collection; repository cung cấp API dữ liệu; initializer chuẩn hóa database theo cách idempotent.
+AquaDbContext định nghĩa table/constraint; repository tạo DbContext ngắn hạn; initializer áp dụng migration và baseline idempotent.
 
 - **Data/SystemConfigurationRepository.cs** (179 dòng): các điểm vào nhận diện được gồm SystemConfigurationRepository, FinalizedAssetRemovals.
 
@@ -50,13 +51,13 @@ Danh sách symbol ở trên được trích từ source để định hướng, 
 
 ### Quan hệ với các file và module khác
 
-Models, Services, Runtime, Configuration/AquacultureOptions.cs và MongoDB container.
+Models, Services, Runtime, Configuration/AquacultureOptions.cs và PostgreSQL container.
 
 Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
 
 ### Thuật ngữ chuyên môn dùng trong phạm vi này
 
-- **Document**: Bản ghi BSON trong MongoDB. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
+- **Row/entity**: Bản ghi PostgreSQL và object EF Core tương ứng trong tầng persistence.
 - **Repository**: Lớp bao bọc query và ghi dữ liệu. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **Index**: Cấu trúc tăng tốc và có thể ép uniqueness. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.
 - **Migration**: Chuyển dữ liệu cũ sang mô hình mới. Trong AquaOps, khái niệm này tồn tại để giữ đúng ranh giới và hành vi của layer đang mô tả.

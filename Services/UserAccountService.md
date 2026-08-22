@@ -1,10 +1,13 @@
 # UserAccountService
 
-Cookie chứa SessionVersion. Khóa user, đổi quyền hoặc đổi/reset mật khẩu tăng version; middleware cookie đối chiếu MongoDB và thu hồi phiên cũ. Login input có giới hạn độ dài, password vẫn được hash PBKDF2 với salt riêng.
+Cookie chứa SessionVersion. Khóa user, đổi quyền hoặc đổi/reset mật khẩu tăng version; middleware cookie đối chiếu PostgreSQL và thu hồi phiên cũ. Login input có giới hạn độ dài, password vẫn được hash PBKDF2 với salt riêng.
 
-Quản lý tài khoản MongoDB, xác minh mật khẩu, khóa tạm thời, role, phạm vi ao và tạo `ClaimsPrincipal`. Tài khoản quản trị đầu tiên chỉ được tạo khi collection `users` rỗng.
+Quản lý tài khoản PostgreSQL, xác minh mật khẩu, khóa tạm thời, role, phạm vi ao và tạo `ClaimsPrincipal`. Tài khoản quản trị đầu tiên chỉ được tạo khi bảng `users` rỗng.
 
 Mật khẩu mới tối thiểu 12 ký tự. Service chặn khóa hoặc hạ quyền Administrator đang hoạt động cuối cùng để tránh tự khóa toàn bộ hệ thống.
+
+Role và phạm vi ao là JSONB claim sets nhỏ; username có unique index. Mỗi method tạo DbContext
+ngắn hạn từ pool. Các thao tác khóa/hạ quyền admin dùng transaction và tăng `SessionVersion`.
 
 - `ChangePasswordAsync` xác minh mật khẩu hiện tại và từ chối tái sử dụng chính mật khẩu đó.
 - `ResetPasswordAsync` phục vụ Administrator reset user và xóa lockout.
@@ -17,7 +20,7 @@ Mật khẩu mới tối thiểu 12 ký tự. Service chặn khóa hoặc hạ q
 
 ### Mục đích cụ thể
 
-Cookie chứa SessionVersion. Khóa user, đổi quyền hoặc đổi/reset mật khẩu tăng version; middleware cookie đối chiếu MongoDB và thu hồi phiên cũ. Login input có giới hạn độ dài, password vẫn được hash PBKDF2 với salt riêng.
+Cookie chứa SessionVersion. Khóa user, đổi quyền hoặc đổi/reset mật khẩu tăng version; middleware cookie đối chiếu PostgreSQL và thu hồi phiên cũ. Login input có giới hạn độ dài, password vẫn được hash PBKDF2 với salt riêng.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **UserAccountService**, thay vì chỉ biết tên class, page hoặc quy trình.
 

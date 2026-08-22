@@ -15,6 +15,10 @@ set +a
 : "${MQTT_PASSWORD:?MQTT_PASSWORD is required}"
 : "${AQUAOPS_VERSION:?AQUAOPS_VERSION is required}"
 : "${AQUAOPS_BIND_ADDRESS:?AQUAOPS_BIND_ADDRESS is required}"
+: "${POSTGRES_DB:?POSTGRES_DB is required}"
+: "${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD is required}"
+: "${POSTGRES_APP_USERNAME:?POSTGRES_APP_USERNAME is required}"
+: "${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}"
 
 if [[ "$MQTT_USERNAME" == *:* ]]; then
   echo "MQTT_USERNAME must not contain a colon." >&2

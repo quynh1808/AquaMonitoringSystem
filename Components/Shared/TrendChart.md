@@ -1,6 +1,6 @@
 # TrendChart
 
-Biểu đồ SVG không phụ thuộc thư viện ngoài. Nhận danh sách `TrendPoint`, tự tính min/max và tạo polyline. Dữ liệu lịch sử do `FarmStateService.GetTrend` cung cấp từ runtime cache được nạp/ghi qua MongoDB.
+Biểu đồ SVG không phụ thuộc thư viện ngoài. Nhận danh sách `TrendPoint`, tự tính min/max và tạo polyline. Dữ liệu lịch sử do `FarmStateService.GetTrend` cung cấp từ runtime cache được nạp/ghi qua PostgreSQL.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Biểu đồ SVG không phụ thuộc thư viện ngoài. Nhận danh sách `Tre
 
 ### Mục đích cụ thể
 
-Biểu đồ SVG không phụ thuộc thư viện ngoài. Nhận danh sách `TrendPoint`, tự tính min/max và tạo polyline. Dữ liệu lịch sử do `FarmStateService.GetTrend` cung cấp từ runtime cache được nạp/ghi qua MongoDB.
+Biểu đồ SVG không phụ thuộc thư viện ngoài. Nhận danh sách `TrendPoint`, tự tính min/max và tạo polyline. Dữ liệu lịch sử do `FarmStateService.GetTrend` cung cấp từ runtime cache được nạp/ghi qua PostgreSQL.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **TrendChart**, thay vì chỉ biết tên class, page hoặc quy trình.
 

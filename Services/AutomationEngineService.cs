@@ -5,7 +5,7 @@ using AquacultureMonitoring.Runtime;
 namespace AquacultureMonitoring.Services;
 
 /// <summary>
-/// Evaluates bounded MongoDB policies with hysteresis, persistence, minimum ON/OFF time and a
+/// Evaluates bounded PostgreSQL policies with hysteresis, persistence, minimum ON/OFF time and a
 /// starts-per-hour lockout. PLC interlocks remain the final safety authority.
 /// </summary>
 public sealed class AutomationEngineService

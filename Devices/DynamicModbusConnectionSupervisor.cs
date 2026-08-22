@@ -6,7 +6,7 @@ using AquacultureMonitoring.Runtime;
 namespace AquacultureMonitoring.Devices;
 
 /// <summary>
-/// Polls every enabled Modbus node socket from MongoDB, reconciles reported PLC state and resumes
+/// Polls every enabled Modbus node socket from PostgreSQL, reconciles reported PLC state and resumes
 /// configuration deployments. It never replays old actuator commands after a reconnect.
 /// </summary>
 public sealed class DynamicModbusConnectionSupervisor : BackgroundService

@@ -2,7 +2,7 @@
 
 ## Mục đích
 
-Background service này biến các NodeSocket MQTT trong MongoDB thành kết nối broker đang hoạt động. Nó thay thế cấu hình MQTT hard-code trong source.
+Background service này biến các NodeSocket MQTT trong PostgreSQL thành kết nối broker đang hoạt động. Nó thay thế cấu hình MQTT hard-code trong source.
 
 ## Vòng đời
 
@@ -26,7 +26,7 @@ ESP32 giữ EventId và dữ liệu offline; sau reconnect supervisor nhận bac
 
 ### Mục đích cụ thể
 
-Background service này biến các NodeSocket MQTT trong MongoDB thành kết nối broker đang hoạt động. Nó thay thế cấu hình MQTT hard-code trong source.
+Background service này biến các NodeSocket MQTT trong PostgreSQL thành kết nối broker đang hoạt động. Nó thay thế cấu hình MQTT hard-code trong source.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **DynamicMqttConnectionSupervisor**, thay vì chỉ biết tên class, page hoặc quy trình.
 

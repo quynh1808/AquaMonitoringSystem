@@ -1,6 +1,7 @@
 # Program.cs
 
-Composition root đăng ký dynamic MQTT/Modbus supervisors đọc MongoDB, FX5U command transport,
+Composition root bind/validate `PostgreSqlOptions`, đăng ký pooled `AquaDbContext` factory,
+migration/bootstrap/retention, dynamic MQTT/Modbus supervisors, FX5U command transport,
 authentication, authorization, health checks và Blazor. Legacy `SensorConnections` và node-specific
 `DeviceControl:Fx5u` JSON không được load. Data Protection keys được lưu ngoài container để cookie,
 antiforgery và secret connection mã hóa tồn tại qua deploy.
@@ -11,7 +12,7 @@ antiforgery và secret connection mã hóa tồn tại qua deploy.
 
 ### Mục đích cụ thể
 
-Composition root đăng ký dynamic MQTT/Modbus supervisors đọc MongoDB, FX5U command transport, authentication, authorization, health checks và Blazor. Legacy `SensorConnections` và node-specific `DeviceControl:Fx5u` JSON không được load. Data Protection keys được lưu ngoài container để cookie, antiforgery và secret connection mã hóa tồn tại qua deploy.
+Composition root đăng ký PostgreSQL/EF Core, migration/bootstrap/retention, dynamic MQTT/Modbus supervisors, FX5U command transport, authentication, authorization, health checks và Blazor. Legacy `SensorConnections` và node-specific `DeviceControl:Fx5u` JSON không được load. Data Protection keys được lưu ngoài container để cookie, antiforgery và secret connection mã hóa tồn tại qua deploy.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Program.cs**, thay vì chỉ biết tên class, page hoặc quy trình.
 

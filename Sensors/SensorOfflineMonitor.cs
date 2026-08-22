@@ -116,15 +116,13 @@ public sealed class SensorOfflineMonitor : BackgroundService
 				string expectedQuality = text;
 				if (telemetry.IsOnline != expectedOnline || !(telemetry.Quality == expectedQuality))
 				{
-					TelemetryData? telemetryData = _runtime.UpdateTelemetry(pond2.Id, delegate(TelemetryData x)
+					_runtime.UpdateTelemetry(pond2.Id, delegate(TelemetryData x)
 					{
 						x.IsOnline = expectedOnline;
 						x.Quality = expectedQuality;
 					});
-					if (telemetryData != null)
-					{
-						await _repository.UpsertTelemetryAsync(telemetryData, stoppingToken);
-					}
+					// Online/quality is derived from persisted sensor states after restart; the
+					// PostgreSQL latest table stores one row per sensor, not a fixed pond document.
 				}
 			}
 			await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, options.SensorHealthCheckIntervalSeconds)), stoppingToken);

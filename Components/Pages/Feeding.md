@@ -1,6 +1,6 @@
 # Feeding
 
-Trang nhật ký cho ăn toàn trại. Form tạo `FeedLog`, liên kết với ao và lưu MongoDB; bảng lịch sử đọc từ runtime snapshot. Dữ liệu theo từng ao cũng xuất hiện trong workspace riêng.
+Trang nhật ký cho ăn toàn trại. Form tạo `FeedLog`, liên kết với ao và lưu PostgreSQL; bảng lịch sử đọc từ runtime snapshot. Dữ liệu theo từng ao cũng xuất hiện trong workspace riêng.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -8,7 +8,7 @@ Trang nhật ký cho ăn toàn trại. Form tạo `FeedLog`, liên kết với a
 
 ### Mục đích cụ thể
 
-Trang nhật ký cho ăn toàn trại. Form tạo `FeedLog`, liên kết với ao và lưu MongoDB; bảng lịch sử đọc từ runtime snapshot. Dữ liệu theo từng ao cũng xuất hiện trong workspace riêng.
+Trang nhật ký cho ăn toàn trại. Form tạo `FeedLog`, liên kết với ao và lưu PostgreSQL; bảng lịch sử đọc từ runtime snapshot. Dữ liệu theo từng ao cũng xuất hiện trong workspace riêng.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Feeding**, thay vì chỉ biết tên class, page hoặc quy trình.
 

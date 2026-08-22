@@ -2,7 +2,7 @@
 
 ## Mục đích
 
-Background service này quản lý các NodeSocket Modbus TCP động và polling PLC theo cấu hình lưu trong MongoDB.
+Background service này quản lý các NodeSocket Modbus TCP động và polling PLC theo cấu hình lưu trong PostgreSQL.
 
 ## Trách nhiệm
 
@@ -23,7 +23,7 @@ Lệnh người dùng chỉ diễn ra thỉnh thoảng, nhưng dashboard và aut
 
 ### Mục đích cụ thể
 
-Background service này quản lý các NodeSocket Modbus TCP động và polling PLC theo cấu hình lưu trong MongoDB.
+Background service này quản lý các NodeSocket Modbus TCP động và polling PLC theo cấu hình lưu trong PostgreSQL.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **DynamicModbusConnectionSupervisor**, thay vì chỉ biết tên class, page hoặc quy trình.
 

@@ -16,7 +16,7 @@ public sealed class FarmStateService : IDisposable
 {
     private readonly FarmRuntimeState _runtime;
     private readonly FarmRepository _repository;
-    private readonly IMongoWriteQueue _writeQueue;
+    private readonly IDatabaseWriteQueue _writeQueue;
     private readonly IOptionsMonitor<SensorThresholdCatalog> _thresholds;
     private readonly IOptionsMonitor<SystemBehaviorOptions> _behavior;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
@@ -28,7 +28,7 @@ public sealed class FarmStateService : IDisposable
     public FarmStateService(
         FarmRuntimeState runtime,
         FarmRepository repository,
-        IMongoWriteQueue writeQueue,
+        IDatabaseWriteQueue writeQueue,
         IOptionsMonitor<SensorThresholdCatalog> thresholds,
         IOptionsMonitor<SystemBehaviorOptions> behavior,
         AuthenticationStateProvider authenticationStateProvider,
@@ -57,7 +57,7 @@ public sealed class FarmStateService : IDisposable
         .Where(x => _access.CanAccessPond(_principal, x.Key))
         .ToDictionary(x => x.Key, x => x.Value, StringComparer.OrdinalIgnoreCase);
     // Operational projections never expose archived or pending-removal assets. Configuration
-    // workers still read them directly from MongoDB until the node/PLC acknowledges removal.
+    // workers still read them directly from PostgreSQL until the node/PLC acknowledges removal.
     public List<SensorDefinition> Sensors => _runtime.Sensors.Where(x => _access.CanAccessPond(_principal, x.PondId) &&
         !x.IsArchived && !x.IsPendingRemoval).ToList();
     public List<Device> Devices => _runtime.Devices.Where(x => _access.CanAccessPond(_principal, x.PondId) &&
@@ -161,7 +161,6 @@ public sealed class FarmStateService : IDisposable
         await _writeQueue.EnqueueAsync(async writeCt =>
         {
             await _repository.UpsertPondAsync(pond, writeCt);
-            await _repository.UpsertTelemetryAsync(telemetry, writeCt);
             foreach (var sensor in sensors) await _repository.UpsertSensorAsync(sensor, writeCt);
             foreach (var device in devices) await _repository.UpsertDeviceAsync(device, writeCt);
         }, ct);

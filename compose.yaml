@@ -1,21 +1,21 @@
 name: aquaops
 
 services:
-  mongodb:
-    image: ${MONGO_IMAGE:-mongo:8.0}
+  postgresql:
+    image: ${POSTGRES_IMAGE:-postgres:17.11-alpine}
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
-      MONGO_APP_DATABASE: ${MONGO_APP_DATABASE:-aquaculture_monitoring}
-      MONGO_APP_USERNAME: ${MONGO_APP_USERNAME:?set MONGO_APP_USERNAME in .env}
-      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?set MONGO_APP_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aquaculture_monitoring}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?set POSTGRES_ADMIN_PASSWORD in .env}
+      POSTGRES_APP_USERNAME: ${POSTGRES_APP_USERNAME:?set POSTGRES_APP_USERNAME in .env}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?set POSTGRES_APP_PASSWORD in .env}
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
     volumes:
-      - mongo_data:/data/db
-      - ./mongo-init:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --username \"$${MONGO_INITDB_ROOT_USERNAME}\" --password \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval 'quit(db.adminCommand({ ping: 1 }).ok ? 0 : 2)' "]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -75,7 +75,7 @@ services:
     restart: unless-stopped
     init: true
     depends_on:
-      mongodb:
+      postgresql:
         condition: service_healthy
         restart: true
       mosquitto:
@@ -93,11 +93,13 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       TZ: ${TZ:-Asia/Ho_Chi_Minh}
       DataProtection__KeysPath: /var/lib/aquaops/keys
-      MongoDb__ConnectionString: mongodb://mongodb:27017
-      MongoDb__DatabaseName: ${MONGO_APP_DATABASE:-aquaculture_monitoring}
-      MongoDb__Username: ${MONGO_APP_USERNAME}
-      MongoDb__Password: ${MONGO_APP_PASSWORD}
-      MongoDb__AuthenticationDatabase: ${MONGO_APP_DATABASE:-aquaculture_monitoring}
+      PostgreSql__Host: postgresql
+      PostgreSql__Port: 5432
+      PostgreSql__DatabaseName: ${POSTGRES_DB:-aquaculture_monitoring}
+      PostgreSql__Username: ${POSTGRES_APP_USERNAME}
+      PostgreSql__Password: ${POSTGRES_APP_PASSWORD}
+      PostgreSql__CommandTimeoutSeconds: 30
+      PostgreSql__AutoMigrate: "true"
       Authentication__BootstrapAdminUsername: ${AQUAOPS_ADMIN_USERNAME:?set AQUAOPS_ADMIN_USERNAME in .env}
       Authentication__BootstrapAdminPassword: ${AQUAOPS_ADMIN_PASSWORD:?set AQUAOPS_ADMIN_PASSWORD in .env}
       Authentication__BootstrapAdminDisplayName: ${AQUAOPS_ADMIN_DISPLAY_NAME:-Quản trị hệ thống}
@@ -122,7 +124,7 @@ networks:
     internal: true
 
 volumes:
-  mongo_data:
+  postgres_data:
   mosquitto_data:
   mosquitto_log:
   data_protection_keys:

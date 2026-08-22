@@ -38,7 +38,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 ### Cách triển khai trong source
 
-Script đọc tham số/env, fail fast, validate target, gọi Docker/Git/Mongo tooling và in bước xác minh.
+Script đọc tham số/env, fail fast, validate target, gọi Docker/Git/PostgreSQL tooling và in bước xác minh.
 
 - **scripts/verify-ui-assets.ps1** (31 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
 
@@ -46,7 +46,7 @@ Danh sách symbol ở trên được trích từ source để định hướng, 
 
 ### Quan hệ với các file và module khác
 
-Docs/19.BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md, 18.DEPLOYMENT-GHCR-UBUNTU.md, compose files và .env.
+Docs/20.BUILD-DEPLOY-WINDOWS-UBUNTU-LAN.md, 19.DEPLOYMENT-GHCR-UBUNTU.md, compose files và .env.
 
 Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
 

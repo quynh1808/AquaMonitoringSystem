@@ -1,15 +1,15 @@
 # Cấu hình AquaOps
 
 Cấu hình kết nối node không còn nằm trong thư mục này. MQTT broker, node socket, sensor channel và
-PLC M/D mapping được lưu MongoDB, chỉnh trên giao diện Administrator. Cấu trúc cũ đã loại secret chỉ
+PLC M/D mapping được lưu PostgreSQL, chỉnh trên giao diện Administrator. Cấu trúc cũ đã loại secret chỉ
 được giữ tại `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md` để tham khảo migration.
 
 - `sensor-thresholds.json`: metadata hiển thị và alarm policy mặc định. Physical min/max thực tế lấy từ edge capabilities; policy từng ao chỉnh trên web.
-- `system-behavior.json`: fallback offline timeout, retention, health score và calibration; AUTO policy nằm trong MongoDB.
+- `system-behavior.json`: fallback offline timeout, retention, health score và calibration; AUTO policy nằm trong PostgreSQL.
 - `seed-data.json`: chỉ một `pond_01`, không sensor/device/reading/feed/vụ nuôi giả.
 - `authentication.json`: bootstrap account development; không phải cơ chế đổi password user đã tồn tại.
 
-Seed chỉ áp dụng khi collection `ponds` rỗng và không ghi đè MongoDB hiện có. Secret production phải được ghi đè bằng `.env`/environment, không lưu trong các file này.
+Seed chỉ áp dụng khi bảng `ponds` rỗng và không ghi đè PostgreSQL hiện có. Secret production phải được ghi đè bằng `.env`/environment, không lưu trong các file này.
 
 Các biến quan trọng trên Ubuntu:
 
@@ -25,7 +25,7 @@ Xem `Docs/11.OPERATING-MODES.md` trước khi chuyển profile.
 
 ### Mục đích cụ thể
 
-Cấu hình kết nối node không còn nằm trong thư mục này. MQTT broker, node socket, sensor channel và PLC M/D mapping được lưu MongoDB, chỉnh trên giao diện Administrator. Cấu trúc cũ đã loại secret chỉ được giữ tại `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md` để tham khảo migration.
+Cấu hình kết nối node không còn nằm trong thư mục này. MQTT broker, node socket, sensor channel và PLC M/D mapping được lưu PostgreSQL, chỉnh trên giao diện Administrator. Cấu trúc cũ đã loại secret chỉ được giữ tại `Docs/14.LEGACY-NODE-CONNECTION-REFERENCE.md` để tham khảo migration.
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Cấu hình AquaOps**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -43,7 +43,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 ### Cách triển khai trong source
 
-JSON được nạp bởi configuration pipeline hoặc initializer. Environment có thể override; cấu hình commissioning động trong MongoDB là nguồn có thẩm quyền cho node.
+JSON được nạp bởi configuration pipeline hoặc initializer. Environment có thể override; cấu hình commissioning động trong PostgreSQL là nguồn có thẩm quyền cho node.
 
 - **Config/authentication.json** (11 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
 - **Config/seed-data.json** (17 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
@@ -54,7 +54,7 @@ Danh sách symbol ở trên được trích từ source để định hướng, 
 
 ### Quan hệ với các file và module khác
 
-Configuration/*.cs, appsettings.json, Program.cs, Data/MongoDatabaseInitializer.cs và .env.
+Configuration/*.cs, appsettings.json, Program.cs, Data/PostgreSqlDatabaseInitializer.cs và .env.
 
 Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
 

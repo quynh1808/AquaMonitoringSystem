@@ -26,7 +26,7 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 
 ### Cách triển khai trong source
 
-JSON được nạp bởi configuration pipeline hoặc initializer. Environment có thể override; cấu hình commissioning động trong MongoDB là nguồn có thẩm quyền cho node.
+JSON được nạp bởi configuration pipeline hoặc initializer. Environment có thể override; cấu hình commissioning động trong PostgreSQL là nguồn có thẩm quyền cho node.
 
 - Tài liệu này là runbook hoặc hồ sơ quyết định; source có thẩm quyền được liên kết trong nội dung và trong bản đồ toàn repository.
 
@@ -34,7 +34,7 @@ Danh sách symbol ở trên được trích từ source để định hướng, 
 
 ### Quan hệ với các file và module khác
 
-Configuration/*.cs, appsettings.json, Program.cs, Data/MongoDatabaseInitializer.cs và .env.
+Configuration/*.cs, appsettings.json, Program.cs, Data/PostgreSqlDatabaseInitializer.cs và .env.
 
 Khi contract dữ liệu, tên trạng thái, ID, route hoặc cấu hình thay đổi, phải rà soát cả bên tạo dữ liệu và bên tiêu thụ; chỉ sửa một phía có thể vẫn build nhưng sai lúc runtime.
 

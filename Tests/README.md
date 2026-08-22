@@ -1,6 +1,6 @@
 # Kiểm thử tự động
 
-Project `AquacultureMonitoring.Tests` kiểm tra các vùng có rủi ro cao nhưng không cần MongoDB thật:
+Project `AquacultureMonitoring.Tests` kiểm tra các vùng có rủi ro cao nhưng không cần PostgreSQL thật:
 
 - chuyển đổi Mitsubishi M/D sang địa chỉ Modbus TCP;
 - PBKDF2 và so sánh mật khẩu constant-time;
@@ -8,8 +8,10 @@ Project `AquacultureMonitoring.Tests` kiểm tra các vùng có rủi ro cao nh�
 - validation của safety switch điều khiển thiết bị.
 - mặc định sensor chưa publish trước commissioning.
 - mặc định thiết bị ở Draft và trạng thái PendingRemoval tách biệt với Archived cho tới ACK.
+- EF model có `latest_sensor_states`, không persist projection `TelemetryData`, có unique EventId,
+  các cột metadata quan hệ và foreign key ao/sensor/vụ nuôi cốt lõi.
 
-Chạy bằng `dotnet test Tests/AquacultureMonitoring.Tests.csproj`. Các integration test MongoDB/MQTT nên được bổ sung bằng container tạm trong CI trước khi bật phần cứng thật.
+Chạy bằng `dotnet test Tests/AquacultureMonitoring.Tests.csproj`. Các integration test PostgreSQL/MQTT nên được bổ sung bằng container tạm trong CI trước khi bật phần cứng thật.
 
 <!-- aquaops-doc-context-v1 -->
 
@@ -17,7 +19,7 @@ Chạy bằng `dotnet test Tests/AquacultureMonitoring.Tests.csproj`. Các integ
 
 ### Mục đích cụ thể
 
-Project `AquacultureMonitoring.Tests` kiểm tra các vùng có rủi ro cao nhưng không cần MongoDB thật:
+Project `AquacultureMonitoring.Tests` kiểm tra các vùng có rủi ro cao nhưng không cần PostgreSQL thật:
 
 Tài liệu này đồng thời giúp người đọc xác định ranh giới trách nhiệm của **Kiểm thử tự động**, thay vì chỉ biết tên class, page hoặc quy trình.
 
@@ -38,7 +40,9 @@ Vai trò này phải được hiểu theo cả đường đi thành công và đ
 MSTest project tham chiếu app, dùng test độc lập và chạy Release qua dotnet test.
 
 - **Tests/CoreSafetyTests.cs** (173 dòng): các điểm vào nhận diện được gồm CoreSafetyTests.
-- **Tests/packages.lock.json** (161 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
+- **Tests/PostgreSqlModelTests.cs** (50 dòng): kiểm tra invariant schema PostgreSQL mà không cần
+  mở kết nối database.
+- **Tests/packages.lock.json** (241 dòng): các điểm vào nhận diện được gồm không có public type/route được trích xuất tự động.
 
 Danh sách symbol ở trên được trích từ source để định hướng, không thay thế việc đọc method và comment về invariant/failure mode.
 
