@@ -36,3 +36,49 @@ CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 + Ở phần QL tài khoản có thể thêm mục "QUẢN LÝ QUYỀN TRUY CẬP" có thể chỉnh sửa quyền truy cập cho các member dành cho admin
 + 
 => Sửa  lại để có thể thêm nhiều dự án khác nhau vào chứ không chỉ dừng lại ở 1 dự án AMS, làm sao để sau này thêm dự án vào sẽ trở ên dễ dàng hơn.....
+------------------------------------------------------------------------------------------------------------
+2026.08.25
+ĐỔI TÊN MỤC "SYSTEMS" THÀNH "SERVICES" SẼ HỢP LÝ HƠN..
+1.	Phần nào chưa có dữ liệu chỉ cần hiển thị frontend, backend sẽ được cập nhật sau(Thêm dòng chữ "Đang phát triển...")
+2.	Ở trang Tổng quan, cho 4 khối di chuyển sang trái và cho phần "Recent Activity" lên ngang với 4 khối đó, giống như hình frontend tham khảo.(Total Projects, Active Systems, Active Alerts, Pending Tasks), Phần SYstem Overview sửa lại 3 mục  theo biểu đồ hình tròn hiển thị 0-100%.
+ 	2.1. Total Projects: Tổng số Project
+ 	2.2. Active Systems: Tổng số Services, network and connections của tất cả dự án.
+ 		Ví dụ AMS có aqua_ops port 8080, postgresql port 5432, mosquitto, data_backup,...
+
+ 	2.3. Trang Systems: 4 khối Dashboard sẽ là Total System , Online, Maintenace, Offilne, Avarange Uptime.
+ 		Danh sách theo list Services, network and connections của tất cả dự án.
+ 		Ví dụ AMS có aqua_ops port 8080, postgresql port 5432, mosquitto, data_backup,...  TRang này sẽ hiểu thị type, environment, Status, CPU, memory Usage, Uptime, Response Time, Healthy,....hãy tạo thêm backend check các giá trị này.
+
+---
+2026.09.03
+
+1.	Ưu tiên xây dựng trang đăng bài viết (Sang tháng 1 tiếp tục xây dựng, sau khi hoàn thành sẽ vừa đăng bài vừa hoàn thiện các phần còn lại của Project)
+1.1. Về hướng xây dựng: Chia thành 2 phần: (Bài Viết -> Đăng bài / Quản lý bài viết).  Ở mục đăng bài sẽ là các phần như đã nêu. Ở mục Quản lý bài viết...
+1.1.1. Bài Viết:  "Chia làm 2 tính năng (Viết trực tiếp trên RichText của trang và Upload lên file .docx hoặc file .pdf).
+⦁	Thêm một trang Dasboard quản lý bài viết bằng các khối hiển thị số lượng như Tổng số bài viết(đã thêm gần đây), Tổng số dự án(bài viết về dự án đã đăng)    -> Có thể tích hợp vào trang "quản lý bài viết" luôn thay vì tạo thêm một trang khác hoặc có thể tích hợp cả "Thêm bài viết vào" quản lý bài viết lun, khi nhấn thêm bài viết sẽ chuyển tới trang thêm bài viết, tức là không cần thêm mục lục "Thêm bài viết" chỉ cần 1 mục "QUản LÝ BÀI VIẾT" duy nhất.
+---
+2.	
+-
+
+
+1.	(Không gấp, hoàn thiện cuối cùng) Thêm một mục Document đăng tải các tài liệu có liên quan đến project, (Dùng tham khảo).
+2.1. Hướng dẫn thao tác với Web, hướng dẫn đăng bài, Về sao lưu dữ liệu, vận hành hệ thống,....
+2.2. Gồm 2 dạng "Đọc Online" và "Tải về File PDF".
+
+
+
+
+-------------------------------- VỀ TRANG QUẢN LÝ------------------------------------
+<Bổ sung>
+Là một trang hệ thống cho phép quản lý chung nhiều project con.
+<Điều chỉnh giao diện trang "TỔNG QUAN">
+Có 4 khối giám sát:
+1.	Tổng số Projects:  hiện có (gồm đang hoạt động và đang phát triển): Tổng 10 (chữ to), đang hoạt động 5, đang phát triển 5 (chữ nhỏ bên dưới).
+2.	Tổng Services: Hiển thị tổng số services, network và connection của tất cả dự án. Ở trng Services(Systems cũ thiết kế như sau:)Bảng gồm các mục như sau: Services/Projects/Type/Environment/Status/CPU,RAM usage(nếu có, không thì "-")/ Uptime(Tgian hoạt động)/ResponeTIme(ms).
+     VD: aqua_ops(port 8080)/AquaMonitoringSystem/WebServer/Product/ Online/ 40%/20%/ 39d22h/15ms.
+	DỊch vụ hiện tại: API, PostgreSQL port, mqtt broker port, PLC Brigde port, Backup Server,.....
+*** Cần cân nhắn là "THÊM Service" ở trang quản lý này hay thêm ở từng trang cho từng project riêng biệt, trang này chỉ có chức năng quản lý, hiển thị trạng thái của các Services đó.
+3. Alert (Khối thông báo- Thông báo chung cho toàn hệ thống, nhưng được quản lý riêng biệt).
+
+
+
