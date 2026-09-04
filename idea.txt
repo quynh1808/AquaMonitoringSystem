@@ -143,4 +143,68 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 
 
 
+<Điều chỉnh  trang "System" -- ĐỔi tên thành "Services">
+
+⦁	Có 4 khối: Tổng Services, Online(% so với tổng), Maintainence(%), Offline(%).
+⦁	Danh sách dạng bảng
+	1. Services: Tên + mô tả ngắn gọn
+	2. Project: Thuộc dự án nào
+	3. Environment: Product, Staging, Simulation, Testing, Development...
+	4. Status: Online, Maintainence, Ofline, (Warning),...
+	5. CPU, Memory Usage
+	6. Uptime: THời gian hoạt động(được bao nhiêu ngày)
+	7. ResponseTime: Thời gian phản hồi (Ping ms)
+⦁	Phần bên phải: Uptime trend, Environment Distribution, System requiring Attention (xem trang tham khảo)
+
+
+<Điều chỉnh  trang "TASK">
+⦁	Gồm 4 khối: Tổng số task, Đang tiến hành, chưa thực hiện(CHưa bắt đầu), quá hạn deadline.
+⦁	Sau khi nhấn xác nhận thì task mới chuyển sang đang tiến hành
+⦁	Danh sách dạng bảng:
+	+ Task: Tên task + mô tả ngắn gọn
+	+ Project (Được giao ở project nào)
+	+ Ngày tạo task
+	+ Deadline
+	+ Ngày xác nhận
+	+ Ngày hoàn thành
+	+ Status: Completed, in progress, chưa nhận, quá hạn deadline
+	+ Actions: Xem chi tiết task, xem tiến độ hoàn thành, (tham khảo: bấm để xác nhận bắt đầu thực hiện, bấm xác nhận đã hoàn thành)
+⦁	Bên phải: Biểu đồ % (Completed, đang tiến hành, chưa thực hiện, quá hạn deadline), TASK ACTIVITY, ...
+**Ý TƯỞNG**: Thêm 1 trang báo cáo thực hiện task đó như thế nào, tiến độ, hoàn thành được gì, ngày nào.
+
+
+
+<Điều chỉnh  trang "Alerts">
+⦁	Gồm 4 khối: Cảnh báo(Critical),Thông báo(warning), đã giải quyết, thời gian phản hồi trung bình(Khi có cảnh báo, bao lâu sau thì mới có ng ấn xác nhận bắt đầu xử lý)
+⦁	Bên dưới: Danh sách dạng Bảng:
+	+ Alert: tên thông báo, cảnh báo + mô tả ngắn gọn
+	+ Mức độ: Critical, warning, info
+	+ Source Systems: Vị trí bị lỗi
+	+ Project: Thuộc project nào
+	+ Thời điểm phát hiện
+	+ Status: Neww(mới, chưa xác nhận), Acknowledge(Đã xác nhận), Resolved(Đã giải quyết), Escalate(Leo thang, đã 1 tgian dài nhưng chưa được giải quyết)
+	+ Người đảm nhận(Nếu có)
+	+ Actions: (Nghiên cứu thêm)
+⦁	Phân bên phải: Alertrend, serverity Distribution, (Cần nghiên cứu thêm...)
+
+<Điều chỉnh  trang "Users">
+
+⦁	Gồm 4 khối: Total User, Ative User,, (CÒn 2 nghiên cứu thêm)
+⦁	Dưới: Danh sách bảng:
+	+ User: Tên + ảnh + mô tả ngắn gọn
+	+ Role: admin, manager, User
+	+ Department(nếu có)
+	+ Last active: 3 minutes ago
+	+ Status: Active, Unactive, away,...
+	+ Access Level: Full Access, standand access, Readonly, Tùy chỉnh access(cho phép truy cập project nào, có được truy cập vào hệ thống quản lý hay không).
+	+ Actions: Edit,.....
+⦁	Phần bên phải:
+	+ Role and Permissions
+	+ Recent Login activity
+	+ Online (Giống faceboook)
+
+
+
+
+
 
