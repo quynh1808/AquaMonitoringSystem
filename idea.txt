@@ -80,5 +80,67 @@ Có 4 khối giám sát:
 *** Cần cân nhắn là "THÊM Service" ở trang quản lý này hay thêm ở từng trang cho từng project riêng biệt, trang này chỉ có chức năng quản lý, hiển thị trạng thái của các Services đó.
 3. Alert (Khối thông báo- Thông báo chung cho toàn hệ thống, nhưng được quản lý riêng biệt).
 
+Ý tưởng: THêm một tính năng báo cáo và cập nhật tiến độ công việc cho các project khác kể cả không liên quan đến hệ thống quản lý này.
+VD: Phát triển robot phun thuốc -> Tạo application xây dựng tiến độ công việc, note công việc cần làm, ý tưởng cho việc phát triển robot đó,....
+<Đổi tên trang System thành tên Services>
+
+3. Alert (Khối thông báo- Thông báo chung cho toàn hệ thống, nhưng được quản lý riêng biệt).
+Hiển thị số lượng các thông báo/cảnh báo của hệ thống quản lý chung và tất cả các Project. Các thông báo/cảnh báo này chưa được xử lý(Chưa gắn cho tích xanh đã xử lý)
+<Ý mới> Hoặc có thể cân nhắc xây dựng theo hướng thông báo/cảnh báo tự biến mất sau khi đã được giải quyết (Không cần nhấn vào tích xanh), chỉ lưu lại logs của thông báo/ cảnh báo được ghi nhận. -- Chỉ nhấn tích xanh cho trường hợp không thể dùng tự động---
+-------------<THAM KHẢO>--------------------------
+<Về chuông thông báo góc trên bên phải>
+Chỉ cần thiết khi hệ thống được mở rộng lên internet thông báo về lượt đăng bài, lượt thích, cmt,....
+HOẶC
+Dùng khi hệ thống có nhiều tài khoản thành viên (User, Manager account), thông báo Nhật khí vận hành, hoạt động của các tài khoản thành viên đó
+=> DÙNG KHAI THÁC KHI CÓ NHIỀU USER
+---
+4. Tasks: số lượng tasks đang triển khai.
+Admin tạo ra to do tasks để triển khai, bổ sung, cập nhật, thêm  tính năng cho các projects. <CỤ thể ở phần sau> KHối: total tasks, đang triển khai, chưa triển khai.
+
+-----------------<Recent Activities>----------------------------
+Các hoạt động gần đây của hệ thống quản lý và các project con..
+View all -- sẽ update sau--
+
+-----------------<Alert Overview>----------------------------
+Biểu đồ tròn: Tổng số thông báo/cảnh báo/thông tin(info) (100%)
+⦁	Cảnh báo: Cần xử lý ngay. VD: Hệ thống lỗi, project 1 bị lỗi, thiết bị đột nhiên mất tín hiệu...
+⦁	Thông báo: Cần xử lý. VD: sắp đến hạn bảo trì, cần kiểm tra, dữ liệu thu thập bất thường.
+⦁	Thông tin(Cần xác nhận): Một số thông báo hệ thống khác. VD: Cảm biến A ở project 1 đã được tắt, PLC của project 2 đã chuyển sang chế độ thao tác tay.
+(Nếu thông tin này chưa được admin xác thực tích xanh trong 1 khoảng thời gian nhất định và nó có ảnh hưởng đến một số yếu tố có liên quan, gây ảnh hưởng đến ao nuôi chẳng hạn thì sẽ chuyển thành thông báo cần xử lý hoặc hơn nữa là cảnh báo).
+Ví dụ: Ao tôm đang hoạt động,  PLC chạy quạt chuyển sang chế độ manual, và quạt không hoạt động trong 1 tiếng, dẫn đến Oxy hòa tan trong nước giảm, ==> Phát thông báo/cảnh báo theo mức độ nếu không có xác nhận của người quản lý.... (Ng quản lý ko có chủ ý chuyển sang Manual).
+-----------------<SYstem Overview>----------------------------
+Hiển thị như một TaskManager thu nhỏ (CPU,GPU ,RAM, DISK) mức sử dụng (%).
+NGhiên cứu truy xuất các giá trị này trên linux.
+ 
+-----------------<Bên dưới 4 khối giám sát>----------------------------
+⦁	Danh sách các project chính đang hoạt động(Không cần hiển thị dự án chưa triển khai thực tế), trong khối một số thông tin cần thiết như: Services/User/nút nhấn Info, Nút open project.
+⦁	Danh sách Tasks: công việc cải thiện, nâng cấp hệ thống chưa được triển khai.
+⦁	(Bổ sung sau): Thêm một tính năng như Notion, gg lịch để lên lịch công việc. (CÓ thể dùng chuông thông báo phía trên bên phải có việc này)
+=> Chuông thông báo phía trên bên phải  -> dùng cho thông báo liên quan đến cá nhân.
+
+
+
+<Điều chỉnh  trang "Projects">
+Trang này sẽ quản lý tất cả các dự án, bao gồm đang hoạt động, đang phát triển hoặc chỉ đang ở mức ý tưởng.
+Quản lý theo dang BẢNG như trang mẫu.
+⦁	Sẽ có 4 khối hiển thị : Tổng số projects, Đang hoạt động, đang phát triển, Progress trung bình(% task đã hoàn thành trên trổng số task được giao cho Project, Bên dưới hiển thị rõ số task hoàn thành và chưa hoàn thành).
+⦁	Bên dưới chia làm 3 bảng
+	+ Đang hoạt động: Đã triển khai thực tế. => "Đã triển khai" thì đúng hơn..
+	+ Đang phát triển: chưa triển khai thực tế
+	+ Ý tưởng: Chưa được triển khai, phát triển.
+	* Có các nút thêm Project, thêm ý tưởng cho cả 3 bảng...
+⦁	Ví dụ Bảng "Đã triển khai": Project (Tên), Tag(aqua, agri, smarthome,..), Status(Online, maintainence, warning, offline), Services (Số dịch vụ đang chạy), Last updated (Cập nhật lần cuối ngày mấy), System Usages(Nếu có thể), Actions(2 nút mở project và info xem thông tin về project)...
+⦁	Cân nhắc thêm "Prgress" vào bảng "Đã triển khai". Néu không có Task nào được giao cho project này thì Progress là 100%.
+	+ Nếu thêm 1 task thì % được tính dựa trên tổng số Task đã được giao cho dự án đó.
+	+ VD: Đã thực hiện 9 tasks --> 100%. Thêm 1 task -> Tổng 10 Task --> Progress 90% (Do 1 task mới được giao nhưng chưa thực hiện). Tiếp tục như vậy, thêm một task như thì 9/11 -> Progress =82%.
+-----------------<Một chút về Tasks>----------------------------
+Task là gì => Một ý tưởng mới được đưa ra, một commit, một tính năng mới cần được bổ sung cho project giao Task -> Hoàn thành -> Ấn tích xanh.
+** LƯU Ý**
+⦁	Task trên trang quản lý chỉ dùng giao việc chỉnh sửa nâng cấp project hoặc cho User cấp độ quản lý hệ thống chung.
+⦁	Các task như giao cho User 1 (người quản lý ao số 1 của project 1 đi bảo trì motor, dàn quạt) --> bảo trì xong , ấn tích xanh, viết lại báo cáo... Những TAsk này thuộc về project cá nhân nên sẽ cần được triển khai ở từng project cá nhân thay gì ở trang hệ thống.
+==> Xây dựng Task 1 cho hệ thống chung trước.
+
+
+
 
 
