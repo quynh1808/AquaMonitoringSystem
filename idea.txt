@@ -204,7 +204,7 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 	+ Online (Giống faceboook)
 
 
-
+*** 2026.09.11: Xây dựng biểu đồ flowchart để thể hiện sự kết nối giữa các service với server - một trang web giám sát***
 
 
 
