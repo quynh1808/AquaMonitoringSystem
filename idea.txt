@@ -14,8 +14,8 @@ Tương tự khi thao tác với các thiết bị ngoại vi khác, gửi lện
 => KHông để server điều khiển một cách trực tiếp
 26.08.20: (NGhiên cứu, đánh giá) Thay đổi CSDL từ MongdoDB sang PostgreSQL.
 26.08.20: LINK cài đặt MQTT Broker máy chủ trên ubuntu "https://viblo.asia/p/dua-may-chu-mosquitto-broker-tu-local-len-internet-part-3-WR5JR67pJGv"
-----------------------------
-2026.08.21: 
+---
+2026.08.21:
 + Mô phỏng FX5U - Kepware  - WSV
 + Nghiên cứu phát hiện động cơ có đang chạy hay không
 + Dùng cảm biến siêu âm hoặc cảm biến mức đo mức chất lỏng tròng bồn (đo độ sâu của ao)
@@ -26,7 +26,7 @@ Tương tự khi thao tác với các thiết bị ngoại vi khác, gửi lện
 + Về backup dữ liệu.
 + Về quản lý: Mỗi vụ mỗi đơn vị quản lý nên chỉ cần 1 file excel để quản lý (nghiên cứu về form mẫu excel)
 + Tạo thêm một trang "QUẢN LÝ DỮ LIỆU HỆ THỐNG" ở trang này admin có thể query(truy vấn) toàn bộ dữ liệu mà database đang có
-thêm phân quyền truy vấn theo từng cấp (admin được xem toàn bộ). 
+thêm phân quyền truy vấn theo từng cấp (admin được xem toàn bộ).
 CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 + Xây dựng lại phần [TRANG CHỦ]
 . Trang chủ không còn mô tả thông tin chi tiết về hệ thống giám sát nữa.
@@ -34,9 +34,9 @@ CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 . Tiếp theo là Tiêu đề  Trang chủ, giới thiệu, Dự án(Gồm các mục dự án như AMS,AWS, mỗi dự án 1 trang), Bài Viết(Gồm các mục như Về sách, về Công nghệ, về  kiến thức chuyên môn,..., mỗi phần 1 trang), Liên hệ.
 . Sau khi đăng nhập -> CHuyển đến trang Menu (Menu của ADMIN gồm các dự án như truy cập AMS, AMV, AMZ gì gì đó, quản lý tài khoản, Thiết lập chung,ĐĂng bài viết (chọn bài viết về sách hay công nghệ),,, ) => VÌ có thể có nhiều dự án về sau.....
 + Ở phần QL tài khoản có thể thêm mục "QUẢN LÝ QUYỀN TRUY CẬP" có thể chỉnh sửa quyền truy cập cho các member dành cho admin
-+ 
++
 => Sửa  lại để có thể thêm nhiều dự án khác nhau vào chứ không chỉ dừng lại ở 1 dự án AMS, làm sao để sau này thêm dự án vào sẽ trở ên dễ dàng hơn.....
-------------------------------------------------------------------------------------------------------------
+---
 2026.08.25
 ĐỔI TÊN MỤC "SYSTEMS" THÀNH "SERVICES" SẼ HỢP LÝ HƠN..
 1.	Phần nào chưa có dữ liệu chỉ cần hiển thị frontend, backend sẽ được cập nhật sau(Thêm dòng chữ "Đang phát triển...")
@@ -57,7 +57,7 @@ CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 1.1.1. Bài Viết:  "Chia làm 2 tính năng (Viết trực tiếp trên RichText của trang và Upload lên file .docx hoặc file .pdf).
 ⦁	Thêm một trang Dasboard quản lý bài viết bằng các khối hiển thị số lượng như Tổng số bài viết(đã thêm gần đây), Tổng số dự án(bài viết về dự án đã đăng)    -> Có thể tích hợp vào trang "quản lý bài viết" luôn thay vì tạo thêm một trang khác hoặc có thể tích hợp cả "Thêm bài viết vào" quản lý bài viết lun, khi nhấn thêm bài viết sẽ chuyển tới trang thêm bài viết, tức là không cần thêm mục lục "Thêm bài viết" chỉ cần 1 mục "QUản LÝ BÀI VIẾT" duy nhất.
 ---
-2.	
+2.
 -
 
 
@@ -73,56 +73,63 @@ CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 Có 4 khối giám sát:
 
 + Card 1.	Tổng số Projects:  hiện có (gồm đang hoạt động): Tổng 10 (chữ to), đang hoạt động 5 bên dưới
---------------------------
+---
 |Tổng số Projects	|
 |10	      |
 |  ⦁ 3   Đang hoạt động
--------------------------------
+---
 **Lưu ý: (⦁ 3: cả 2 là màu xanh lá, "Đang hoạt động" màu đen, chấm xanh nhấp nháy).
 
 + Card 2. Tổng Services: hiện có (gồm đang hoạt động): Tổng 20 (chữ to), đang hoạt động 15 bên dưới.
 
------------------------------
+---
 |Tổng số Services    	|
 |20	      |
 |  ⦁ 15   Đang hoạt động
--------------------------------
+---
 **Lưu ý: (⦁ 3: cả 2 là màu xanh lá, "Đang hoạt động" màu đen, chấm xanh nhấp nháy).
 
 + Card 3. Tổng số thông báo: tất cả thông báo chưa xem, chưa được xử lý(gồm cảnh báo cần xử lý khẩn cấp): Tổng 10 (chữ to), khẩn cấp(hoặc cần xử lý) 5 bên dưới.
 
-----------------------------
+---
 |Tổng số thông báo    |
 |10	      |
 |  ⦁ 5   Cần xử lý ngay|
-------------------------------
+---
 **Lưu ý: (⦁ 3: cả 2 là đỏ, "Cần xử lý ngay" màu đen, chấm đỏ nhấp nháy nếu số kế bên >0).
 
 + Card 4. Tổng số bài viết: hiện có (số bài viết tăng so với tháng trước): Tổng 20 (chữ to), 15 đã tăng so với tháng trước bên dưới.
 
------------------------------------
+---
 |Tổng số bài viết    		|
 |20	      	|
 |  ↑15   so với tháng trước |
-------------------------------------
+---
 **Lưu ý: (↑15: cả 2 là màu xanh lá, " so với tháng trước" màu đen, không cần nhấp nháy).
 
 *** TẠO CARD DẠNG LINK CÓ THỂ NHẤN VÀO ĐỂ TRUY CẬP NHANH ĐẾN CÁC TRANG***
 
 <<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
- Chỉ gồm các khối chứa nội dung về project và truy cập nhanh
-------------------------------------------------------------------------------------
-|[LoGo]                     	⋮     |	
-|		Tên dự án      	       	 			  |
-|  		Giải thích ngắn gọn 			    			       |
-| ⦁ Online										               |
-------------------------------------------------------------                            |
-| [icon services] 8 Services  | [icon people] 8 Users		       |
-|                                       			Open Project->	       |
-|-------------------------------------------------------------------------------- |
+ Chỉ gồm các khối chứa nội dung về project và truy cập nhanh
+----------------------------------------------------------------------
+|[LoGo]                     	    
+|		Tên dự án      	       	 			  
+|  		Giải thích ngắn gọn 			    			 
+| ⦁ Online										 
+-------------------------------------------------------------------                      
+| [icon services] 8 Services 	status:⦁ 8 Online					
+| [icon objects]	 8 Ponds		status: ⦁7 Online										
+| [icon sensors]	10 Sensors	status:⦁ 10 Online										
+| [icon people] 8 Users		status:⦁ 5 Online    
+| [icon alerts] 8 				warning: 0
+| [icon Tasks] 8 				Pending: 3
+----------------------------------------------------------------------   
+|                                       			Open Project->	       
+|---------------------------------------------------------------------
 **Lưu ý:
-	+ (⦁ Online: cả 2 là màu xanh lá, chấm xanh nhấp nháy). Icon có màu cho đẹp.
-	+ Chức năng 3 chấm bao gồm: 
+ 	+ (⦁ Online: cả 2 là màu xanh lá, chấm xanh nhấp nháy). Icon có màu cho đẹp.
+ 	+ Không cần 3 chấm cho ô giám sát này
+ 	+ Có thể sửa lại CARD Project thêm nhiều thông tin về project hơn (số ao hoạt động, v.v dashboard chung thu nhỏ của web giám sát aqua)
 
 
 
@@ -154,8 +161,8 @@ Có 4 khối giám sát:
 
 
 2.	Tổng Services: Hiển thị tổng số services, network và connection của tất cả dự án. Ở trng Services(Systems cũ thiết kế như sau:)Bảng gồm các mục như sau: Services/Projects/Type/Environment/Status/CPU,RAM usage(nếu có, không thì "-")/ Uptime(Tgian hoạt động)/ResponeTIme(ms).
-     VD: aqua_ops(port 8080)/AquaMonitoringSystem/WebServer/Product/ Online/ 40%/20%/ 39d22h/15ms.
-	DỊch vụ hiện tại: API, PostgreSQL port, mqtt broker port, PLC Brigde port, Backup Server,.....
+     VD: aqua_ops(port 8080)/AquaMonitoringSystem/WebServer/Product/ Online/ 40%/20%/ 39d22h/15ms.
+ 	DỊch vụ hiện tại: API, PostgreSQL port, mqtt broker port, PLC Brigde port, Backup Server,.....
 *** Cần cân nhắn là "THÊM Service" ở trang quản lý này hay thêm ở từng trang cho từng project riêng biệt, trang này chỉ có chức năng quản lý, hiển thị trạng thái của các Services đó.
 3. Alert (Khối thông báo- Thông báo chung cho toàn hệ thống, nhưng được quản lý riêng biệt).
 
@@ -204,14 +211,14 @@ Trang này sẽ quản lý tất cả các dự án, bao gồm đang hoạt đ�
 Quản lý theo dang BẢNG như trang mẫu.
 ⦁	Sẽ có 4 khối hiển thị : Tổng số projects, Đang hoạt động, đang phát triển, Progress trung bình(% task đã hoàn thành trên trổng số task được giao cho Project, Bên dưới hiển thị rõ số task hoàn thành và chưa hoàn thành).
 ⦁	Bên dưới chia làm 3 bảng
-	+ Đang hoạt động: Đã triển khai thực tế. => "Đã triển khai" thì đúng hơn..
-	+ Đang phát triển: chưa triển khai thực tế
-	+ Ý tưởng: Chưa được triển khai, phát triển.
-	* Có các nút thêm Project, thêm ý tưởng cho cả 3 bảng...
+ 	+ Đang hoạt động: Đã triển khai thực tế. => "Đã triển khai" thì đúng hơn..
+ 	+ Đang phát triển: chưa triển khai thực tế
+ 	+ Ý tưởng: Chưa được triển khai, phát triển.
+ 	* Có các nút thêm Project, thêm ý tưởng cho cả 3 bảng...
 ⦁	Ví dụ Bảng "Đã triển khai": Project (Tên), Tag(aqua, agri, smarthome,..), Status(Online, maintainence, warning, offline), Services (Số dịch vụ đang chạy), Last updated (Cập nhật lần cuối ngày mấy, Dùng khi có sự chỉnh sửa code), System Usages(Nếu có thể), Actions(2 nút mở project và info xem thông tin về project)...
 ⦁	Cân nhắc thêm "Prgress" vào bảng "Đã triển khai". Néu không có Task nào được giao cho project này thì Progress là 100%.
-	+ Nếu thêm 1 task thì % được tính dựa trên tổng số Task đã được giao cho dự án đó.
-	+ VD: Đã thực hiện 9 tasks --> 100%. Thêm 1 task -> Tổng 10 Task --> Progress 90% (Do 1 task mới được giao nhưng chưa thực hiện). Tiếp tục như vậy, thêm một task như thì 9/11 -> Progress =82%.
+ 	+ Nếu thêm 1 task thì % được tính dựa trên tổng số Task đã được giao cho dự án đó.
+ 	+ VD: Đã thực hiện 9 tasks --> 100%. Thêm 1 task -> Tổng 10 Task --> Progress 90% (Do 1 task mới được giao nhưng chưa thực hiện). Tiếp tục như vậy, thêm một task như thì 9/11 -> Progress =82%.
 -----------------<Một chút về Tasks>----------------------------
 Task là gì => Một ý tưởng mới được đưa ra, một commit, một tính năng mới cần được bổ sung cho project giao Task -> Hoàn thành -> Ấn tích xanh.
 ** LƯU Ý**
@@ -226,13 +233,13 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 
 ⦁	Có 4 khối: Tổng Services, Online(% so với tổng), Maintainence(%), Offline(%).
 ⦁	Danh sách dạng bảng
-	1. Services: Tên + mô tả ngắn gọn
-	2. Project: Thuộc dự án nào
-	3. Environment: Product, Staging, Simulation, Testing, Development...
-	4. Status: Online, Maintainence, Ofline, (Warning),...
-	5. CPU, Memory Usage
-	6. Uptime: THời gian hoạt động(được bao nhiêu ngày)
-	7. ResponseTime: Thời gian phản hồi (Ping ms)
+ 	1. Services: Tên + mô tả ngắn gọn
+ 	2. Project: Thuộc dự án nào
+ 	3. Environment: Product, Staging, Simulation, Testing, Development...
+ 	4. Status: Online, Maintainence, Ofline, (Warning),...
+ 	5. CPU, Memory Usage
+ 	6. Uptime: THời gian hoạt động(được bao nhiêu ngày)
+ 	7. ResponseTime: Thời gian phản hồi (Ping ms)
 ⦁	Phần bên phải: Uptime trend, Environment Distribution, System requiring Attention (xem trang tham khảo)
 
 
@@ -240,14 +247,14 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 ⦁	Gồm 4 khối: Tổng số task, Đang tiến hành, chưa thực hiện(CHưa bắt đầu), quá hạn deadline.
 ⦁	Sau khi nhấn xác nhận thì task mới chuyển sang đang tiến hành
 ⦁	Danh sách dạng bảng:
-	+ Task: Tên task + mô tả ngắn gọn
-	+ Project (Được giao ở project nào)
-	+ Ngày tạo task
-	+ Deadline
-	+ Ngày xác nhận
-	+ Ngày hoàn thành
-	+ Status: Completed, in progress, chưa nhận, quá hạn deadline
-	+ Actions: Xem chi tiết task, xem tiến độ hoàn thành, (tham khảo: bấm để xác nhận bắt đầu thực hiện, bấm xác nhận đã hoàn thành)
+ 	+ Task: Tên task + mô tả ngắn gọn
+ 	+ Project (Được giao ở project nào)
+ 	+ Ngày tạo task
+ 	+ Deadline
+ 	+ Ngày xác nhận
+ 	+ Ngày hoàn thành
+ 	+ Status: Completed, in progress, chưa nhận, quá hạn deadline
+ 	+ Actions: Xem chi tiết task, xem tiến độ hoàn thành, (tham khảo: bấm để xác nhận bắt đầu thực hiện, bấm xác nhận đã hoàn thành)
 ⦁	Bên phải: Biểu đồ % (Completed, đang tiến hành, chưa thực hiện, quá hạn deadline), TASK ACTIVITY, ...
 **Ý TƯỞNG**: Thêm 1 trang báo cáo thực hiện task đó như thế nào, tiến độ, hoàn thành được gì, ngày nào.
 
@@ -256,35 +263,34 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 <Điều chỉnh  trang "Alerts">
 ⦁	Gồm 4 khối: Cảnh báo(Critical),Thông báo(warning), đã giải quyết, thời gian phản hồi trung bình(Khi có cảnh báo, bao lâu sau thì mới có ng ấn xác nhận bắt đầu xử lý)
 ⦁	Bên dưới: Danh sách dạng Bảng:
-	+ Alert: tên thông báo, cảnh báo + mô tả ngắn gọn
-	+ Mức độ: Critical, warning, info
-	+ Source Systems: Vị trí bị lỗi
-	+ Project: Thuộc project nào
-	+ Thời điểm phát hiện
-	+ Status: Neww(mới, chưa xác nhận), Acknowledge(Đã xác nhận), Resolved(Đã giải quyết), Escalate(Leo thang, đã 1 tgian dài nhưng chưa được giải quyết)
-	+ Người đảm nhận(Nếu có)
-	+ Actions: (Nghiên cứu thêm)
+ 	+ Alert: tên thông báo, cảnh báo + mô tả ngắn gọn
+ 	+ Mức độ: Critical, warning, info
+ 	+ Source Systems: Vị trí bị lỗi
+ 	+ Project: Thuộc project nào
+ 	+ Thời điểm phát hiện
+ 	+ Status: Neww(mới, chưa xác nhận), Acknowledge(Đã xác nhận), Resolved(Đã giải quyết), Escalate(Leo thang, đã 1 tgian dài nhưng chưa được giải quyết)
+ 	+ Người đảm nhận(Nếu có)
+ 	+ Actions: (Nghiên cứu thêm)
 ⦁	Phân bên phải: Alertrend, serverity Distribution, (Cần nghiên cứu thêm...)
 
 <Điều chỉnh  trang "Users">
 
 ⦁	Gồm 4 khối: Total User, Ative User,, (CÒn 2 nghiên cứu thêm)
 ⦁	Dưới: Danh sách bảng:
-	+ User: Tên + ảnh + mô tả ngắn gọn
-	+ Role: admin, manager, User
-	+ Department(nếu có)
-	+ Last active: 3 minutes ago
-	+ Status: Active, Unactive, away,...
-	+ Access Level: Full Access, standand access, Readonly, Tùy chỉnh access(cho phép truy cập project nào, có được truy cập vào hệ thống quản lý hay không).
-	+ Actions: Edit,.....
+ 	+ User: Tên + ảnh + mô tả ngắn gọn
+ 	+ Role: admin, manager, User
+ 	+ Department(nếu có)
+ 	+ Last active: 3 minutes ago
+ 	+ Status: Active, Unactive, away,...
+ 	+ Access Level: Full Access, standand access, Readonly, Tùy chỉnh access(cho phép truy cập project nào, có được truy cập vào hệ thống quản lý hay không).
+ 	+ Actions: Edit,.....
 ⦁	Phần bên phải:
-	+ Role and Permissions
-	+ Recent Login activity
-	+ Online (Giống faceboook)
+ 	+ Role and Permissions
+ 	+ Recent Login activity
+ 	+ Online (Giống faceboook)
 
 
 *** 2026.09.11: Xây dựng biểu đồ flowchart để thể hiện sự kết nối giữa các service với server - một trang web giám sát***
 
 
-
-
+⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮ ⋮
