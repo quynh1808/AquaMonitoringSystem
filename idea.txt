@@ -112,10 +112,9 @@ Có 4 khối giám sát:
 <<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
  Chỉ gồm các khối chứa nội dung về project và truy cập nhanh
 ----------------------------------------------------------------------
-|[LoGo]                     	    
-|		Tên dự án      	       	 			  
-|  		Giải thích ngắn gọn 			    			 
-| ⦁ Online										 
+|[LoGo]               	      	    
+|		Tên dự án      	       	 	⦁ Online	  
+|  		Giải thích ngắn gọn 			    			 									 
 -------------------------------------------------------------------                      
 | [icon services] 8 Services 	status:⦁ 8 Online					
 | [icon objects]	 8 Ponds		status: ⦁7 Online										
