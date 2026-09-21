@@ -111,24 +111,25 @@ Có 4 khối giám sát:
 
 <<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
  Chỉ gồm các khối chứa nội dung về project và truy cập nhanh
-----------------------------------------------------------------------
-|[LoGo]               	      	    
-|		Tên dự án      	       	 	⦁ Online	  
-|  		Giải thích ngắn gọn 			    			 									 
--------------------------------------------------------------------                      
-| [icon services] 8 Services 	status:⦁ 8 Online					
-| [icon objects]	 8 Ponds		status: ⦁7 Online										
-| [icon sensors]	10 Sensors	status:⦁ 10 Online										
-| [icon people] 8 Users		status:⦁ 5 Online    
-| [icon alerts] 8 				warning: 0
-| [icon Tasks] 8 				Pending: 3
-----------------------------------------------------------------------   
-|                                       			Open Project->	       
-|---------------------------------------------------------------------
+|------------------------------------------------------------------------------
+|[LoGo]
+|		Tên dự án      	       	 	⦁ Online
+|  		Giải thích ngắn gọn 
+|---------------------------------------------------------------------------------------------------
+| [icon services] 8 Services 	[icon objects] 8 Ponds 	[icon Sensors] 10 Sensors
+| status: ⦁7 Online			status:⦁ 10 Online		status:⦁ 10 Online
+|---------------------------------------------------------------------------------------------------
+| [icon alerts] 8		 		[icon Tasks] 8			[icon people] 8 Users
+| [icon warning] 5 Warning    	[icon pending] 5 pending	status:⦁ 2 Online	
+|---------------------------------------------------------------------------------------------------
+|                                       								Open Project->
+|----------------------------------------------------------------------------------------------------
 **Lưu ý:
- 	+ (⦁ Online: cả 2 là màu xanh lá, chấm xanh nhấp nháy). Icon có màu cho đẹp.
+ 	+ (⦁ 2: cả 2 là màu xanh lá, Online màu đen chấm xanh nhấp nháy). Icon có màu cho đẹp.
  	+ Không cần 3 chấm cho ô giám sát này
- 	+ Có thể sửa lại CARD Project thêm nhiều thông tin về project hơn (số ao hoạt động, v.v dashboard chung thu nhỏ của web giám sát aqua)
+ 	+ ...
+
+
 
 
 
