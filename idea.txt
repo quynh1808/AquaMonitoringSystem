@@ -127,7 +127,8 @@ Có 4 khối giám sát:
 **Lưu ý:
  	+ (⦁ 2: cả 2 là màu xanh lá, Online màu đen chấm xanh nhấp nháy). Icon có màu cho đẹp.
  	+ Không cần 3 chấm cho ô giám sát này
- 	+ ...
+ 	+ ...objects// Ponds cho phép nhập (đơn vị đối tượng) khi create Project mới.
+
 
 
 
