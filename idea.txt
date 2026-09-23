@@ -223,9 +223,17 @@ Có 4 khối giám sát:
 |
 
 <<<<<PHẦN BẢNG BÊN PHẢI>>>>>>>>>
-+ UpTime Train 
-+ Environmetn Distributions
++ UpTime Trend
++ Environment Distributions
 + Services requiring Attentions
+
+
+<<<<<BỎ QUA PHẦN TASKS ---- XÂY DỰNG SAU --->>>>>>>>>
+
+
+
+
+
 
 
 
