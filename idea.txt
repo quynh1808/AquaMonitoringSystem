@@ -69,7 +69,7 @@ CÓ một vài tính năng như lọc data, xuất excel,pdf, tạo biểu đồ
 
 
 -------------------------------- VỀ TRANG QUẢN LÝ------- <Bổ sung>   <TRIỂN KHAI TRƯỚC> ----------------------------- Chỉnh sửa 2026.09.21
-<Điều chỉnh giao diện trang "TỔNG QUAN">
+<<<<<<<<<<<<<<<<Điều chỉnh giao diện trang "TỔNG QUAN">>>>>>>>>>>>>>>>>>>>>>>>>
 Có 4 khối giám sát:
 
 + Card 1.	Tổng số Projects:  hiện có (gồm đang hoạt động): Tổng 10 (chữ to), đang hoạt động 5 bên dưới
@@ -93,7 +93,7 @@ Có 4 khối giám sát:
 
 ---
 |Tổng số thông báo      |
-|10	                    |
+|10	                   	     |
 |  ⦁ 5   Cần xử lý ngay  |
 ---
 **Lưu ý: (⦁ 3: cả 2 là đỏ, "Cần xử lý ngay" màu đen, chấm đỏ nhấp nháy nếu số kế bên >0).
@@ -102,8 +102,8 @@ Có 4 khối giám sát:
 
 ---
 |Tổng số bài viết    		    |
-|20	      	                |
-|  ↑15   so với tháng trước |
+|20	      	              		    |
+|  ↑15   so với tháng trước   |
 ---
 **Lưu ý: (↑15: cả 2 là màu xanh lá, " so với tháng trước" màu đen, không cần nhấp nháy).
 
@@ -117,31 +117,37 @@ Có 4 khối giám sát:
 |  		Giải thích ngắn gọn 
 |---------------------------------------------------------------------------------------------------
 | [icon services] 8 Services  	| [icon objects] 8 Ponds 		| [icon Sensors] 10 Sensors
-| status: ⦁7 Online			        | status:⦁ 10 Online			  | status:⦁ 10 Online
+| status: ⦁7 Online		| status:⦁ 10 Online			  | status:⦁ 10 Online
 |---------------------------------------------------------------------------------------------------
 | [icon alerts] 8		 	        |	[icon Tasks] 8			        | [icon people] 8 Users
-| [icon warning] 5 Warning  	| 	[icon pending] 5 pending	| status:⦁ 2 Online
+| [icon warning] 5 Warning  		| [icon pending] 5 pending			| status:⦁ 2 Online
 |---------------------------------------------------------------------------------------------------
 |                                       								Open Project->
 |----------------------------------------------------------------------------------------------------
 **Lưu ý:
- 	+ (⦁ 2: cả 2 là màu xanh lá, Online màu đen chấm xanh nhấp nháy). Icon có màu cho đẹp.
+ 	+ (⦁ 2: cả 2 là màu xanh lá, Online màu xanh chấm xanh nhấp nháy). Icon có màu cho đẹp.
  	+ Không cần 3 chấm cho ô giám sát này
- 	+ ...objects// Ponds cho phép nhập (đơn vị đối tượng) khi create Project mới.
+ 	+ ...objects /Ponds cho phép nhập (đơn vị đối tượng) khi create Project mới.
+	+ Tạo thêm nút "VIEW ALL" cho phép mở rộng toàn màn hình để giám sát các khối
+
+<<<<<PHẦN BẢNG BÊN PHẢI>>>>>>>>>
++ Các Hoạt động gần đây
++ Tổng quan thông báo
++ Tổng quan mức sử dụng hệ thống
++ All System Operational
+
 
 --------------------------------------------------------------------------------------------------------------------------------
 
 <<<<<<<<<<<<<<<<Điều chỉnh giao diện trang "DỰ ÁN">>>>>>>>>>>>>>>>>>>>>>>>>
 Có 4 khối giám sát:
 
-+ Card 1.	Tổng số Projects:  hiện có (gồm đang hoạt động): Tổng 10 (chữ to), đang hoạt động 5 bên dưới
++ Card 1.	Tổng số Projects:  hiện có: Tổng 10 (chữ to), đang hoạt động 5 bên dưới
 ---
 |Tổng số Projects	       |
 |10	                    		|
 |  ↑15   so với tháng trước       |
 ---
-**Lưu ý: (⦁ 3: cả 2 là màu xanh lá, "Đang hoạt động" màu đen, chấm xanh nhấp nháy).
-
 + Card 2. Tổng Project đang hoạt động
 
 ---
@@ -149,9 +155,9 @@ Có 4 khối giám sát:
 |20	                     |
 ---
 
-+ Card 3. Tổng số Project đang phát triển
++ Card 3. Tổng số Project đang bảo trì
 ---
-|Đang phát triển      |
+|Đang bảo trì      |
 |10	                   	     |
 
 + Card 4. Cảnh báo project có vấn đề
@@ -159,7 +165,7 @@ Có 4 khối giám sát:
 |20	      	              		    |
 -------------------------------------------
 **Lưu ý: (↑15: cả 2 là màu xanh lá, " so với tháng trước" màu đen, không cần nhấp nháy).
-* Phần status có 4 loại: Online/Ofline/Developing/Maintenance/ Warning/Critical.
+* Phần status có 6 loại: Online/Ofline/Developing/Maintenance/ Warning/Critical.
 
 
 <<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
@@ -173,27 +179,53 @@ Có 4 khối giám sát:
 <<<<<PHẦN BẢNG BÊN PHẢI>>>>>>>>>
 + Project Health Overview
 + Tổng quan thông báo dự án
++ Uptime trend (biểu đồ gì đó cần thiết)
 
 
 
+--------------------------------------------------------------------------------------------------------------------------------
 
+<<<<<<<<<<<<<<<<Điều chỉnh giao diện trang "DỊCH VỤ">>>>>>>>>>>>>>>>>>>>>>>>>
 
+Có 4 khối giám sát:
 
++ Card 1.	Tổng số Services:  hiện có (gồm đang hoạt động): Tổng 10 (chữ to), đang hoạt động 5 bên dưới
+---
+|Tổng số Services	       |
+|10	                    		|
+|  ↑15   so với tháng trước       |
+---
 
++ Card 2. Tổng Services Đang hoạt động
 
+---
+|Đang hoạt động    	   |
+|20	                     |
+---
 
++ Card 3. Tổng số Project đang offline
+---
+|Đang offline      |
+|10	                   	     |
 
++ Card 4. Cảnh báo Services có vấn đề
+|Tổng số projects		    |
+|20	      	              		    |
+-------------------------------------------
+**Lưu ý: (↑15: cả 2 là màu xanh lá, " so với tháng trước" màu đen, không cần nhấp nháy).
+* Phần status có 4 loại: Online/Ofline/Maintenance/ Warning/
 
+<<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
+|--------------------------------------------------------------------------------------------------
+|Tên service 	  | Trạng thái  | Projects |Loại	 | Môi trường |CPU | Memory       |  Thời gian hoạt động         | Thời gian phản hồi  | Cập nhật gần nhất 		| Thao tác
+|Project Name 	  | Status        | Projetcs |Type 	| Invironment | CPU | Memory       | Uptime			         | Response Time      | Last Updated                 	| Actions
+|Aqua…. (ams)	  | *Online      |AMS     | Database | Production | 15% | 50%  		 |    3d20p	         		 | 100ms		       | 2 min ago (Cập nhật code)
+|
 
-
-
-
-
-
-
-
-
-
+<<<<<PHẦN BẢNG BÊN PHẢI>>>>>>>>>
++ UpTime Train 
++ Environmetn Distributions
++ Services requiring Attentions
 
 
 
@@ -322,7 +354,7 @@ Task là gì => Một ý tưởng mới được đưa ra, một commit, một t
 
 <Điều chỉnh  trang "Users">
 
-⦁	Gồm 4 khối: Total User, Ative User,, (CÒn 2 nghiên cứu thêm)
+⦁	Gồm 4 khối: Total User, Ative User,, (Còn 2 nghiên cứu thêm)
 ⦁	Dưới: Danh sách bảng:
  	+ User: Tên + ảnh + mô tả ngắn gọn
  	+ Role: admin, manager, User
