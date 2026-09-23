@@ -129,6 +129,52 @@ Có 4 khối giám sát:
  	+ Không cần 3 chấm cho ô giám sát này
  	+ ...objects// Ponds cho phép nhập (đơn vị đối tượng) khi create Project mới.
 
+--------------------------------------------------------------------------------------------------------------------------------
+
+<<<<<<<<<<<<<<<<Điều chỉnh giao diện trang "DỰ ÁN">>>>>>>>>>>>>>>>>>>>>>>>>
+Có 4 khối giám sát:
+
++ Card 1.	Tổng số Projects:  hiện có (gồm đang hoạt động): Tổng 10 (chữ to), đang hoạt động 5 bên dưới
+---
+|Tổng số Projects	       |
+|10	                    		|
+|  ↑15   so với tháng trước       |
+---
+**Lưu ý: (⦁ 3: cả 2 là màu xanh lá, "Đang hoạt động" màu đen, chấm xanh nhấp nháy).
+
++ Card 2. Tổng Project đang hoạt động
+
+---
+|Đang hoạt động    	   |
+|20	                     |
+---
+
++ Card 3. Tổng số Project đang phát triển
+---
+|Đang phát triển      |
+|10	                   	     |
+
++ Card 4. Cảnh báo project có vấn đề
+|Tổng số projects		    |
+|20	      	              		    |
+-------------------------------------------
+**Lưu ý: (↑15: cả 2 là màu xanh lá, " so với tháng trước" màu đen, không cần nhấp nháy).
+* Phần status có 4 loại: Online/Ofline/Developing/Maintenance/ Warning/Critical.
+
+
+<<<<<PHẦN BẢNG BÊN DƯỚI>>>>>>>>>
+
+|--------------------------------------------------------------------------------------------------
+|Tên dự án 	  | Trạng thái | Nhãn | Dịch vụ | Thời gian hoạt động       | Thời gian phản hồi  | Cập nhật gần nhất | Thao tác
+|Project Name | Status        | Label | Servies  | Uptime			     | Response Time      | Last Updated         | Actions
+|Aqua…. 		  | *Online      |Agri     | [icon] 8 | 30d20p			     | 100ms		     | 2 min ago (Cập nhật code)
+|(ams)
+
+<<<<<PHẦN BẢNG BÊN PHẢI>>>>>>>>>
++ Project Health Overview
++ Tổng quan thông báo dự án
+
+
 
 
 
