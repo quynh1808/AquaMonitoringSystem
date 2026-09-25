@@ -21,7 +21,7 @@ jobs:
           cache: true
           cache-dependency-path: "**/packages.lock.json"
       - name: Restore locked dependencies
-        run: dotnet restore AquacultureMonitoring.sln --locked-mode
+        run: dotnet restore AquacultureMonitoring.sln --force-evaluate
       - name: Build release
         # Build the web and test projects sequentially. Parallel solution builds can
         # contend for the Blazor static-web-assets output tree on Windows runners.
