@@ -1,3 +1,9 @@
+2026.09.25: 
++ Cách backup cơ sở dữ liệu tự động và thao tác tay.
++ PgAdmin4 quản lý database cho PostgreSQL.
++ Thêm một mục Navigation mô tả dự án -> vẽ sơ đồ khối kế nối các thiết bị. Tương tự AutoCAD Electronic.
++ Tải AutoCAD Electronic.
+
 26.08.07: (Hỏi chatGPT)LÀM thế nào để phát hiện động cơ có đang chạy hay không ki tiến hành điều khiển bằng PLC để đưa tín hiệu này lên Webserver
 26.08.17: (Hỏi chatGPT)Trong xây dựng ứng dụng web, nếu muốn phát triển và update source trên window và deploy lên Server ubuntu thì sẽ cần thông qua trung gian là github,..., Nếu không muốn có bước trung gian này nhằm đảm bảo vấn đề bảo mật thì cần làm như thế nào, có thể dùng github nhưng để respos ở chế độ private thay vì publish không
 26.08.17: [DONE](Hỏi chatGPT)TRong các file .md mô tả nội dụng source code hãy thêm vào mục đích, lý do, vai trò của file được mô tả đó đối với toàn hệ thống và mô tả chi tiết các từ ngữ chuyên môn được dùng trong file.
