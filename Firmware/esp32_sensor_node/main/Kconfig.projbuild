@@ -1,8 +1,0 @@
-menu "AquaOps sensor node"
-    config AQUA_FLASH_BUFFER_CAPACITY
-        int "Durable offline record capacity"
-        range 32 512
-        default 128
-        help
-            Telemetry records retained in NVS until AquaOps returns an application-level ACK.
-endmenu
