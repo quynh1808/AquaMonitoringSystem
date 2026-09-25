@@ -1,7 +1,7 @@
 2026.09.25: 
 + Cách backup cơ sở dữ liệu tự động và thao tác tay.
 + PgAdmin4 quản lý database cho PostgreSQL.
-+ Thêm một mục Navigation mô tả dự án -> vẽ sơ đồ khối kế nối các thiết bị. Tương tự AutoCAD Electronic.
++ Thêm một mục Navigation mô tả dự án -> vẽ sơ đồ khối kế nối các thiết bị. Tương tự AutoCAD Electronic. Hoặc nghiên cứu vẽ bằng file SVG 
 + Tải AutoCAD Electronic.
 
 26.08.07: (Hỏi chatGPT)LÀM thế nào để phát hiện động cơ có đang chạy hay không ki tiến hành điều khiển bằng PLC để đưa tín hiệu này lên Webserver
